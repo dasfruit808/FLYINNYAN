@@ -1395,7 +1395,13 @@
                     acceleration: 2100,
                     drag: 5.2,
                     maxSpeed: 480,
-                    verticalBleed: 0.069
+                    verticalBleed: 0.069,
+                    dash: {
+                        boostSpeed: 960,
+                        duration: 220,
+                        doubleTapWindow: 260,
+                        dragMultiplier: 0.35
+                    }
                 },
                 obstacle: {
                     minSize: 42,
@@ -1526,12 +1532,20 @@
                 lastVillainKey: null,
                 recentVillains: [],
                 meteorShowerTimer: 0,
-                nextMeteorShower: 0
+                nextMeteorShower: 0,
+                dashTimer: 0
             };
 
             updateTimerDisplay();
 
             const keys = new Set();
+            const dashTapTracker = new Map();
+            const dashDirections = {
+                ArrowUp: { x: 0, y: -1 },
+                ArrowDown: { x: 0, y: 1 },
+                ArrowLeft: { x: -1, y: 0 },
+                ArrowRight: { x: 1, y: 0 }
+            };
             const virtualInput = {
                 moveX: 0,
                 moveY: 0,
@@ -1721,6 +1735,7 @@
                 state.powerBombPulseTimer = 0;
                 state.lastVillainKey = null;
                 state.recentVillains.length = 0;
+                state.dashTimer = 0;
                 player.x = canvas.width * 0.18;
                 player.y = canvas.height * 0.5;
                 player.vx = 0;
@@ -2433,6 +2448,17 @@
                 if (event.code === 'Space') {
                     event.preventDefault();
                 }
+                const dashDirection = dashDirections[event.code];
+                if (dashDirection) {
+                    const now = performance.now();
+                    const lastTap = dashTapTracker.get(event.code);
+                    if (lastTap && now - lastTap <= config.player.dash.doubleTapWindow) {
+                        dashTapTracker.delete(event.code);
+                        triggerDash(dashDirection);
+                    } else {
+                        dashTapTracker.set(event.code, now);
+                    }
+                }
                 if (event.code === 'Enter' && state.gameState === 'gameover') {
                     startGame();
                 }
@@ -2440,12 +2466,27 @@
 
             window.addEventListener('keyup', (event) => {
                 keys.delete(event.code);
+                if (dashDirections[event.code]) {
+                    dashTapTracker.delete(event.code);
+                }
             });
 
             window.addEventListener('blur', () => {
                 keys.clear();
+                dashTapTracker.clear();
                 resetVirtualControls();
             });
+
+            function triggerDash(direction) {
+                const dashConfig = config.player.dash;
+                state.dashTimer = dashConfig.duration;
+                if (direction.x !== 0) {
+                    player.vx = direction.x * dashConfig.boostSpeed;
+                }
+                if (direction.y !== 0) {
+                    player.vy = direction.y * dashConfig.boostSpeed;
+                }
+            }
 
             function isPowerUpActive(type) {
                 return state.powerUpTimers[type] > 0;
@@ -2522,16 +2563,23 @@
 
                 const accel = config.player.acceleration;
                 const drag = config.player.drag;
-                const maxSpeed = config.player.maxSpeed;
+                const dashConfig = config.player.dash;
+                const isDashing = state.dashTimer > 0;
+                const effectiveDrag = isDashing ? drag * dashConfig.dragMultiplier : drag;
+                const maxSpeed = isDashing ? dashConfig.boostSpeed : config.player.maxSpeed;
 
-                player.vx += (inputX * accel - player.vx * drag) * deltaSeconds;
-                player.vy += (inputY * accel - player.vy * drag) * deltaSeconds;
+                player.vx += (inputX * accel - player.vx * effectiveDrag) * deltaSeconds;
+                player.vy += (inputY * accel - player.vy * effectiveDrag) * deltaSeconds;
 
                 player.vx = clamp(player.vx, -maxSpeed, maxSpeed);
                 player.vy = clamp(player.vy, -maxSpeed, maxSpeed);
 
                 player.x += player.vx * deltaSeconds;
                 player.y += player.vy * deltaSeconds;
+
+                if (state.dashTimer > 0) {
+                    state.dashTimer = Math.max(0, state.dashTimer - delta);
+                }
 
                 player.x = clamp(player.x, 0, canvas.width - player.width);
                 const verticalBleed = canvas.height * config.player.verticalBleed;
