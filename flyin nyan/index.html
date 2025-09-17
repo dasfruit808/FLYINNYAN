@@ -150,12 +150,13 @@
         Space: Launch cosmic arrows<br>
         Grab boost cores for temporary upgrades.<br>
         Collect NYAN, dodge asteroids,<br>
+        unleash Nova Pulses to clear threats,<br>
         and snipe debris to grow your tail!<br>
         Keep the combo alive for massive gains.
     </div>
     <div id="overlay">
         <h1>NYAN ESCAPE</h1>
-        <p id="overlayMessage">Thread the cosmic needle, gather NYAN, and keep that rainbow tail alive. Ready to glide?</p>
+        <p id="overlayMessage">Thread the cosmic needle, gather NYAN, and charge Nova Pulses to vaporize space junk. Ready to glide?</p>
         <button id="overlayButton">Start Flight</button>
     </div>
 
@@ -181,7 +182,7 @@
             playerImage.src = 'assets/player.png';
 
             const powerUpImageSources = {
-                superSpeed: 'assets/powerbomb.png',
+                powerBomb: 'assets/powerbomb.png',
                 bulletSpread: 'assets/powerburger.png',
                 missiles: 'assets/powerpizza.png'
             };
@@ -237,13 +238,13 @@
                     maxSpeed: 30
                 },
                 powerUp: {
-                    size: 170,
+                    size: 85,
                     minSpeed: -20,
                     maxSpeed: 20,
                     wobbleAmplitude: 28,
                     wobbleSpeed: 3.4,
                     duration: {
-                        superSpeed: 5200,
+                        powerBomb: 5200,
                         bulletSpread: 6200,
                         missiles: 5600
                     }
@@ -273,10 +274,11 @@
                 gameState: 'ready',
                 elapsedTime: 0,
                 powerUpTimers: {
-                    superSpeed: 0,
+                    powerBomb: 0,
                     bulletSpread: 0,
                     missiles: 0
-                }
+                },
+                powerBombPulseTimer: 0
             };
 
             const keys = new Set();
@@ -287,20 +289,21 @@
             const stars = [];
             const particles = [];
             const trail = [];
+            const areaBursts = [];
             const spawnTimers = {
                 obstacle: 0,
                 collectible: 0,
                 powerUp: 0
             };
 
-            const powerUpTypes = ['superSpeed', 'bulletSpread', 'missiles'];
+            const powerUpTypes = ['powerBomb', 'bulletSpread', 'missiles'];
             const powerUpLabels = {
-                superSpeed: 'Super Speed',
+                powerBomb: 'Nova Pulse',
                 bulletSpread: 'Starlight Spread',
                 missiles: 'Comet Missiles'
             };
             const powerUpColors = {
-                superSpeed: { r: 64, g: 196, b: 255 },
+                powerBomb: { r: 255, g: 168, b: 112 },
                 bulletSpread: { r: 255, g: 128, b: 255 },
                 missiles: { r: 255, g: 182, b: 92 }
             };
@@ -325,9 +328,10 @@
                 state.gameSpeed = config.baseGameSpeed;
                 state.timeSinceLastShot = 0;
                 state.elapsedTime = 0;
-                state.powerUpTimers.superSpeed = 0;
+                state.powerUpTimers.powerBomb = 0;
                 state.powerUpTimers.bulletSpread = 0;
                 state.powerUpTimers.missiles = 0;
+                state.powerBombPulseTimer = 0;
                 player.x = canvas.width * 0.18;
                 player.y = canvas.height * 0.5;
                 player.vx = 0;
@@ -338,6 +342,7 @@
                 powerUps.length = 0;
                 particles.length = 0;
                 trail.length = 0;
+                areaBursts.length = 0;
                 spawnTimers.obstacle = 0;
                 spawnTimers.collectible = 0;
                 spawnTimers.powerUp = 0;
@@ -433,8 +438,7 @@
 
             function attemptShoot(delta) {
                 state.timeSinceLastShot += delta;
-                const cooldownModifier = isPowerUpActive('superSpeed') ? 0.65 : 1;
-                const cooldown = config.projectileCooldown * cooldownModifier;
+                const cooldown = config.projectileCooldown;
                 if (keys.has('Space') && state.timeSinceLastShot >= cooldown) {
                     spawnProjectiles();
                     state.timeSinceLastShot = 0;
@@ -442,11 +446,10 @@
             }
 
             function spawnProjectiles() {
-                const baseSpeedMultiplier = isPowerUpActive('superSpeed') ? 1.18 : 1;
                 const originX = player.x + player.width - 12;
                 const originY = player.y + player.height * 0.5 - 6;
                 const createProjectile = (angle, type = 'standard') => {
-                    const speed = config.projectileSpeed * baseSpeedMultiplier * (type === 'missile' ? 0.85 : 1);
+                    const speed = config.projectileSpeed * (type === 'missile' ? 0.85 : 1);
                     const vx = Math.cos(angle) * speed;
                     const vy = Math.sin(angle) * speed;
                     projectiles.push({
@@ -494,10 +497,9 @@
                 const inputX = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
                 const inputY = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
 
-                const speedBoost = isPowerUpActive('superSpeed') ? 1.35 : 1;
-                const accel = config.player.acceleration * speedBoost;
+                const accel = config.player.acceleration;
                 const drag = config.player.drag;
-                const maxSpeed = config.player.maxSpeed * speedBoost;
+                const maxSpeed = config.player.maxSpeed;
 
                 player.vx += (inputX * accel - player.vx * drag) * deltaSeconds;
                 player.vy += (inputY * accel - player.vy * drag) * deltaSeconds;
@@ -696,10 +698,34 @@
                 }
             }
 
+            function triggerPowerBombPulse() {
+                const centerX = player.x + player.width * 0.5;
+                const centerY = player.y + player.height * 0.5;
+                const burst = {
+                    x: centerX,
+                    y: centerY,
+                    radius: 0,
+                    maxRadius: 360,
+                    speed: 760,
+                    life: 650,
+                    hitSet: new WeakSet()
+                };
+                areaBursts.push(burst);
+                createParticles({
+                    x: centerX,
+                    y: centerY,
+                    color: { r: 255, g: 196, b: 128 }
+                });
+            }
+
             function activatePowerUp(type) {
                 const duration = config.powerUp.duration[type];
                 if (duration) {
                     state.powerUpTimers[type] = duration;
+                }
+                if (type === 'powerBomb') {
+                    triggerPowerBombPulse();
+                    state.powerBombPulseTimer = 900;
                 }
             }
 
@@ -734,6 +760,50 @@
                 for (const type of powerUpTypes) {
                     if (state.powerUpTimers[type] > 0) {
                         state.powerUpTimers[type] = Math.max(0, state.powerUpTimers[type] - delta);
+                        if (type === 'powerBomb' && state.powerUpTimers[type] === 0) {
+                            state.powerBombPulseTimer = 0;
+                        }
+                    }
+                }
+            }
+
+            function updatePowerBomb(delta) {
+                if (!isPowerUpActive('powerBomb')) return;
+                state.powerBombPulseTimer -= delta;
+                if (state.powerBombPulseTimer <= 0) {
+                    triggerPowerBombPulse();
+                    state.powerBombPulseTimer = 900;
+                }
+            }
+
+            function updateAreaBursts(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = areaBursts.length - 1; i >= 0; i--) {
+                    const burst = areaBursts[i];
+                    burst.radius = Math.min(burst.maxRadius, burst.radius + burst.speed * deltaSeconds);
+                    burst.life -= delta;
+
+                    for (let j = obstacles.length - 1; j >= 0; j--) {
+                        const obstacle = obstacles[j];
+                        if (burst.hitSet.has(obstacle)) continue;
+                        const centerX = obstacle.x + obstacle.width * 0.5;
+                        const centerY = obstacle.y + obstacle.height * 0.5;
+                        const distance = Math.hypot(centerX - burst.x, centerY - burst.y);
+                        const hitRadius = burst.radius + obstacle.width * 0.5;
+                        if (distance <= hitRadius) {
+                            burst.hitSet.add(obstacle);
+                            obstacles.splice(j, 1);
+                            awardDestroy(obstacle);
+                            createParticles({
+                                x: centerX,
+                                y: centerY,
+                                color: { r: 255, g: 200, b: 160 }
+                            });
+                        }
+                    }
+
+                    if (burst.life <= 0) {
+                        areaBursts.splice(i, 1);
                     }
                 }
             }
@@ -1103,6 +1173,29 @@
                 }
             }
 
+            function drawAreaBursts() {
+                if (!areaBursts.length) return;
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                for (const burst of areaBursts) {
+                    const opacity = clamp(burst.life / 650, 0, 1);
+                    const gradient = ctx.createRadialGradient(burst.x, burst.y, burst.radius * 0.4, burst.x, burst.y, burst.radius);
+                    gradient.addColorStop(0, `rgba(255, 185, 130, ${0.35 * opacity})`);
+                    gradient.addColorStop(1, 'rgba(255, 120, 80, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(burst.x, burst.y, burst.radius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = `rgba(255, 200, 150, ${0.5 * opacity})`;
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.arc(burst.x, burst.y, burst.radius * 0.85, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
             function drawProjectiles() {
                 for (const projectile of projectiles) {
                     if (projectile.type === 'missile') {
@@ -1188,10 +1281,13 @@
                     updateParticles(delta);
                     updateSpawns(delta);
                     updatePowerUpTimers(delta);
+                    updatePowerBomb(delta);
+                    updateAreaBursts(delta);
                     updateCombo(delta);
                 } else {
                     updateStars(delta);
                     updateParticles(delta);
+                    updateAreaBursts(delta);
                 }
 
                 drawBackground();
@@ -1199,6 +1295,7 @@
                 drawTrail();
                 drawCollectibles(timestamp);
                 drawPowerUps(timestamp);
+                drawAreaBursts();
                 drawObstacles();
                 drawProjectiles();
                 drawParticles();
