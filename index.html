@@ -885,9 +885,6 @@
             const playerImage = new Image();
             playerImage.src = 'assets/player.png';
 
-            const collectibleImage = new Image();
-            collectibleImage.src = 'assets/point.png';
-
             const powerUpImageSources = {
                 powerBomb: 'assets/powerbomb.png',
                 bulletSpread: 'assets/powerburger.png',
@@ -900,6 +897,8 @@
                 image.src = src;
                 powerUpImages[type] = image;
             }
+
+            const baseCollectScore = 80;
 
             const config = {
                 baseGameSpeed: 160,
@@ -965,11 +964,62 @@
                 },
                 comboMultiplierStep: 0.15,
                 score: {
-                    collect: 80,
+                    collect: baseCollectScore,
                     destroy: 120,
                     dodge: 18
                 }
             };
+
+            const collectibleTiers = [
+                {
+                    key: 'point',
+                    label: 'POINT',
+                    src: 'assets/point.png',
+                    points: baseCollectScore,
+                    weight: 0.62,
+                    sizeMultiplier: 1,
+                    glow: {
+                        inner: 'rgba(255, 215, 0, 0.9)',
+                        outer: 'rgba(255, 215, 0, 0.25)'
+                    },
+                    particleColor: { r: 255, g: 215, b: 0 }
+                },
+                {
+                    key: 'point2',
+                    label: 'POINT+',
+                    src: 'assets/point2.png',
+                    points: Math.round(baseCollectScore * 1.75),
+                    weight: 0.26,
+                    sizeMultiplier: 1.08,
+                    glow: {
+                        inner: 'rgba(96, 165, 250, 0.9)',
+                        outer: 'rgba(96, 165, 250, 0.22)'
+                    },
+                    particleColor: { r: 96, g: 165, b: 250 }
+                },
+                {
+                    key: 'point3',
+                    label: 'POINT++',
+                    src: 'assets/point3.png',
+                    points: Math.round(baseCollectScore * 2.5),
+                    weight: 0.12,
+                    sizeMultiplier: 1.16,
+                    glow: {
+                        inner: 'rgba(192, 132, 252, 0.95)',
+                        outer: 'rgba(192, 132, 252, 0.28)'
+                    },
+                    particleColor: { r: 192, g: 132, b: 252 }
+                }
+            ];
+
+            const collectibleImages = {};
+            for (const tier of collectibleTiers) {
+                const image = new Image();
+                image.src = tier.src;
+                collectibleImages[tier.key] = image;
+            }
+
+            const totalCollectibleWeight = collectibleTiers.reduce((sum, tier) => sum + tier.weight, 0);
 
             const state = {
                 score: 0,
@@ -1720,7 +1770,9 @@
             }
 
             function spawnCollectible() {
-                const size = config.collectible.size ?? 32;
+                const tier = selectCollectibleTier();
+                const baseSize = config.collectible.size ?? 32;
+                const size = baseSize * (tier.sizeMultiplier ?? 1);
                 const verticalPadding = config.collectible.verticalPadding ?? 48;
                 const spawnRange = Math.max(canvas.height - size - verticalPadding * 2, 0);
                 const spawnY = verticalPadding + Math.random() * spawnRange;
@@ -1730,8 +1782,39 @@
                     width: size,
                     height: size,
                     speed: state.gameSpeed + (Math.random() * (config.collectible.maxSpeed - config.collectible.minSpeed) + config.collectible.minSpeed),
-                    wobbleTime: Math.random() * Math.PI * 2
+                    wobbleTime: Math.random() * Math.PI * 2,
+                    type: tier.key,
+                    points: tier.points,
+                    sprite: collectibleImages[tier.key],
+                    glow: tier.glow,
+                    particleColor: tier.particleColor,
+                    label: tier.label
                 });
+            }
+
+            function selectCollectibleTier() {
+                if (collectibleTiers.length === 0) {
+                    return {
+                        key: 'point',
+                        label: 'POINT',
+                        src: 'assets/point.png',
+                        points: baseCollectScore,
+                        weight: 1,
+                        sizeMultiplier: 1,
+                        glow: null,
+                        particleColor: { r: 255, g: 215, b: 0 }
+                    };
+                }
+
+                const roll = Math.random() * (totalCollectibleWeight || 1);
+                let cumulative = 0;
+                for (const tier of collectibleTiers) {
+                    cumulative += tier.weight;
+                    if (roll <= cumulative) {
+                        return tier;
+                    }
+                }
+                return collectibleTiers[collectibleTiers.length - 1];
             }
 
             function spawnPowerUp() {
@@ -1839,11 +1922,11 @@
 
                     if (rectOverlap(player, collectible)) {
                         collectibles.splice(i, 1);
-                        awardCollect();
+                        awardCollect(collectible);
                         createParticles({
                             x: collectible.x + collectible.width * 0.5,
                             y: collectible.y + collectible.height * 0.5,
-                            color: { r: 255, g: 215, b: 0 }
+                            color: collectible.particleColor ?? { r: 255, g: 215, b: 0 }
                         });
                     }
                 }
@@ -2150,9 +2233,10 @@
                 });
             }
 
-            function awardCollect() {
-                state.nyan += 1;
-                awardScore(config.score.collect);
+            function awardCollect(collectible) {
+                const points = collectible?.points ?? config.score.collect;
+                state.nyan += points;
+                awardScore(points);
             }
 
             function awardDestroy(obstacle) {
@@ -2191,7 +2275,7 @@
                 updateTimerDisplay();
                 const formattedTime = formatTime(finalTimeMs);
                 showOverlay(
-                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — Points collected: ${state.nyan}`,
+                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — Points collected: ${state.nyan.toLocaleString()}`,
                     'Run It Back',
                     { title: '' }
                 );
@@ -2208,13 +2292,14 @@
 
             function updateHUD() {
                 scoreEl.textContent = state.score.toLocaleString();
-                nyanEl.textContent = state.nyan;
+                nyanEl.textContent = state.nyan.toLocaleString();
                 const comboMultiplier = 1 + state.streak * config.comboMultiplierStep;
                 streakEl.textContent = `x${comboMultiplier.toFixed(2)}`;
                 const bestTailLength = Math.round(config.baseTrailLength + state.bestStreak * config.trailGrowthPerStreak);
                 bestStreakEl.textContent = `${bestTailLength}`;
                 const marketCap = 6.6 + state.score / 1400;
-                const volume = 2.8 + state.nyan * 0.6 + state.streak * 0.3;
+                const normalizedCollects = state.nyan / baseCollectScore;
+                const volume = 2.8 + normalizedCollects * 0.6 + state.streak * 0.3;
                 mcapEl.textContent = `${marketCap.toFixed(1)}K`;
                 volEl.textContent = `${volume.toFixed(1)}K`;
                 const activeBoosts = powerUpTypes
@@ -2332,34 +2417,38 @@
                     ctx.translate(collectible.x + collectible.width / 2, collectible.y + collectible.height / 2);
                     ctx.rotate(Math.sin(time * 0.004 + collectible.wobbleTime) * 0.2);
                     const pulse = Math.sin(time * 0.004 + collectible.wobbleTime);
-                    const spriteReady = collectibleImage.complete && collectibleImage.naturalWidth > 0;
+                    const sprite = collectible.sprite;
+                    const spriteReady = sprite?.complete && sprite.naturalWidth > 0;
+                    const glowColors = collectible.glow ?? {};
+                    const innerGlow = glowColors.inner ?? 'rgba(255, 255, 255, 0.9)';
+                    const outerGlow = glowColors.outer ?? 'rgba(255, 215, 0, 0.2)';
+
+                    const glowRadius = collectible.width * (0.62 + 0.08 * pulse);
+                    const gradient = ctx.createRadialGradient(0, 0, glowRadius * 0.35, 0, 0, glowRadius);
+                    gradient.addColorStop(0, innerGlow);
+                    gradient.addColorStop(1, outerGlow);
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
+                    ctx.fill();
 
                     if (spriteReady) {
-                        const glowRadius = collectible.width * (0.62 + 0.06 * pulse);
-                        const gradient = ctx.createRadialGradient(0, 0, glowRadius * 0.35, 0, 0, glowRadius);
-                        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
-                        gradient.addColorStop(1, 'rgba(255, 215, 0, 0.25)');
-                        ctx.fillStyle = gradient;
-                        ctx.beginPath();
-                        ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
-                        ctx.fill();
-
-                        const drawSize = collectible.width * (0.94 + 0.08 * pulse);
-                        ctx.drawImage(collectibleImage, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+                        const drawSize = collectible.width * (0.9 + 0.1 * pulse);
+                        ctx.drawImage(sprite, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
                     } else {
-                        const gradient = ctx.createRadialGradient(0, 0, 4, 0, 0, collectible.width * 0.6);
-                        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-                        gradient.addColorStop(0.4, '#fff59d');
-                        gradient.addColorStop(1, 'rgba(255, 215, 0, 0.75)');
-                        ctx.fillStyle = gradient;
+                        const fallbackRadius = collectible.width * 0.48;
+                        const fallbackGradient = ctx.createRadialGradient(0, 0, 4, 0, 0, fallbackRadius);
+                        fallbackGradient.addColorStop(0, innerGlow);
+                        fallbackGradient.addColorStop(1, outerGlow);
+                        ctx.fillStyle = fallbackGradient;
                         ctx.beginPath();
-                        ctx.arc(0, 0, collectible.width / 2, 0, Math.PI * 2);
+                        ctx.arc(0, 0, fallbackRadius, 0, Math.PI * 2);
                         ctx.fill();
-                        ctx.fillStyle = '#1a237e';
+                        ctx.fillStyle = '#0f172a';
                         ctx.font = `700 10px ${primaryFontStack}`;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText('POINTS', 0, 0);
+                        ctx.fillText(collectible.label ?? 'POINTS', 0, 0);
                     }
                     ctx.restore();
                 }
