@@ -379,7 +379,8 @@
                     bulletSpread: 0,
                     missiles: 0
                 },
-                powerBombPulseTimer: 0
+                powerBombPulseTimer: 0,
+                lastVillainKey: null
             };
 
             const keys = new Set();
@@ -414,36 +415,78 @@
                     key: 'villain1',
                     name: 'Void Raider',
                     imageSrc: 'assets/villain1.png',
-                    size: { min: 46, max: 62 },
-                    speedOffset: { min: 28, max: 64 },
-                    rotation: { min: -2.4, max: 2.4 },
-                    baseHealth: 2,
-                    healthGrowth: 1.3,
-                    behavior: { type: 'sine', amplitude: 48, speed: 3.6 }
+                    size: { min: 44, max: 58 },
+                    speedOffset: { min: 12, max: 32 },
+                    rotation: { min: -1.8, max: 1.8 },
+                    baseHealth: 1.5,
+                    healthGrowth: 1.05,
+                    behavior: { type: 'sine', amplitude: 36, speed: 2.8 }
                 },
                 {
                     key: 'villain2',
                     name: 'Nebula Marauder',
                     imageSrc: 'assets/villain2.png',
-                    size: { min: 68, max: 92 },
-                    speedOffset: { min: 12, max: 44 },
-                    rotation: { min: -1.6, max: 1.6 },
-                    baseHealth: 3,
-                    healthGrowth: 1.6,
-                    behavior: { type: 'drift', verticalSpeed: 140 }
+                    size: { min: 70, max: 96 },
+                    speedOffset: { min: 6, max: 32 },
+                    rotation: { min: -1.4, max: 1.4 },
+                    baseHealth: 3.2,
+                    healthGrowth: 1.75,
+                    behavior: { type: 'drift', verticalSpeed: 120 }
                 },
                 {
                     key: 'villain3',
                     name: 'Abyss Overlord',
                     imageSrc: 'assets/villain3.png',
-                    size: { min: 94, max: 128 },
-                    speedOffset: { min: -8, max: 28 },
-                    rotation: { min: -1.1, max: 1.1 },
-                    baseHealth: 4,
-                    healthGrowth: 2.2,
-                    behavior: { type: 'tracker', acceleration: 160, maxSpeed: 220 }
+                    size: { min: 102, max: 138 },
+                    speedOffset: { min: -4, max: 36 },
+                    rotation: { min: -1, max: 1 },
+                    baseHealth: 5,
+                    healthGrowth: 2.6,
+                    behavior: { type: 'tracker', acceleration: 200, maxSpeed: 260 }
                 }
             ];
+
+            function getVillainWeights() {
+                const progress = getDifficultyProgress();
+                const earlyBias = 1 - progress;
+                const midBias = 1 - Math.min(1, Math.abs(progress - 0.5) * 2);
+                const lateBias = progress;
+
+                const rawWeights = [
+                    0.6 * earlyBias + 0.3 * (1 - lateBias) + 0.1,
+                    0.3 + 0.4 * midBias,
+                    0.15 + 0.6 * lateBias
+                ];
+
+                const total = rawWeights.reduce((sum, weight) => sum + weight, 0);
+                return rawWeights.map((weight) => (total > 0 ? weight / total : 1 / rawWeights.length));
+            }
+
+            function selectVillainType() {
+                const weights = getVillainWeights();
+                const adjustedWeights = [...weights];
+
+                if (state.lastVillainKey) {
+                    const lastIndex = villainTypes.findIndex((villain) => villain.key === state.lastVillainKey);
+                    if (lastIndex >= 0) {
+                        adjustedWeights[lastIndex] *= 0.45;
+                    }
+                }
+
+                const adjustedTotal = adjustedWeights.reduce((sum, weight) => sum + weight, 0);
+                const normalizedTotal = adjustedTotal > 0 ? adjustedTotal : 1;
+                const roll = Math.random();
+                let cumulative = 0;
+
+                for (let i = 0; i < villainTypes.length; i++) {
+                    cumulative += adjustedWeights[i] / normalizedTotal;
+                    if (roll <= cumulative) {
+                        return villainTypes[i];
+                    }
+                }
+
+                return villainTypes[villainTypes.length - 1];
+            }
 
             const villainImages = {};
             for (const villain of villainTypes) {
@@ -477,6 +520,7 @@
                 state.powerUpTimers.bulletSpread = 0;
                 state.powerUpTimers.missiles = 0;
                 state.powerBombPulseTimer = 0;
+                state.lastVillainKey = null;
                 player.x = canvas.width * 0.18;
                 player.y = canvas.height * 0.5;
                 player.vx = 0;
@@ -798,7 +842,7 @@
             }
 
             function spawnObstacle() {
-                const villainType = villainTypes[Math.floor(Math.random() * villainTypes.length)];
+                const villainType = selectVillainType();
                 const size = randomBetween(villainType.size.min, villainType.size.max);
                 const health = getVillainHealth(size, villainType);
                 const behaviorState = createVillainBehaviorState(villainType, size);
@@ -820,6 +864,7 @@
                     behaviorState,
                     image: villainImages[villainType.key]
                 });
+                state.lastVillainKey = villainType.key;
                 if (behaviorState.baseY === undefined) {
                     behaviorState.baseY = spawnY;
                 }
