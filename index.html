@@ -153,10 +153,20 @@
                 inset 0 0 0 1px rgba(94, 234, 212, 0.08);
             border: 1px solid rgba(148, 163, 184, 0.22);
             backdrop-filter: blur(12px);
-            min-width: clamp(220px, 22vw, 280px);
+            width: clamp(220px, 22vw, 280px);
+            flex: 0 0 clamp(220px, 22vw, 280px);
             display: flex;
             flex-direction: column;
             gap: 14px;
+        }
+
+        #stats .stat-row {
+            width: 100%;
+        }
+
+        #stats .value {
+            font-variant-numeric: tabular-nums;
+            font-feature-settings: 'tnum' 1;
         }
 
         #stats .stat-list {
