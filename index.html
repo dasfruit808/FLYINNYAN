@@ -167,13 +167,113 @@
             position: absolute;
             top: 12px;
             right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            width: min(260px, 28vw);
             font-size: 14px;
-            text-align: right;
-            opacity: 0.82;
-            max-width: 220px;
-            line-height: 1.5;
-            text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+            text-align: left;
+            opacity: 0.95;
+            line-height: 1.6;
             z-index: 1;
+        }
+
+        #instructions .hud-card {
+            background: linear-gradient(165deg, rgba(15, 23, 42, 0.85), rgba(8, 16, 32, 0.78));
+            border-radius: 16px;
+            padding: 16px 18px;
+            box-shadow: 0 18px 38px rgba(2, 6, 23, 0.45), inset 0 0 0 1px rgba(94, 234, 212, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            backdrop-filter: blur(12px);
+        }
+
+        #instructions .card-title {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: rgba(148, 210, 255, 0.9);
+            margin: 0 0 12px 0;
+        }
+
+        #instructions .control-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 0;
+            padding: 0;
+        }
+
+        #instructions .control-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        #instructions .control-keys {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            min-width: 96px;
+        }
+
+        #instructions .keycap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            padding: 0 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.85));
+            color: rgba(226, 232, 240, 0.95);
+            font-size: 0.78rem;
+            letter-spacing: 0.04em;
+            box-shadow: inset 0 -2px 6px rgba(13, 148, 136, 0.25);
+        }
+
+        #instructions .keycap.wide {
+            min-width: 58px;
+        }
+
+        #instructions .control-action {
+            flex: 1;
+            color: rgba(226, 232, 240, 0.86);
+            font-size: 0.88rem;
+        }
+
+        #instructions .mission-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #instructions .mission-list li {
+            position: relative;
+            padding-left: 18px;
+            color: rgba(226, 232, 240, 0.82);
+        }
+
+        #instructions .mission-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #38bdf8, #6366f1);
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
+        }
+
+        #instructions .card-body {
+            margin: 0;
+            color: rgba(148, 199, 255, 0.86);
+            font-size: 0.86rem;
         }
 
         #touchControls {
@@ -398,7 +498,7 @@
     <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
     <div id="stats">
         Score: <span class="value" id="score">0</span><br>
-        NYAN: <span class="value" id="nyan">0</span><br>
+        Points: <span class="value" id="nyan">0</span><br>
         Streak: <span class="value" id="streak">x1</span><br>
         Best Tail: <span class="value" id="bestStreak">0</span><br>
         MCAP: $<span class="value" id="mcap">6.6K</span><br>
@@ -406,16 +506,47 @@
         Boosts: <span class="value" id="powerUps">None</span>
         <div id="comboMeter"><div id="comboFill"></div></div>
     </div>
-    <div id="instructions">
-        Controls:<br>
-        ← → ↑ ↓ : Glide the catship<br>
-        Space: Launch cosmic arrows<br>
-        Grab boost cores for temporary upgrades.<br>
-        Collect NYAN, dodge asteroids,<br>
-        unleash Nova Pulses to clear threats,<br>
-        and snipe debris to grow your tail!<br>
-        Keep the combo alive for massive gains.
-    </div>
+    <aside id="instructions" aria-label="Controls and mission information">
+        <div class="hud-card" id="controlsCard">
+            <div class="card-title">Flight Controls</div>
+            <div class="control-list" role="list">
+                <div class="control-row" role="listitem">
+                    <div class="control-keys" aria-label="Movement keys">
+                        <span class="keycap" aria-hidden="true">←</span>
+                        <span class="keycap" aria-hidden="true">↑</span>
+                        <span class="keycap" aria-hidden="true">↓</span>
+                        <span class="keycap" aria-hidden="true">→</span>
+                    </div>
+                    <div class="control-action">Vector the catship through hazards.</div>
+                </div>
+                <div class="control-row" role="listitem">
+                    <div class="control-keys" aria-label="Fire control">
+                        <span class="keycap wide" aria-hidden="true">Space</span>
+                    </div>
+                    <div class="control-action">Launch precision plasma bolts.</div>
+                </div>
+                <div class="control-row" role="listitem">
+                    <div class="control-keys" aria-label="Touch controls">
+                        <span class="keycap wide" aria-hidden="true">Touch</span>
+                    </div>
+                    <div class="control-action">Drag the left pad to steer, tap Fire to engage.</div>
+                </div>
+            </div>
+        </div>
+        <div class="hud-card" id="missionCard">
+            <div class="card-title">Mission Brief</div>
+            <ul class="mission-list">
+                <li>Collect Points to fuel the escape and grow your score.</li>
+                <li>Slip between asteroids and hostile fire to stay in the fight.</li>
+                <li>Secure booster cores for temporary firepower and agility.</li>
+                <li>Keep the combo meter charged to amplify every point.</li>
+            </ul>
+        </div>
+        <div class="hud-card" id="intelCard">
+            <div class="card-title">Tactical Intel</div>
+            <p class="card-body">Nova Pulses clear the field when charged — time them with debris clusters to extend your tail and dominate the leaderboard.</p>
+        </div>
+    </aside>
     <div id="touchControls" aria-hidden="true">
         <div id="joystickZone">
             <div class="joystick-ring"></div>
@@ -425,7 +556,7 @@
     </div>
     <div id="overlay">
         <h1>NYAN ESCAPE</h1>
-        <p id="overlayMessage">Thread the cosmic needle, gather NYAN, and charge Nova Pulses to vaporize space junk. Ready to glide?</p>
+        <p id="overlayMessage">Thread the cosmic needle, gather Points, and charge Nova Pulses to vaporize space junk. Ready to glide?</p>
         <button id="overlayButton">Start Flight</button>
         <div id="highScorePanel">
             <div id="highScoreTitle">Top Flight Times</div>
@@ -2060,7 +2191,7 @@
                 updateTimerDisplay();
                 const formattedTime = formatTime(finalTimeMs);
                 showOverlay(
-                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — NYAN collected: ${state.nyan}`,
+                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — Points collected: ${state.nyan}`,
                     'Run It Back',
                     { title: '' }
                 );
@@ -2225,10 +2356,10 @@
                         ctx.arc(0, 0, collectible.width / 2, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.fillStyle = '#1a237e';
-                        ctx.font = `700 12px ${primaryFontStack}`;
+                        ctx.font = `700 10px ${primaryFontStack}`;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText('NYAN', 0, 0);
+                        ctx.fillText('POINTS', 0, 0);
                     }
                     ctx.restore();
                 }
