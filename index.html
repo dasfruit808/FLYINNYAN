@@ -188,12 +188,91 @@
             backdrop-filter: blur(12px);
         }
 
+        #instructions .hud-card.collapsible {
+            padding: 0;
+            overflow: hidden;
+        }
+
         #instructions .card-title {
             font-size: 0.78rem;
             text-transform: uppercase;
             letter-spacing: 0.18em;
             color: rgba(148, 210, 255, 0.9);
             margin: 0 0 12px 0;
+        }
+
+        #instructions .hud-card.collapsible .card-title {
+            margin: 0;
+        }
+
+        #instructions .hud-card.collapsible .card-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px 20px;
+            background: transparent;
+            border: none;
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+            transition: background 160ms ease;
+        }
+
+        #instructions .hud-card.collapsible .card-toggle:focus-visible {
+            outline: 2px solid rgba(148, 210, 255, 0.75);
+            outline-offset: 4px;
+        }
+
+        #instructions .hud-card.collapsible .card-toggle:hover {
+            background: rgba(15, 23, 42, 0.35);
+        }
+
+        #instructions .hud-card.collapsible .toggle-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            border: 1px solid rgba(148, 210, 255, 0.45);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: rgba(148, 210, 255, 0.9);
+            transition: transform 160ms ease;
+        }
+
+        #instructions .hud-card.collapsible.open .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        #instructions .hud-card.collapsible .toggle-icon::before {
+            content: '\25BC';
+            display: block;
+            line-height: 1;
+        }
+
+        #instructions .hud-card.collapsible .card-content {
+            padding: 0 20px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 220ms ease, padding 220ms ease;
+        }
+
+        #instructions .hud-card.collapsible.open .card-content {
+            padding: 14px 20px 18px;
+            max-height: var(--collapsible-max-height, clamp(220px, 32vh, 420px));
+            overflow-y: auto;
+        }
+
+        #instructions .hud-card.collapsible .card-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #instructions .hud-card.collapsible .card-content::-webkit-scrollbar-thumb {
+            background: rgba(148, 210, 255, 0.35);
+            border-radius: 999px;
         }
 
         #instructions .control-list {
@@ -508,40 +587,50 @@
         <div id="comboMeter"><div id="comboFill"></div></div>
     </div>
     <aside id="instructions" aria-label="Controls and mission information">
-        <div class="hud-card" id="controlsCard">
-            <div class="card-title">Flight Controls</div>
-            <div class="control-list" role="list">
-                <div class="control-row" role="listitem">
-                    <div class="control-keys" aria-label="Movement keys">
-                        <span class="keycap" aria-hidden="true">←</span>
-                        <span class="keycap" aria-hidden="true">↑</span>
-                        <span class="keycap" aria-hidden="true">↓</span>
-                        <span class="keycap" aria-hidden="true">→</span>
+        <div class="hud-card collapsible open" id="controlsCard">
+            <button class="card-toggle" type="button" id="controlsToggle" aria-expanded="true" aria-controls="controlsContent">
+                <span class="card-title">Flight Controls</span>
+                <span class="toggle-icon" aria-hidden="true"></span>
+            </button>
+            <div class="card-content" id="controlsContent" role="region" aria-labelledby="controlsToggle">
+                <div class="control-list" role="list">
+                    <div class="control-row" role="listitem">
+                        <div class="control-keys" aria-label="Movement keys">
+                            <span class="keycap" aria-hidden="true">←</span>
+                            <span class="keycap" aria-hidden="true">↑</span>
+                            <span class="keycap" aria-hidden="true">↓</span>
+                            <span class="keycap" aria-hidden="true">→</span>
+                        </div>
+                        <div class="control-action">Vector the catship through hazards.</div>
                     </div>
-                    <div class="control-action">Vector the catship through hazards.</div>
-                </div>
-                <div class="control-row" role="listitem">
-                    <div class="control-keys" aria-label="Fire control">
-                        <span class="keycap wide" aria-hidden="true">Space</span>
+                    <div class="control-row" role="listitem">
+                        <div class="control-keys" aria-label="Fire control">
+                            <span class="keycap wide" aria-hidden="true">Space</span>
+                        </div>
+                        <div class="control-action">Launch precision plasma bolts.</div>
                     </div>
-                    <div class="control-action">Launch precision plasma bolts.</div>
-                </div>
-                <div class="control-row" role="listitem">
-                    <div class="control-keys" aria-label="Touch controls">
-                        <span class="keycap wide" aria-hidden="true">Touch</span>
+                    <div class="control-row" role="listitem">
+                        <div class="control-keys" aria-label="Touch controls">
+                            <span class="keycap wide" aria-hidden="true">Touch</span>
+                        </div>
+                        <div class="control-action">Drag the left pad to steer, tap Fire to engage.</div>
                     </div>
-                    <div class="control-action">Drag the left pad to steer, tap Fire to engage.</div>
                 </div>
             </div>
         </div>
-        <div class="hud-card" id="missionCard">
-            <div class="card-title">Mission Brief</div>
-            <ul class="mission-list">
-                <li>Collect Points to fuel the escape and grow your score.</li>
-                <li>Slip between asteroids and hostile fire to stay in the fight.</li>
-                <li>Secure booster cores for temporary firepower and agility.</li>
-                <li>Keep the combo meter charged to amplify every point.</li>
-            </ul>
+        <div class="hud-card collapsible open" id="missionCard">
+            <button class="card-toggle" type="button" id="missionToggle" aria-expanded="true" aria-controls="missionContent">
+                <span class="card-title">Mission Brief</span>
+                <span class="toggle-icon" aria-hidden="true"></span>
+            </button>
+            <div class="card-content" id="missionContent" role="region" aria-labelledby="missionToggle">
+                <ul class="mission-list">
+                    <li>Collect Points to fuel the escape and grow your score.</li>
+                    <li>Slip between asteroids and hostile fire to stay in the fight.</li>
+                    <li>Secure booster cores for temporary firepower and agility.</li>
+                    <li>Keep the combo meter charged to amplify every point.</li>
+                </ul>
+            </div>
         </div>
         <div class="hud-card" id="intelCard">
             <div class="card-title">Tactical Intel</div>
@@ -605,10 +694,56 @@
             const timerValueEl = document.getElementById('timerValue');
             const highScoreListEl = document.getElementById('highScoreList');
             const highScoreTitleEl = document.getElementById('highScoreTitle');
+            const collapsibleCards = Array.from(document.querySelectorAll('#instructions .hud-card.collapsible'));
+
+            const updateCardMaxHeight = (card, content) => {
+                const viewportLimit = Math.max(window.innerHeight * 0.45, 220);
+                const naturalHeight = content.scrollHeight + 1;
+                const capped = Math.min(naturalHeight, viewportLimit, 420);
+                content.style.setProperty('--collapsible-max-height', `${Math.round(capped)}px`);
+            };
+
+            const updateAllCardHeights = () => {
+                collapsibleCards.forEach(card => {
+                    const content = card.querySelector('.card-content');
+                    if (!content) return;
+                    if (card.classList.contains('open')) {
+                        updateCardMaxHeight(card, content);
+                    }
+                });
+            };
+
+            collapsibleCards.forEach(card => {
+                const toggle = card.querySelector('.card-toggle');
+                const contentId = toggle?.getAttribute('aria-controls') ?? '';
+                const content = contentId ? document.getElementById(contentId) : card.querySelector('.card-content');
+                if (!toggle || !content) return;
+
+                const setState = (isOpen) => {
+                    card.classList.toggle('open', isOpen);
+                    if (isOpen) {
+                        updateCardMaxHeight(card, content);
+                    } else {
+                        content.scrollTop = 0;
+                        content.style.removeProperty('--collapsible-max-height');
+                    }
+                    toggle.setAttribute('aria-expanded', String(isOpen));
+                };
+
+                setState(card.classList.contains('open'));
+
+                toggle.addEventListener('click', () => {
+                    setState(!card.classList.contains('open'));
+                });
+            });
+
+            window.addEventListener('resize', updateAllCardHeights);
+            requestAnimationFrame(updateAllCardHeights);
 
             const customFontFamily = 'FlightTime';
             const primaryFontStack = `"${customFontFamily}", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif`;
             const fontsReady = loadCustomFont(customFontFamily);
+            fontsReady.catch(() => undefined).then(updateAllCardHeights);
 
             const STORAGE_KEYS = {
                 playerName: 'nyanEscape.playerName',
