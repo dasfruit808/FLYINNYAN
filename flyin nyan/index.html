@@ -26,6 +26,57 @@
             position: relative;
         }
 
+        #loadingScreen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 28px;
+            background: #fff;
+            z-index: 999;
+            transition: opacity 400ms ease;
+        }
+
+        #loadingScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #loadingImage {
+            width: min(420px, 80vw);
+            max-width: 520px;
+        }
+
+        #loadingStatus {
+            text-align: center;
+            font-family: "Consolas", "Lucida Console", "Courier New", monospace;
+            letter-spacing: 0.2em;
+            color: #0f172a;
+            text-transform: uppercase;
+            line-height: 1.6;
+        }
+
+        #loadingStatus .loading-prefix {
+            display: block;
+            font-size: 0.72rem;
+            letter-spacing: 0.35em;
+            color: #475569;
+            margin-bottom: 8px;
+        }
+
+        #loadingStatus .loading-line {
+            display: block;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        #loadingStatus .loading-percent {
+            color: #0284c7;
+        }
+
         #backgroundContainer {
             position: fixed;
             inset: 0;
@@ -162,6 +213,13 @@
     </style>
 </head>
 <body>
+    <div id="loadingScreen">
+        <img src="loading.png" alt="Cyborg boot sequence" id="loadingImage">
+        <div id="loadingStatus">
+            <span class="loading-prefix">[SYS-BOOT:00]</span>
+            <span class="loading-line">Initializing quantum cores — <span class="loading-percent">000%</span></span>
+        </div>
+    </div>
     <div id="backgroundContainer">
         <div class="backgroundLayer visible" id="backgroundLayerA"></div>
         <div class="backgroundLayer" id="backgroundLayerB"></div>
@@ -223,6 +281,64 @@
             const overlay = document.getElementById('overlay');
             const overlayMessage = document.getElementById('overlayMessage');
             const overlayButton = document.getElementById('overlayButton');
+            const loadingScreen = document.getElementById('loadingScreen');
+            const loadingStatus = document.getElementById('loadingStatus');
+
+            function runCyborgLoadingSequence() {
+                if (!loadingScreen || !loadingStatus) {
+                    startGame();
+                    return;
+                }
+
+                const steps = [
+                    'Booting cybernetics kernel',
+                    'Calibrating optic relays',
+                    'Decrypting nav matrices',
+                    'Spooling plasma capacitors',
+                    'Synchronizing nyan drives',
+                    'Authorizing flight sequence'
+                ].map((step) => step.toUpperCase());
+
+                let progress = 0;
+                let stepIndex = 0;
+                const maxIndex = steps.length - 1;
+
+                const updateStatus = () => {
+                    const prefix = `[SYS-BOOT:${String(stepIndex + 1).padStart(2, '0')}]`;
+                    const percentText = `${progress.toString().padStart(3, '0')}%`;
+                    loadingStatus.innerHTML = `
+                        <span class="loading-prefix">${prefix}</span>
+                        <span class="loading-line">${steps[stepIndex]} — <span class="loading-percent">${percentText}</span></span>
+                    `;
+                };
+
+                const advance = () => {
+                    const increment = Math.floor(Math.random() * 11) + 4;
+                    progress = Math.min(progress + increment, 100);
+                    const ratio = progress / 100;
+                    stepIndex = Math.min(maxIndex, Math.floor(ratio * steps.length));
+                    updateStatus();
+
+                    if (progress >= 100) {
+                        setTimeout(() => {
+                            startGame();
+                            loadingScreen.classList.add('hidden');
+                            setTimeout(() => {
+                                if (loadingScreen.parentElement) {
+                                    loadingScreen.parentElement.removeChild(loadingScreen);
+                                }
+                            }, 520);
+                        }, 480);
+                        return;
+                    }
+
+                    const delay = Math.random() * 320 + 160;
+                    setTimeout(advance, delay);
+                };
+
+                updateStatus();
+                setTimeout(advance, 420);
+            }
 
             function preloadImages(sources) {
                 return Promise.all(sources.map((src) => new Promise((resolve) => {
@@ -1613,6 +1729,7 @@
                 updateHUD();
             }
 
+            runCyborgLoadingSequence();
             createInitialStars();
             requestAnimationFrame(gameLoop);
         });
