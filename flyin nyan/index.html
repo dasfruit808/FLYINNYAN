@@ -210,7 +210,8 @@
                     height: 120,
                     acceleration: 2100,
                     drag: 5.2,
-                    maxSpeed: 480
+                    maxSpeed: 480,
+                    verticalBleed: 0.069
                 },
                 obstacle: {
                     minSize: 26,
@@ -495,7 +496,8 @@
                 player.y += player.vy * deltaSeconds;
 
                 player.x = clamp(player.x, 0, canvas.width - player.width);
-                player.y = clamp(player.y, 0, canvas.height - player.height);
+                const verticalBleed = canvas.height * config.player.verticalBleed;
+                player.y = clamp(player.y, -verticalBleed, canvas.height - player.height + verticalBleed);
 
                 attemptShoot(delta);
 
@@ -575,8 +577,16 @@
                 }
             }
 
+            function getObstacleHealth(size) {
+                const range = config.obstacle.maxSize - config.obstacle.minSize;
+                if (range <= 0) return 1;
+                const normalized = (size - config.obstacle.minSize) / range;
+                return 1 + Math.round(normalized * 2);
+            }
+
             function spawnObstacle() {
                 const size = Math.random() * (config.obstacle.maxSize - config.obstacle.minSize) + config.obstacle.minSize;
+                const health = getObstacleHealth(size);
                 obstacles.push({
                     x: canvas.width + size,
                     y: Math.random() * (canvas.height - size),
@@ -584,7 +594,10 @@
                     height: size,
                     speed: state.gameSpeed + (Math.random() * (config.obstacle.maxSpeed - config.obstacle.minSpeed) + config.obstacle.minSpeed),
                     rotation: Math.random() * Math.PI * 2,
-                    rotationSpeed: (Math.random() - 0.5) * 1.8
+                    rotationSpeed: (Math.random() - 0.5) * 1.8,
+                    health,
+                    maxHealth: health,
+                    hitFlash: 0
                 });
             }
 
@@ -620,6 +633,9 @@
                     const obstacle = obstacles[i];
                     obstacle.x -= obstacle.speed * deltaSeconds;
                     obstacle.rotation += obstacle.rotationSpeed * deltaSeconds;
+                    if (obstacle.hitFlash > 0) {
+                        obstacle.hitFlash = Math.max(0, obstacle.hitFlash - delta);
+                    }
 
                     if (obstacle.x + obstacle.width < 0) {
                         obstacles.splice(i, 1);
@@ -763,22 +779,46 @@
                 }
             }
 
+            function getProjectileDamage(projectile) {
+                switch (projectile.type) {
+                    case 'missile':
+                        return 2;
+                    case 'spread':
+                        return 1;
+                    default:
+                        return 1;
+                }
+            }
+
             function updateProjectilesCollisions() {
                 for (let i = projectiles.length - 1; i >= 0; i--) {
                     const projectile = projectiles[i];
                     for (let j = obstacles.length - 1; j >= 0; j--) {
                         const obstacle = obstacles[j];
-                        if (rectOverlap(projectile, obstacle)) {
+                        if (!rectOverlap(projectile, obstacle)) continue;
+
+                        const damage = getProjectileDamage(projectile);
+                        obstacle.health -= damage;
+                        obstacle.hitFlash = 160;
+
+                        projectiles.splice(i, 1);
+
+                        if (obstacle.health <= 0) {
                             obstacles.splice(j, 1);
-                            projectiles.splice(i, 1);
                             awardDestroy(obstacle);
                             createParticles({
                                 x: obstacle.x + obstacle.width * 0.5,
                                 y: obstacle.y + obstacle.height * 0.5,
                                 color: { r: 159, g: 168, b: 218 }
                             });
-                            break;
+                        } else {
+                            createHitSpark({
+                                x: obstacle.x + obstacle.width * 0.5,
+                                y: obstacle.y + obstacle.height * 0.5,
+                                color: { r: 159, g: 168, b: 218 }
+                            });
                         }
+                        break;
                     }
                 }
             }
@@ -796,6 +836,22 @@
                 const distanceX = circle.x - closestX;
                 const distanceY = circle.y - closestY;
                 return (distanceX * distanceX + distanceY * distanceY) < (circle.radius * circle.radius);
+            }
+
+            function createHitSpark({ x, y, color }) {
+                for (let i = 0; i < 8; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 180 + 80;
+                    particles.push({
+                        x,
+                        y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 300 + Math.random() * 200,
+                        color,
+                        size: Math.random() * 2 + 0.8
+                    });
+                }
             }
 
             function createParticles({ x, y, color }) {
@@ -821,7 +877,8 @@
 
             function awardDestroy(obstacle) {
                 const sizeBonus = Math.floor(obstacle.width * 0.6);
-                awardScore(config.score.destroy + sizeBonus);
+                const durabilityBonus = (obstacle.maxHealth ? obstacle.maxHealth - 1 : 0) * 90;
+                awardScore(config.score.destroy + sizeBonus + durabilityBonus);
             }
 
             function awardDodge() {
@@ -929,7 +986,6 @@
             }
 
             function drawObstacles() {
-                ctx.fillStyle = '#8b5cf6';
                 for (const obstacle of obstacles) {
                     ctx.save();
                     ctx.translate(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2);
@@ -944,10 +1000,29 @@
                     ctx.closePath();
                     ctx.fillStyle = '#4f46e5';
                     ctx.fill();
+
+                    const flashAlpha = obstacle.hitFlash > 0 ? obstacle.hitFlash / 160 : 0;
+                    if (flashAlpha > 0) {
+                        ctx.fillStyle = `rgba(255, 255, 255, ${0.35 * flashAlpha})`;
+                        ctx.fill();
+                    }
+
                     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
                     ctx.lineWidth = 2;
                     ctx.stroke();
                     ctx.restore();
+
+                    if (obstacle.maxHealth > 1) {
+                        const ratio = clamp(obstacle.health / obstacle.maxHealth, 0, 1);
+                        const barWidth = obstacle.width;
+                        const barHeight = 6;
+                        const barX = obstacle.x;
+                        const barY = obstacle.y - 10;
+                        ctx.fillStyle = 'rgba(79,70,229,0.35)';
+                        ctx.fillRect(barX, barY, barWidth, barHeight);
+                        ctx.fillStyle = '#a5b4fc';
+                        ctx.fillRect(barX, barY, barWidth * ratio, barHeight);
+                    }
                 }
             }
 
