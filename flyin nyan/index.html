@@ -167,6 +167,64 @@
             z-index: 1;
         }
 
+        #instructions #hudControls {
+            display: flex;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .hudToggle {
+            appearance: none;
+            border: 1px solid rgba(148, 163, 184, 0.45);
+            background: rgba(15, 23, 42, 0.55);
+            color: #e2e8f0;
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+        }
+
+        .hudToggle[aria-pressed="true"] {
+            background: rgba(56, 189, 248, 0.28);
+            border-color: rgba(56, 189, 248, 0.6);
+            color: #bae6fd;
+        }
+
+        .hudToggle[disabled] {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .hudToggle:hover:not([disabled]) {
+            transform: translateY(-1px);
+        }
+
+        .hudToggle:active:not([disabled]) {
+            transform: translateY(0);
+        }
+
+        .hudToggle:focus-visible {
+            outline: 2px solid rgba(56, 189, 248, 0.75);
+            outline-offset: 2px;
+        }
+
+        .hudToggleIcon {
+            font-size: 1rem;
+        }
+
+        .hudToggleLabel {
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
         #overlay {
             position: absolute;
             inset: 0;
@@ -319,6 +377,16 @@
         <div id="comboMeter"><div id="comboFill"></div></div>
     </div>
     <div id="instructions">
+        <div id="hudControls" role="group" aria-label="Feedback toggles">
+            <button type="button" id="audioToggle" class="hudToggle" aria-pressed="true">
+                <span class="hudToggleIcon" data-on="🔊" data-off="🔇" aria-hidden="true">🔊</span>
+                <span class="hudToggleLabel">Sound</span>
+            </button>
+            <button type="button" id="hapticsToggle" class="hudToggle" aria-pressed="true">
+                <span class="hudToggleIcon" data-on="📳" data-off="🔕" aria-hidden="true">📳</span>
+                <span class="hudToggleLabel">Haptics</span>
+            </button>
+        </div>
         Controls:<br>
         ← → ↑ ↓ : Glide the catship<br>
         Space: Launch cosmic arrows<br>
@@ -364,6 +432,8 @@
             const volEl = document.getElementById('vol');
             const powerUpsEl = document.getElementById('powerUps');
             const comboFillEl = document.getElementById('comboFill');
+            const audioToggle = document.getElementById('audioToggle');
+            const hapticsToggle = document.getElementById('hapticsToggle');
 
             const overlay = document.getElementById('overlay');
             const overlayMessage = document.getElementById('overlayMessage');
@@ -380,7 +450,9 @@
 
             const STORAGE_KEYS = {
                 playerName: 'nyanEscape.playerName',
-                highScores: 'nyanEscape.highScores'
+                highScores: 'nyanEscape.highScores',
+                audioEnabled: 'nyanEscape.audioEnabled',
+                hapticsEnabled: 'nyanEscape.hapticsEnabled'
             };
 
             let storageAvailable = false;
@@ -410,6 +482,647 @@
                 } catch (error) {
                     storageAvailable = false;
                 }
+            }
+
+            function createAudioManager() {
+                const AudioCtor = window.AudioContext || window.webkitAudioContext;
+                const audioSupported = typeof AudioCtor === 'function';
+                const hasHapticsSupport = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+
+                let ctx = null;
+                let masterGain = null;
+                let musicGain = null;
+                let sfxGain = null;
+                let buffersReady = false;
+                let unlocked = false;
+                let audioEnabled = true;
+                let hapticsEnabled = hasHapticsSupport;
+                let backgroundSource = null;
+                let pendingMusic = false;
+
+                const buffers = {};
+                const lastPlayTimes = {
+                    shoot: 0,
+                    collect: 0,
+                    powerUp: 0,
+                    comboBreak: 0,
+                    powerBomb: 0,
+                    gameOver: 0
+                };
+                const lastHapticTimes = {};
+                const minIntervals = {
+                    shoot: 0.08,
+                    collect: 0.14,
+                    powerUp: 0.25,
+                    comboBreak: 0.5,
+                    powerBomb: 0.6,
+                    gameOver: 0.8
+                };
+                const hapticCooldowns = {
+                    shoot: 80,
+                    collect: 140,
+                    powerUp: 220,
+                    comboBreak: 420,
+                    powerBomb: 600,
+                    gameOver: 620
+                };
+                const hapticPatterns = {
+                    shoot: [18],
+                    collect: [12, 8],
+                    powerUp: [0, 28, 60, 32],
+                    comboBreak: [40, 40],
+                    powerBomb: [0, 45, 30, 90],
+                    gameOver: [0, 160]
+                };
+
+                function ensureContext() {
+                    if (!audioSupported) return null;
+                    if (ctx) {
+                        return ctx;
+                    }
+                    try {
+                        ctx = new AudioCtor({ latencyHint: 'interactive' });
+                    } catch (error) {
+                        ctx = null;
+                        return null;
+                    }
+                    masterGain = ctx.createGain();
+                    musicGain = ctx.createGain();
+                    sfxGain = ctx.createGain();
+                    musicGain.connect(masterGain);
+                    sfxGain.connect(masterGain);
+                    masterGain.connect(ctx.destination);
+                    masterGain.gain.value = audioEnabled ? 1 : 0;
+                    musicGain.gain.value = 0.6;
+                    sfxGain.gain.value = 0.85;
+                    if (!buffersReady) {
+                        buffersReady = true;
+                        buildBuffers();
+                    }
+                    return ctx;
+                }
+
+                function buildBuffers() {
+                    if (!ctx) return;
+                    buffers.shoot = normalizeBuffer(createTone({
+                        duration: 0.16,
+                        startFreq: 780,
+                        endFreq: 1320,
+                        type: 'triangle',
+                        volume: 0.55,
+                        attack: 0.005,
+                        release: 0.08,
+                        harmonics: [
+                            { ratio: 2, gain: 0.22 },
+                            { ratio: 3, gain: 0.1 }
+                        ]
+                    }));
+                    buffers.collect = normalizeBuffer(createTone({
+                        duration: 0.28,
+                        startFreq: 660,
+                        endFreq: 990,
+                        type: 'sine',
+                        volume: 0.5,
+                        attack: 0.005,
+                        release: 0.18,
+                        harmonics: [
+                            { ratio: 2, gain: 0.28 },
+                            { ratio: 3, gain: 0.16 }
+                        ],
+                        vibratoRate: 6,
+                        vibratoDepth: 0.015
+                    }));
+                    buffers.powerUp = normalizeBuffer(createTone({
+                        duration: 0.5,
+                        startFreq: 420,
+                        endFreq: 880,
+                        type: 'saw',
+                        volume: 0.38,
+                        attack: 0.01,
+                        release: 0.24,
+                        harmonics: [
+                            { ratio: 0.5, gain: 0.18 },
+                            { ratio: 2, gain: 0.15 }
+                        ],
+                        vibratoRate: 5,
+                        vibratoDepth: 0.02
+                    }));
+                    const powerBombTone = createTone({
+                        duration: 0.55,
+                        startFreq: 220,
+                        endFreq: 140,
+                        type: 'sine',
+                        volume: 0.48,
+                        attack: 0.02,
+                        release: 0.3,
+                        vibratoRate: 3,
+                        vibratoDepth: 0.04
+                    });
+                    const powerBombNoise = createNoise({
+                        duration: 0.55,
+                        volume: 0.3,
+                        attack: 0.01,
+                        release: 0.35
+                    });
+                    buffers.powerBomb = normalizeBuffer(mixBuffers([powerBombTone, powerBombNoise]));
+                    buffers.comboBreak = normalizeBuffer(createTone({
+                        duration: 0.36,
+                        startFreq: 520,
+                        endFreq: 240,
+                        type: 'triangle',
+                        volume: 0.45,
+                        attack: 0.01,
+                        release: 0.22
+                    }));
+                    buffers.gameOver = normalizeBuffer(createTone({
+                        duration: 0.9,
+                        startFreq: 340,
+                        endFreq: 110,
+                        type: 'sine',
+                        volume: 0.6,
+                        attack: 0.02,
+                        release: 0.4,
+                        vibratoRate: 2.5,
+                        vibratoDepth: 0.035,
+                        harmonics: [
+                            { ratio: 0.5, gain: 0.25 }
+                        ]
+                    }));
+                    buffers.music = normalizeBuffer(createBackgroundLoop(), 0.6);
+                }
+
+                function waveform(type, phase) {
+                    switch (type) {
+                        case 'triangle':
+                            return (2 / Math.PI) * Math.asin(Math.sin(phase));
+                        case 'saw':
+                            return 2 * (phase / (Math.PI * 2) - Math.floor(phase / (Math.PI * 2) + 0.5));
+                        case 'square':
+                            return Math.sign(Math.sin(phase)) || 0;
+                        default:
+                            return Math.sin(phase);
+                    }
+                }
+
+                function createTone({
+                    duration,
+                    startFreq,
+                    endFreq = startFreq,
+                    type = 'sine',
+                    volume = 0.4,
+                    attack = 0.01,
+                    release = 0.1,
+                    harmonics = [],
+                    vibratoRate = 0,
+                    vibratoDepth = 0
+                }) {
+                    if (!ensureContext()) return null;
+                    const sampleRate = ctx.sampleRate;
+                    const frameCount = Math.max(1, Math.floor(duration * sampleRate));
+                    const buffer = ctx.createBuffer(1, frameCount, sampleRate);
+                    const channel = buffer.getChannelData(0);
+                    const attackSamples = Math.max(1, Math.floor(attack * sampleRate));
+                    const releaseSamples = Math.max(1, Math.floor(release * sampleRate));
+                    const releaseStart = Math.max(0, frameCount - releaseSamples);
+                    let phase = 0;
+                    for (let i = 0; i < frameCount; i++) {
+                        const progress = frameCount > 1 ? i / (frameCount - 1) : 0;
+                        const freq = startFreq + (endFreq - startFreq) * progress;
+                        const vibrato = vibratoRate > 0 && vibratoDepth > 0
+                            ? Math.sin(2 * Math.PI * vibratoRate * (i / sampleRate)) * vibratoDepth
+                            : 0;
+                        const effectiveFreq = Math.max(0, freq * (1 + vibrato));
+                        phase += 2 * Math.PI * effectiveFreq / sampleRate;
+                        if (phase > Math.PI * 2) {
+                            phase %= Math.PI * 2;
+                        }
+                        let sample = waveform(type, phase);
+                        for (const harmonic of harmonics) {
+                            const ratio = harmonic?.ratio ?? 2;
+                            const gain = harmonic?.gain ?? 0.2;
+                            sample += waveform(type, phase * ratio) * gain;
+                        }
+                        let amplitude = 1;
+                        if (attackSamples > 0 && i < attackSamples) {
+                            amplitude *= i / attackSamples;
+                        }
+                        if (i >= releaseStart) {
+                            const releaseProgress = (i - releaseStart) / Math.max(1, releaseSamples);
+                            amplitude *= 1 - releaseProgress;
+                        }
+                        channel[i] = sample * amplitude * volume;
+                    }
+                    return buffer;
+                }
+
+                function createNoise({ duration, volume = 0.3, attack = 0.02, release = 0.2 }) {
+                    if (!ensureContext()) return null;
+                    const sampleRate = ctx.sampleRate;
+                    const frameCount = Math.max(1, Math.floor(duration * sampleRate));
+                    const buffer = ctx.createBuffer(1, frameCount, sampleRate);
+                    const channel = buffer.getChannelData(0);
+                    const attackSamples = Math.max(1, Math.floor(attack * sampleRate));
+                    const releaseSamples = Math.max(1, Math.floor(release * sampleRate));
+                    const releaseStart = Math.max(0, frameCount - releaseSamples);
+                    let previous = 0;
+                    for (let i = 0; i < frameCount; i++) {
+                        const random = Math.random() * 2 - 1;
+                        previous = previous * 0.7 + random * 0.3;
+                        let amplitude = 1;
+                        if (i < attackSamples) {
+                            amplitude *= i / attackSamples;
+                        }
+                        if (i >= releaseStart) {
+                            const releaseProgress = (i - releaseStart) / Math.max(1, releaseSamples);
+                            amplitude *= 1 - releaseProgress;
+                        }
+                        channel[i] = previous * amplitude * volume;
+                    }
+                    return buffer;
+                }
+
+                function mixBuffers(list) {
+                    if (!ensureContext()) return null;
+                    const valid = list.filter((buffer) => buffer);
+                    if (!valid.length) return null;
+                    const maxLength = Math.max(...valid.map((buffer) => buffer.length));
+                    if (maxLength <= 0) return null;
+                    const mixed = ctx.createBuffer(1, maxLength, ctx.sampleRate);
+                    const output = mixed.getChannelData(0);
+                    for (const buffer of valid) {
+                        const data = buffer.getChannelData(0);
+                        const limit = Math.min(maxLength, data.length);
+                        for (let i = 0; i < limit; i++) {
+                            output[i] += data[i];
+                        }
+                    }
+                    return mixed;
+                }
+
+                function normalizeBuffer(buffer, target = 0.9) {
+                    if (!buffer) return buffer;
+                    const channel = buffer.getChannelData(0);
+                    let peak = 0;
+                    for (let i = 0; i < channel.length; i++) {
+                        peak = Math.max(peak, Math.abs(channel[i]));
+                    }
+                    if (peak > 0 && peak > target) {
+                        const scale = target / peak;
+                        for (let i = 0; i < channel.length; i++) {
+                            channel[i] *= scale;
+                        }
+                    }
+                    return buffer;
+                }
+
+                function createBackgroundLoop() {
+                    if (!ensureContext()) return null;
+                    const duration = 12;
+                    const sampleRate = ctx.sampleRate;
+                    const frameCount = Math.max(1, Math.floor(duration * sampleRate));
+                    const buffer = ctx.createBuffer(1, frameCount, sampleRate);
+                    const channel = buffer.getChannelData(0);
+                    const pattern = [
+                        { freq: 196, length: 0.75, accent: 1 },
+                        { freq: 246.94, length: 0.75, accent: 0.9 },
+                        { freq: 220, length: 0.75, accent: 0.85 },
+                        { freq: 293.66, length: 0.75, accent: 1 },
+                        { freq: 246.94, length: 0.75, accent: 0.9 },
+                        { freq: 220, length: 0.75, accent: 0.85 },
+                        { freq: 174.61, length: 1.0, accent: 0.75 },
+                        { freq: 0, length: 0.5, accent: 0 }
+                    ];
+                    let stepIndex = 0;
+                    let samplesIntoStep = 0;
+                    let stepSamples = Math.max(1, Math.floor(pattern[0].length * sampleRate));
+                    let leadPhase = 0;
+                    let arpPhase = 0;
+                    let padPhase = 0;
+                    let bassPhase = 0;
+                    for (let i = 0; i < frameCount; i++) {
+                        if (samplesIntoStep >= stepSamples) {
+                            stepIndex = (stepIndex + 1) % pattern.length;
+                            samplesIntoStep = 0;
+                            stepSamples = Math.max(1, Math.floor(pattern[stepIndex].length * sampleRate));
+                            leadPhase = 0;
+                            arpPhase = 0;
+                        }
+                        const step = pattern[stepIndex];
+                        const freq = step.freq || 0;
+                        const accent = step.accent ?? 1;
+                        const envelope = freq > 0
+                            ? Math.exp(-3 * (samplesIntoStep / Math.max(1, stepSamples)))
+                            : 0;
+                        if (freq > 0) {
+                            leadPhase += 2 * Math.PI * freq / sampleRate;
+                            arpPhase += 2 * Math.PI * (freq * 1.5) / sampleRate;
+                        } else {
+                            leadPhase += 2 * Math.PI * 180 / sampleRate;
+                            arpPhase += 2 * Math.PI * 260 / sampleRate;
+                        }
+                        padPhase += 2 * Math.PI * 110 / sampleRate;
+                        bassPhase += 2 * Math.PI * 55 / sampleRate;
+                        const lead = Math.sin(leadPhase) * envelope * 0.34 * accent;
+                        const arp = Math.sin(arpPhase) * envelope * 0.18;
+                        const pad = Math.sin(padPhase) * 0.2;
+                        const bass = Math.sin(bassPhase) * 0.14;
+                        const t = i / sampleRate;
+                        const pulse = 0.7 + 0.3 * Math.sin(2 * Math.PI * 0.25 * t);
+                        channel[i] = (lead + arp + pad + bass) * pulse;
+                        samplesIntoStep += 1;
+                    }
+                    return buffer;
+                }
+
+                function getCurrentTime() {
+                    if (ctx) {
+                        return ctx.currentTime;
+                    }
+                    return performance.now() / 1000;
+                }
+
+                function shouldPlay(key) {
+                    const now = getCurrentTime();
+                    const interval = minIntervals[key] ?? 0;
+                    const last = lastPlayTimes[key] ?? 0;
+                    if (now - last < interval) {
+                        return false;
+                    }
+                    lastPlayTimes[key] = now;
+                    return true;
+                }
+
+                function triggerHaptic(type) {
+                    if (!hapticsEnabled || !hasHapticsSupport) return;
+                    const pattern = hapticPatterns[type];
+                    if (!pattern?.length) return;
+                    const now = performance.now();
+                    const cooldown = hapticCooldowns[type] ?? 0;
+                    const last = lastHapticTimes[type] ?? 0;
+                    if (now - last < cooldown) return;
+                    lastHapticTimes[type] = now;
+                    try {
+                        navigator.vibrate(pattern);
+                    } catch (error) {
+                        // Ignore vibration errors silently
+                    }
+                }
+
+                function canPlay() {
+                    if (!audioSupported) return false;
+                    const context = ensureContext();
+                    if (!context) return false;
+                    return audioEnabled && context.state === 'running';
+                }
+
+                function playBuffer(buffer, { playbackRate = 1 } = {}) {
+                    if (!buffer || !canPlay()) return;
+                    const source = ctx.createBufferSource();
+                    source.buffer = buffer;
+                    source.playbackRate.value = playbackRate;
+                    source.connect(sfxGain);
+                    try {
+                        source.start();
+                    } catch (error) {
+                        // Ignore playback errors
+                    }
+                }
+
+                function playShoot(variant = 'standard') {
+                    if (shouldPlay('shoot')) {
+                        const rateMap = { standard: 1, spread: 1.12, missile: 0.86 };
+                        playBuffer(buffers.shoot, { playbackRate: rateMap[variant] ?? 1 });
+                    }
+                    triggerHaptic('shoot');
+                }
+
+                function playCollect() {
+                    if (shouldPlay('collect')) {
+                        playBuffer(buffers.collect);
+                    }
+                    triggerHaptic('collect');
+                }
+
+                function playPowerUp() {
+                    if (shouldPlay('powerUp')) {
+                        playBuffer(buffers.powerUp);
+                    }
+                    triggerHaptic('powerUp');
+                }
+
+                function playPowerBomb() {
+                    if (shouldPlay('powerBomb')) {
+                        playBuffer(buffers.powerBomb);
+                    }
+                    triggerHaptic('powerBomb');
+                }
+
+                function playComboBreak() {
+                    if (shouldPlay('comboBreak')) {
+                        playBuffer(buffers.comboBreak);
+                    }
+                    triggerHaptic('comboBreak');
+                }
+
+                function playGameOver() {
+                    if (shouldPlay('gameOver')) {
+                        playBuffer(buffers.gameOver);
+                    }
+                    triggerHaptic('gameOver');
+                }
+
+                function stopMusic() {
+                    pendingMusic = false;
+                    if (backgroundSource) {
+                        try {
+                            backgroundSource.stop();
+                        } catch (error) {
+                            // Ignore stop errors
+                        }
+                        backgroundSource.disconnect();
+                        backgroundSource = null;
+                    }
+                }
+
+                function startMusicLoop() {
+                    if (!audioEnabled) {
+                        pendingMusic = false;
+                        return;
+                    }
+                    const context = ensureContext();
+                    if (!context || !buffers.music) {
+                        pendingMusic = false;
+                        return;
+                    }
+                    if (context.state !== 'running') {
+                        pendingMusic = true;
+                        return;
+                    }
+                    if (backgroundSource) return;
+                    const source = context.createBufferSource();
+                    source.buffer = buffers.music;
+                    source.loop = true;
+                    source.connect(musicGain);
+                    try {
+                        source.start();
+                    } catch (error) {
+                        return;
+                    }
+                    backgroundSource = source;
+                    pendingMusic = false;
+                }
+
+                function init() {
+                    ensureContext();
+                }
+
+                async function unlock() {
+                    const context = ensureContext();
+                    if (!context) return;
+                    if (context.state === 'suspended') {
+                        try {
+                            await context.resume();
+                        } catch (error) {
+                            return;
+                        }
+                    }
+                    unlocked = context.state === 'running';
+                    if (unlocked && pendingMusic) {
+                        startMusicLoop();
+                    }
+                }
+
+                function setAudioEnabled(enabled) {
+                    audioEnabled = !!enabled;
+                    const context = ensureContext();
+                    if (!context || !masterGain) return;
+                    const value = audioEnabled ? 1 : 0;
+                    const now = context.currentTime;
+                    try {
+                        masterGain.gain.cancelScheduledValues(now);
+                        masterGain.gain.setTargetAtTime(value, now, 0.02);
+                    } catch (error) {
+                        masterGain.gain.value = value;
+                    }
+                    if (!audioEnabled) {
+                        stopMusic();
+                        pendingMusic = false;
+                    }
+                }
+
+                function isAudioEnabled() {
+                    return audioEnabled && audioSupported;
+                }
+
+                function setHapticsEnabled(enabled) {
+                    hapticsEnabled = !!enabled && hasHapticsSupport;
+                }
+
+                function isHapticsEnabled() {
+                    return hapticsEnabled && hasHapticsSupport;
+                }
+
+                function supportsAudio() {
+                    return audioSupported;
+                }
+
+                function supportsHaptics() {
+                    return hasHapticsSupport;
+                }
+
+                return {
+                    init,
+                    unlock,
+                    startMusicLoop,
+                    stopMusic,
+                    playShoot,
+                    playCollect,
+                    playPowerUp,
+                    playPowerBomb,
+                    playComboBreak,
+                    playGameOver,
+                    setAudioEnabled,
+                    isAudioEnabled,
+                    setHapticsEnabled,
+                    isHapticsEnabled,
+                    supportsAudio,
+                    supportsHaptics
+                };
+            }
+
+            const audioManager = createAudioManager();
+            audioManager.init();
+
+            const storedAudioSetting = readStorage(STORAGE_KEYS.audioEnabled);
+            if (storedAudioSetting !== null) {
+                audioManager.setAudioEnabled(storedAudioSetting !== 'false');
+            }
+
+            const storedHapticsSetting = readStorage(STORAGE_KEYS.hapticsEnabled);
+            if (storedHapticsSetting !== null) {
+                audioManager.setHapticsEnabled(storedHapticsSetting !== 'false');
+            }
+
+            function updateToggleVisual(button, isEnabled) {
+                if (!button) return;
+                button.setAttribute('aria-pressed', isEnabled ? 'true' : 'false');
+                const icon = button.querySelector('.hudToggleIcon');
+                if (icon) {
+                    const onSymbol = icon.getAttribute('data-on');
+                    const offSymbol = icon.getAttribute('data-off');
+                    if (isEnabled && onSymbol) {
+                        icon.textContent = onSymbol;
+                    } else if (!isEnabled && offSymbol) {
+                        icon.textContent = offSymbol;
+                    }
+                }
+            }
+
+            function setupFeedbackToggles() {
+                const audioSupported = audioManager.supportsAudio();
+                if (audioToggle) {
+                    updateToggleVisual(audioToggle, audioManager.isAudioEnabled());
+                    if (!audioSupported) {
+                        audioToggle.disabled = true;
+                    } else {
+                        audioToggle.addEventListener('click', () => {
+                            const next = !audioManager.isAudioEnabled();
+                            audioManager.setAudioEnabled(next);
+                            if (!next) {
+                                audioManager.stopMusic();
+                            } else if (state.gameState === 'running') {
+                                audioManager.startMusicLoop();
+                            }
+                            updateToggleVisual(audioToggle, audioManager.isAudioEnabled());
+                            writeStorage(STORAGE_KEYS.audioEnabled, String(next));
+                        });
+                    }
+                }
+
+                if (hapticsToggle) {
+                    if (!audioManager.supportsHaptics()) {
+                        hapticsToggle.remove();
+                    } else {
+                        updateToggleVisual(hapticsToggle, audioManager.isHapticsEnabled());
+                        hapticsToggle.addEventListener('click', () => {
+                            const next = !audioManager.isHapticsEnabled();
+                            audioManager.setHapticsEnabled(next);
+                            updateToggleVisual(hapticsToggle, audioManager.isHapticsEnabled());
+                            writeStorage(STORAGE_KEYS.hapticsEnabled, String(next));
+                        });
+                    }
+                }
+            }
+
+            function registerAudioUnlock() {
+                if (!audioManager.supportsAudio()) return;
+                const handleUnlock = () => {
+                    audioManager.unlock();
+                };
+                window.addEventListener('pointerdown', handleUnlock, { once: true, capture: true, passive: true });
+                window.addEventListener('touchstart', handleUnlock, { once: true, capture: true, passive: true });
+                window.addEventListener('keydown', handleUnlock, { once: true, capture: true });
+                overlayButton?.addEventListener('click', handleUnlock, { once: true });
             }
 
             function loadHighScores() {
@@ -740,6 +1453,9 @@
 
             updateTimerDisplay();
 
+            setupFeedbackToggles();
+            registerAudioUnlock();
+
             const keys = new Set();
             const projectiles = [];
             const obstacles = [];
@@ -1013,6 +1729,8 @@
                 state.gameState = 'running';
                 lastTime = null;
                 hideOverlay();
+                audioManager.unlock();
+                audioManager.startMusicLoop();
             }
 
             overlayButton.addEventListener('click', () => {
@@ -1052,6 +1770,7 @@
             function spawnProjectiles() {
                 const originX = player.x + player.width - 12;
                 const originY = player.y + player.height * 0.5 - 6;
+                let variant = 'standard';
                 const createProjectile = (angle, type = 'standard') => {
                     const speed = config.projectileSpeed * (type === 'missile' ? 0.85 : 1);
                     const vx = Math.cos(angle) * speed;
@@ -1071,14 +1790,18 @@
                 if (isPowerUpActive('missiles')) {
                     createProjectile(0, 'missile');
                     createProjectile(0.1, 'missile');
+                    variant = 'missile';
                 } else if (isPowerUpActive('bulletSpread')) {
                     const spread = 0.22;
                     createProjectile(-spread, 'spread');
                     createProjectile(0, 'spread');
                     createProjectile(spread, 'spread');
+                    variant = 'spread';
                 } else {
                     createProjectile(0, 'standard');
                 }
+
+                audioManager.playShoot(variant);
             }
 
             function updateTailLength(delta) {
@@ -1413,6 +2136,7 @@
             }
 
             function triggerPowerBombPulse() {
+                audioManager.playPowerBomb();
                 const centerX = player.x + player.width * 0.5;
                 const centerY = player.y + player.height * 0.5;
                 const burst = {
@@ -1433,6 +2157,7 @@
             }
 
             function activatePowerUp(type) {
+                audioManager.playPowerUp();
                 const duration = config.powerUp.duration[type];
                 if (duration) {
                     state.powerUpTimers[type] = duration;
@@ -1716,6 +2441,7 @@
             function awardCollect() {
                 state.nyan += 1;
                 awardScore(config.score.collect);
+                audioManager.playCollect();
             }
 
             function awardDestroy(obstacle) {
@@ -1741,13 +2467,19 @@
             }
 
             function resetStreak() {
+                const hadStreak = state.streak > 0;
                 state.streak = 0;
                 state.tailTarget = config.baseTrailLength;
+                if (hadStreak) {
+                    audioManager.playComboBreak();
+                }
             }
 
             function triggerGameOver(message) {
                 if (state.gameState !== 'running') return;
                 state.gameState = 'gameover';
+                audioManager.stopMusic();
+                audioManager.playGameOver();
                 const finalTimeMs = state.elapsedTime;
                 recordHighScore(finalTimeMs, state.score);
                 updateHighScorePanel();
