@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyan Escape</title>
+    <style>
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; color: #fff; }
+        canvas { border: 1px solid #fff; background: linear-gradient(to bottom, #000428, #004e92); }
+        #stats { position: absolute; top: 10px; left: 10px; font-size: 14px; }
+        #instructions { position: absolute; top: 10px; right: 10px; font-size: 14px; text-align: right; opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="stats">
+        Score: <span id="score">0</span><br>
+        NYAN: <span id="nyan">0</span><br>
+        MCAP: $<span id="mcap">6.6K</span><br>
+        VOL: $<span id="vol">2.8K</span>
+    </div>
+    <div id="instructions">
+        Controls:<br>
+        Arrow keys: Move<br>
+        Space: Shoot arrows<br>
+        Dodge asteroids, collect NYAN,<br>
+        Shoot to destroy for extra points!<br>
+        Build streak by collecting/destroying<br>
+        without missing—grows your tail!
+    </div>
+
+    <script>
+        // Wait for DOM to load
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('gameCanvas');
+            if (!canvas) {
+                console.error('Canvas element with id="gameCanvas" not found!');
+                return;
+            }
+            const ctx = canvas.getContext('2d');
+            const scoreEl = document.getElementById('score');
+            const nyanEl = document.getElementById('nyan');
+            const mcapEl = document.getElementById('mcap');
+            const volEl = document.getElementById('vol');
+
+            // Load player image
+            const playerImage = new Image();
+            playerImage.src = 'assets/player.png'; // Update this path to your .png file
+
+            // Game state
+            let score = 0;
+            let nyanCount = 0;
+            let gameSpeed = 2;
+            let keys = {};
+            let lastShotTime = 0;
+            let shotCooldown = 500;
+            let streak = 0;
+            let maxTrailLength = 20;
+            let frameCount = 0;
+            const trailUpdateInterval = 2; // Push to trail every N frames for spacing
+
+            // Player
+            const player = {
+                x: 100,
+                y: 300,
+                width: 128, // Increased 4x from 32
+                height: 128, // Increased 4x from 32
+                speed: 5
+            };
+
+            // Projectiles, obstacles, collectibles, stars
+            let projectiles = [];
+            let obstacles = [];
+            let collectibles = [];
+            let stars = [];
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    speed: Math.random() * 2 + 1
+                });
+            }
+
+            // Rainbow trail (Snake-like following)
+            let trail = [];
+
+            // Input handling
+            window.addEventListener('keydown', (e) => { keys[e.key] = true; });
+            window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+            // Create obstacle
+            function createObstacle() {
+                obstacles.push({
+                    x: canvas.width,
+                    y: Math.random() * (canvas.height - 50),
+                    width: 30,
+                    height: 30,
+                    color: '#8b4513'
+                });
+            }
+
+            // Create collectible
+            function createCollectible() {
+                collectibles.push({
+                    x: canvas.width,
+                    y: Math.random() * canvas.height,
+                    width: 20,
+                    height: 20,
+                    color: '#ffd700'
+                });
+            }
+
+            // Create projectile
+            function shootProjectile() {
+                const now = Date.now();
+                if (now - lastShotTime > shotCooldown) {
+                    projectiles.push({
+                        x: player.x + player.width,
+                        y: player.y + player.height / 2 - 2.5,
+                        width: 10,
+                        height: 5,
+                        speed: 8,
+                        color: '#00ff00'
+                    });
+                    lastShotTime = now;
+                }
+            }
+
+            // Update player
+            function updatePlayer(delta) {
+                const moveAmount = player.speed * (delta / 16);
+                if (keys['ArrowLeft'] && player.x > 0) player.x -= moveAmount;
+                if (keys['ArrowRight'] && player.x < canvas.width - player.width) player.x += moveAmount;
+                if (keys['ArrowUp'] && player.y > 0) player.y -= moveAmount;
+                if (keys['ArrowDown'] && player.y < canvas.height - player.height) player.y += moveAmount;
+
+                if (keys[' ']) shootProjectile();
+
+                // Update trail periodically for Snake-like effect
+                frameCount++;
+                if (frameCount % trailUpdateInterval === 0) {
+                    trail.push({ x: player.x, y: player.y + player.height / 2 });
+                    if (trail.length > maxTrailLength) {
+                        trail.shift(); // Remove oldest (front)
+                    }
+                }
+            }
+
+            // Update projectiles
+            function updateProjectiles(delta) {
+                projectiles.forEach((proj, index) => {
+                    proj.x += proj.speed * (delta / 16);
+                    if (proj.x > canvas.width) {
+                        projectiles.splice(index, 1);
+                    }
+                });
+            }
+
+            // Check projectile collisions
+            function checkProjectileCollisions() {
+                projectiles.forEach((proj, pIndex) => {
+                    obstacles.forEach((obs, oIndex) => {
+                        if (proj.x < obs.x + obs.width &&
+                            proj.x + proj.width > obs.x &&
+                            proj.y < obs.y + obs.height &&
+                            proj.y + proj.height > obs.y) {
+                            obstacles.splice(oIndex, 1);
+                            projectiles.splice(pIndex, 1);
+                            score += 100;
+                            streak++;
+                            maxTrailLength = 20 + streak * 10; // Grow tail
+                        }
+                    });
+                });
+            }
+
+            // Update obstacles
+            function updateObstacles(delta) {
+                const moveAmount = gameSpeed * (delta / 16);
+                obstacles.forEach((obs, index) => {
+                    obs.x -= moveAmount;
+                    if (obs.x + obs.width < 0) {
+                        obstacles.splice(index, 1);
+                        score += 10;
+                        streak = 0; // Reset streak on dodge/miss
+                        maxTrailLength = 20;
+                        return;
+                    }
+
+                    // Player collision
+                    if (obs.x < player.x + player.width &&
+                        obs.x + obs.width > player.x &&
+                        obs.y < player.y + player.height &&
+                        obs.y + obs.height > player.y) {
+                        alert('Game Over! Score: ' + score);
+                        location.reload();
+                    }
+
+                    // Tail collision (check each trail point, treat as 4x4 hitbox)
+                    trail.forEach(trailPoint => {
+                        if (obs.x < trailPoint.x + 2 &&
+                            obs.x + obs.width > trailPoint.x - 2 &&
+                            obs.y < trailPoint.y + 2 &&
+                            obs.y + obs.height > trailPoint.y - 2) {
+                            alert('Tail Hit! Game Over! Score: ' + score);
+                            location.reload();
+                        }
+                    });
+                });
+
+                if (Math.random() < 0.02) createObstacle();
+            }
+
+            // Update collectibles
+            function updateCollectibles(delta) {
+                const moveAmount = gameSpeed * (delta / 16);
+                collectibles.forEach((col, index) => {
+                    col.x -= moveAmount;
+                    if (col.x + col.width < 0) {
+                        collectibles.splice(index, 1);
+                        streak = 0; // Reset streak on miss
+                        maxTrailLength = 20;
+                        return;
+                    }
+
+                    // Player collision
+                    if (col.x < player.x + player.width &&
+                        col.x + col.width > player.x &&
+                        col.y < player.y + player.height &&
+                        col.y + col.height > player.y) {
+                        collectibles.splice(index, 1);
+                        nyanCount += 1;
+                        score += 50;
+                        streak++;
+                        maxTrailLength = 20 + streak * 10; // Grow tail
+                    }
+                });
+
+                if (Math.random() < 0.01) createCollectible();
+            }
+
+            // Update stars
+            function updateStars(delta) {
+                stars.forEach(star => {
+                    star.x -= star.speed * (delta / 16);
+                    if (star.x < 0) star.x = canvas.width;
+                });
+            }
+
+            // Draw
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Stars
+                ctx.fillStyle = '#fff';
+                stars.forEach(star => ctx.fillRect(star.x, star.y, 2, 2));
+
+                // Rainbow trail (smoother, Snake-like segments)
+                for (let i = 0; i < trail.length; i++) {
+                    const hue = (i / trail.length) * 360; // Rainbow gradient along length
+                    ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                    ctx.fillRect(trail[i].x - 5, trail[i].y - 2, 10, 4); // Small segments
+                }
+
+                // Draw player
+                if (playerImage.complete && playerImage.naturalWidth !== 0) {
+                    ctx.drawImage(playerImage, player.x, player.y, player.width, player.height);
+                } else {
+                    // Fallback
+                    ctx.fillStyle = '#ff69b4';
+                    ctx.fillRect(player.x, player.y, player.width, player.height);
+                }
+
+                // Obstacles
+                obstacles.forEach(obs => {
+                    ctx.fillStyle = obs.color;
+                    ctx.beginPath();
+                    ctx.arc(obs.x + obs.width / 2, obs.y + obs.height / 2, obs.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Collectibles
+                collectibles.forEach(col => {
+                    ctx.fillStyle = col.color;
+                    ctx.beginPath();
+                    ctx.arc(col.x + col.width / 2, col.y + col.height / 2, col.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000';
+                    ctx.font = '10px Arial';
+                    ctx.fillText('NYAN', col.x + 2, col.y + col.height / 2 + 3);
+                });
+
+                // Projectiles
+                projectiles.forEach(proj => {
+                    ctx.fillStyle = proj.color;
+                    ctx.beginPath();
+                    ctx.moveTo(proj.x, proj.y);
+                    ctx.lineTo(proj.x + proj.width, proj.y + proj.height / 2);
+                    ctx.lineTo(proj.x, proj.y + proj.height);
+                    ctx.fill();
+                });
+
+                // Stats
+                scoreEl.textContent = score;
+                nyanEl.textContent = nyanCount;
+                mcapEl.textContent = (6.6 + score / 1000).toFixed(1) + 'K';
+                volEl.textContent = (2.8 + nyanCount * 0.5).toFixed(1) + 'K';
+            }
+
+            // Game loop
+            let lastTime = 0;
+            function gameLoop(timestamp) {
+                const delta = timestamp - lastTime || 16;
+                lastTime = timestamp;
+
+                updatePlayer(delta);
+                updateProjectiles(delta);
+                checkProjectileCollisions();
+                updateObstacles(delta);
+                updateCollectibles(delta);
+                updateStars(delta);
+                draw();
+
+                gameSpeed += 0.0005 * (delta / 16);
+
+                requestAnimationFrame(gameLoop);
+            }
+
+            // Start game after image loads or fails
+            playerImage.onload = () => {
+                console.log('Player image loaded successfully');
+                gameLoop();
+            };
+            playerImage.onerror = () => {
+                console.error('Failed to load player image at: ' + playerImage.src + '. Using fallback.');
+                gameLoop();
+            };
+        });
+    </script>
+</body>
+</html>
