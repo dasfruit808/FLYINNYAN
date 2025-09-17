@@ -329,10 +329,10 @@
                     verticalBleed: 0.069
                 },
                 obstacle: {
-                    minSize: 26,
-                    maxSize: 74,
-                    minSpeed: -60,
-                    maxSpeed: 60
+                    minSize: 42,
+                    maxSize: 128,
+                    minSpeed: -20,
+                    maxSpeed: 70
                 },
                 collectible: {
                     minSpeed: -30,
@@ -409,6 +409,50 @@
                 missiles: { r: 255, g: 182, b: 92 }
             };
 
+            const villainTypes = [
+                {
+                    key: 'villain1',
+                    name: 'Void Raider',
+                    imageSrc: 'assets/villain1.png',
+                    size: { min: 46, max: 62 },
+                    speedOffset: { min: 28, max: 64 },
+                    rotation: { min: -2.4, max: 2.4 },
+                    baseHealth: 2,
+                    healthGrowth: 1.3,
+                    behavior: { type: 'sine', amplitude: 48, speed: 3.6 }
+                },
+                {
+                    key: 'villain2',
+                    name: 'Nebula Marauder',
+                    imageSrc: 'assets/villain2.png',
+                    size: { min: 68, max: 92 },
+                    speedOffset: { min: 12, max: 44 },
+                    rotation: { min: -1.6, max: 1.6 },
+                    baseHealth: 3,
+                    healthGrowth: 1.6,
+                    behavior: { type: 'drift', verticalSpeed: 140 }
+                },
+                {
+                    key: 'villain3',
+                    name: 'Abyss Overlord',
+                    imageSrc: 'assets/villain3.png',
+                    size: { min: 94, max: 128 },
+                    speedOffset: { min: -8, max: 28 },
+                    rotation: { min: -1.1, max: 1.1 },
+                    baseHealth: 4,
+                    healthGrowth: 2.2,
+                    behavior: { type: 'tracker', acceleration: 160, maxSpeed: 220 }
+                }
+            ];
+
+            const villainImages = {};
+            for (const villain of villainTypes) {
+                const image = new Image();
+                image.src = villain.imageSrc;
+                villainImages[villain.key] = image;
+                villain.image = image;
+            }
+
             const player = {
                 x: canvas.width * 0.18,
                 y: canvas.height * 0.5,
@@ -467,6 +511,10 @@
 
             function clamp(value, min, max) {
                 return Math.max(min, Math.min(max, value));
+            }
+
+            function randomBetween(min, max) {
+                return Math.random() * (max - min) + min;
             }
 
             function lerp(a, b, t) {
@@ -693,28 +741,88 @@
                 }
             }
 
-            function getObstacleHealth(size) {
-                const range = config.obstacle.maxSize - config.obstacle.minSize;
-                if (range <= 0) return 1;
-                const normalized = (size - config.obstacle.minSize) / range;
-                return 1 + Math.round(normalized * 2);
+            function getVillainHealth(size, villainType) {
+                const range = villainType.size.max - villainType.size.min;
+                const normalized = range > 0 ? (size - villainType.size.min) / range : 0;
+                const base = villainType.baseHealth + normalized * villainType.healthGrowth;
+                return Math.max(1, Math.round(base));
+            }
+
+            function createVillainBehaviorState(villainType, size) {
+                const behavior = villainType.behavior ?? { type: 'none' };
+                const state = { type: behavior.type };
+
+                switch (behavior.type) {
+                    case 'sine': {
+                        const amplitude = behavior.amplitude ?? 40;
+                        const available = Math.max(0, canvas.height - size - amplitude * 2);
+                        const baseY = available > 0 ? Math.random() * available + amplitude : Math.random() * (canvas.height - size);
+                        const phase = Math.random() * Math.PI * 2;
+                        const initialY = clamp(baseY + Math.sin(phase) * amplitude, 0, canvas.height - size);
+                        Object.assign(state, {
+                            amplitude,
+                            speed: behavior.speed ?? 3,
+                            phase,
+                            baseY,
+                            initialY
+                        });
+                        break;
+                    }
+                    case 'drift': {
+                        const initialY = Math.random() * (canvas.height - size);
+                        const maxVertical = behavior.verticalSpeed ?? 120;
+                        Object.assign(state, {
+                            vy: randomBetween(-maxVertical, maxVertical),
+                            verticalSpeed: maxVertical,
+                            initialY
+                        });
+                        break;
+                    }
+                    case 'tracker': {
+                        const initialY = Math.random() * (canvas.height - size);
+                        Object.assign(state, {
+                            vy: 0,
+                            acceleration: behavior.acceleration ?? 120,
+                            maxSpeed: behavior.maxSpeed ?? 180,
+                            initialY
+                        });
+                        break;
+                    }
+                    default: {
+                        state.initialY = Math.random() * (canvas.height - size);
+                        break;
+                    }
+                }
+
+                return state;
             }
 
             function spawnObstacle() {
-                const size = Math.random() * (config.obstacle.maxSize - config.obstacle.minSize) + config.obstacle.minSize;
-                const health = getObstacleHealth(size);
+                const villainType = villainTypes[Math.floor(Math.random() * villainTypes.length)];
+                const size = randomBetween(villainType.size.min, villainType.size.max);
+                const health = getVillainHealth(size, villainType);
+                const behaviorState = createVillainBehaviorState(villainType, size);
+                const spawnY = behaviorState.initialY ?? Math.random() * (canvas.height - size);
+                delete behaviorState.initialY;
+                const rotationSpeed = randomBetween(villainType.rotation.min, villainType.rotation.max);
                 obstacles.push({
                     x: canvas.width + size,
-                    y: Math.random() * (canvas.height - size),
+                    y: spawnY,
                     width: size,
                     height: size,
-                    speed: state.gameSpeed + (Math.random() * (config.obstacle.maxSpeed - config.obstacle.minSpeed) + config.obstacle.minSpeed),
+                    speed: state.gameSpeed + randomBetween(villainType.speedOffset.min, villainType.speedOffset.max),
                     rotation: Math.random() * Math.PI * 2,
-                    rotationSpeed: (Math.random() - 0.5) * 1.8,
+                    rotationSpeed,
                     health,
                     maxHealth: health,
-                    hitFlash: 0
+                    hitFlash: 0,
+                    villainType,
+                    behaviorState,
+                    image: villainImages[villainType.key]
                 });
+                if (behaviorState.baseY === undefined) {
+                    behaviorState.baseY = spawnY;
+                }
             }
 
             function spawnCollectible() {
@@ -743,6 +851,48 @@
                 });
             }
 
+            function applyVillainBehavior(obstacle, deltaSeconds) {
+                const behaviorState = obstacle.behaviorState;
+                const villainBehavior = obstacle.villainType?.behavior;
+                if (!behaviorState || !villainBehavior) {
+                    return;
+                }
+
+                switch (villainBehavior.type) {
+                    case 'sine': {
+                        behaviorState.phase += deltaSeconds * (behaviorState.speed ?? villainBehavior.speed ?? 3);
+                        const amplitude = behaviorState.amplitude ?? villainBehavior.amplitude ?? 40;
+                        const targetY = behaviorState.baseY + Math.sin(behaviorState.phase) * amplitude;
+                        obstacle.y = clamp(targetY, 0, canvas.height - obstacle.height);
+                        break;
+                    }
+                    case 'drift': {
+                        obstacle.y += behaviorState.vy * deltaSeconds;
+                        if (obstacle.y < 24) {
+                            obstacle.y = 24;
+                            behaviorState.vy = Math.abs(behaviorState.vy);
+                        } else if (obstacle.y + obstacle.height > canvas.height - 24) {
+                            obstacle.y = canvas.height - 24 - obstacle.height;
+                            behaviorState.vy = -Math.abs(behaviorState.vy);
+                        }
+                        break;
+                    }
+                    case 'tracker': {
+                        const targetY = player.y + player.height * 0.5 - obstacle.height * 0.5;
+                        const direction = targetY - obstacle.y;
+                        const accel = Math.sign(direction) * (behaviorState.acceleration ?? villainBehavior.acceleration ?? 120);
+                        behaviorState.vy += accel * deltaSeconds;
+                        const maxSpeed = behaviorState.maxSpeed ?? villainBehavior.maxSpeed ?? 180;
+                        behaviorState.vy = clamp(behaviorState.vy, -maxSpeed, maxSpeed);
+                        obstacle.y += behaviorState.vy * deltaSeconds;
+                        obstacle.y = clamp(obstacle.y, 16, canvas.height - obstacle.height - 16);
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+
             function updateObstacles(delta) {
                 const deltaSeconds = delta / 1000;
                 for (let i = obstacles.length - 1; i >= 0; i--) {
@@ -752,6 +902,8 @@
                     if (obstacle.hitFlash > 0) {
                         obstacle.hitFlash = Math.max(0, obstacle.hitFlash - delta);
                     }
+
+                    applyVillainBehavior(obstacle, deltaSeconds);
 
                     if (obstacle.x + obstacle.width < 0) {
                         obstacles.splice(i, 1);
@@ -1174,26 +1326,37 @@
                     ctx.save();
                     ctx.translate(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2);
                     ctx.rotate(obstacle.rotation);
-                    const radius = obstacle.width / 2;
-                    ctx.beginPath();
-                    ctx.moveTo(radius, 0);
-                    for (let i = 1; i < 6; i++) {
-                        const angle = i * (Math.PI * 2 / 6);
-                        ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
-                    }
-                    ctx.closePath();
-                    ctx.fillStyle = '#4f46e5';
-                    ctx.fill();
 
-                    const flashAlpha = obstacle.hitFlash > 0 ? obstacle.hitFlash / 160 : 0;
-                    if (flashAlpha > 0) {
-                        ctx.fillStyle = `rgba(255, 255, 255, ${0.35 * flashAlpha})`;
+                    if (obstacle.image && obstacle.image.complete && obstacle.image.naturalWidth > 0) {
+                        ctx.drawImage(
+                            obstacle.image,
+                            -obstacle.width / 2,
+                            -obstacle.height / 2,
+                            obstacle.width,
+                            obstacle.height
+                        );
+                    } else {
+                        const radius = obstacle.width / 2;
+                        ctx.beginPath();
+                        ctx.moveTo(radius, 0);
+                        for (let i = 1; i < 6; i++) {
+                            const angle = i * (Math.PI * 2 / 6);
+                            ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+                        }
+                        ctx.closePath();
+                        ctx.fillStyle = '#4f46e5';
                         ctx.fill();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
                     }
 
-                    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
+                    if (obstacle.hitFlash > 0) {
+                        const flashAlpha = clamp(obstacle.hitFlash / 160, 0, 1);
+                        ctx.fillStyle = `rgba(255, 255, 255, ${0.35 * flashAlpha})`;
+                        ctx.fillRect(-obstacle.width / 2, -obstacle.height / 2, obstacle.width, obstacle.height);
+                    }
+
                     ctx.restore();
 
                     if (obstacle.maxHealth > 1) {
