@@ -1254,14 +1254,19 @@
                     speedRange: [40, 140],
                     rotationSpeedRange: [-0.6, 0.6],
                     driftRange: [-18, 18],
-                    depthRange: [0.35, 1]
+                    depthRange: [0.35, 1],
+                    meteorShowerInterval: 22000,
+                    meteorShowerVariance: 8000,
+                    meteorShowerCount: 5,
+                    meteorShowerSpeedMultiplier: 1.15
                 },
                 comboMultiplierStep: 0.15,
                 score: {
                     collect: baseCollectScore,
                     destroy: 120,
                     asteroid: 60,
-                    dodge: 18
+                    dodge: 18,
+                    villainEscape: 140
                 }
             };
 
@@ -1335,7 +1340,9 @@
                 },
                 powerBombPulseTimer: 0,
                 lastVillainKey: null,
-                recentVillains: []
+                recentVillains: [],
+                meteorShowerTimer: 0,
+                nextMeteorShower: 0
             };
 
             updateTimerDisplay();
@@ -1545,8 +1552,10 @@
                 spawnTimers.obstacle = 0;
                 spawnTimers.collectible = 0;
                 spawnTimers.powerUp = 0;
+                state.meteorShowerTimer = 0;
+                state.nextMeteorShower = 0;
                 createInitialStars();
-                createInitialAsteroids();
+                scheduleNextMeteorShower();
                 comboFillEl.style.width = '100%';
                 if (comboMeterEl) {
                     comboMeterEl.setAttribute('aria-valuenow', '100');
@@ -1725,13 +1734,120 @@
                 resolveAsteroidCollisions();
             }
 
+            function scheduleNextMeteorShower() {
+                const settings = config.asteroid ?? {};
+                const interval = settings.meteorShowerInterval ?? 0;
+                state.meteorShowerTimer = 0;
+                if (!interval || interval <= 0) {
+                    state.nextMeteorShower = 0;
+                    return;
+                }
+                const variance = settings.meteorShowerVariance ?? 0;
+                if (!variance) {
+                    state.nextMeteorShower = interval;
+                    return;
+                }
+                const minInterval = Math.max(2000, interval - variance);
+                const maxInterval = interval + variance;
+                state.nextMeteorShower = randomBetween(minInterval, maxInterval);
+            }
+
+            function spawnMeteorShower() {
+                const settings = config.asteroid ?? {};
+                const formation = settings.meteorShowerFormation ?? [
+                    { x: 0, y: 0 },
+                    { x: 70, y: -56 },
+                    { x: 70, y: 56 },
+                    { x: 140, y: -112 },
+                    { x: 140, y: 112 }
+                ];
+                const desiredCount = settings.meteorShowerCount ?? formation.length;
+                if (!desiredCount || desiredCount < 1) {
+                    return false;
+                }
+
+                const offsets = formation.slice(0, desiredCount);
+                if (!offsets.length) {
+                    return false;
+                }
+
+                const required = offsets.length;
+                if (settings.maxCount && required > settings.maxCount) {
+                    return false;
+                }
+                if (settings.maxCount && asteroids.length + required > settings.maxCount) {
+                    const excess = asteroids.length + required - settings.maxCount;
+                    if (excess > 0) {
+                        const removable = asteroids
+                            .map((asteroid, index) => ({ index, x: asteroid.x }))
+                            .sort((a, b) => b.x - a.x)
+                            .slice(0, excess)
+                            .map((item) => item.index)
+                            .sort((a, b) => b - a);
+                        for (const removeIndex of removable) {
+                            asteroids.splice(removeIndex, 1);
+                        }
+                    }
+                }
+
+                const spawnOffset = settings.spawnOffset ?? 140;
+                const spawnX = canvas.width + spawnOffset;
+                const scale = settings.scale ?? 1;
+                const minSize = Array.isArray(settings.sizeRange) ? settings.sizeRange[0] ?? 40 : 40;
+                const actualSize = minSize * scale;
+                const minSpacing = settings.minSpacing ?? 12;
+                const minY = actualSize * 0.5 + minSpacing;
+                const maxY = canvas.height - actualSize * 0.5 - minSpacing;
+                const centerY = clamp(Math.random() * (maxY - minY) + minY, minY, maxY);
+                const speedMultiplier = settings.meteorShowerSpeedMultiplier ?? 1;
+
+                let spawnedAny = false;
+                for (const offset of offsets) {
+                    const asteroid = createAsteroid(false);
+                    asteroid.depth = settings.depthRange ? settings.depthRange[0] : asteroid.depth;
+                    asteroid.baseSize = minSize;
+                    asteroid.size = actualSize;
+                    asteroid.radius = asteroid.size * 0.5;
+                    asteroid.mass = Math.max(1, asteroid.size * asteroid.size * 0.0004);
+                    const hasSpeedRange = Array.isArray(settings.speedRange);
+                    const baseSpeed = hasSpeedRange
+                        ? lerp(settings.speedRange[0], settings.speedRange[1], 1)
+                        : asteroid.speed;
+                    asteroid.speed = baseSpeed * speedMultiplier;
+                    asteroid.rotationSpeed = randomBetween(
+                        settings.rotationSpeedRange?.[0] ?? -0.6,
+                        settings.rotationSpeedRange?.[1] ?? 0.6
+                    ) * (0.4 + asteroid.depth);
+                    const driftRangeMin = settings.driftRange?.[0] ?? -18;
+                    const driftRangeMax = settings.driftRange?.[1] ?? 18;
+                    const driftScale = Math.max(0.18, 1 - asteroid.depth * 0.6);
+                    asteroid.drift = randomBetween(driftRangeMin * 0.4, driftRangeMax * 0.4) * driftScale;
+                    asteroid.vx = -asteroid.speed * (0.6 + asteroid.depth * 0.8);
+                    asteroid.vy = asteroid.drift;
+                    asteroid.x = spawnX + offset.x;
+                    asteroid.y = clamp(centerY + offset.y, minY, maxY);
+                    asteroid.health = Math.max(1, Math.round(asteroid.size / 32));
+                    asteroid.hitFlash = 0;
+                    asteroids.push(asteroid);
+                    spawnedAny = true;
+                }
+
+                if (spawnedAny) {
+                    asteroidSpawnTimer = 0;
+                }
+
+                return spawnedAny;
+            }
+
             function updateAsteroids(delta) {
                 const settings = config.asteroid ?? {};
                 const spawnInterval = settings.spawnInterval ?? 0;
-                asteroidSpawnTimer += delta;
+                if (state.gameState === 'running') {
+                    asteroidSpawnTimer += delta;
+                }
 
                 let spawned = false;
-                if (settings.maxCount > 0 && spawnInterval > 0) {
+                if (state.gameState === 'running' && settings.maxCount > 0 && spawnInterval > 0) {
                     while (asteroidSpawnTimer >= spawnInterval && asteroids.length < settings.maxCount) {
                         asteroidSpawnTimer -= spawnInterval;
                         asteroids.push(createAsteroid(false));
@@ -1740,6 +1856,21 @@
 
                     if (asteroids.length >= settings.maxCount) {
                         asteroidSpawnTimer = Math.min(asteroidSpawnTimer, spawnInterval);
+                    }
+                }
+
+                if (state.gameState !== 'running') {
+                    state.meteorShowerTimer = 0;
+                } else if (state.nextMeteorShower > 0) {
+                    state.meteorShowerTimer += delta;
+                    if (state.meteorShowerTimer >= state.nextMeteorShower) {
+                        const created = spawnMeteorShower();
+                        if (created) {
+                            spawned = true;
+                            scheduleNextMeteorShower();
+                        } else {
+                            state.meteorShowerTimer = state.nextMeteorShower * 0.6;
+                        }
                     }
                 }
 
@@ -2500,7 +2631,7 @@
 
                     if (obstacle.x + obstacle.width < 0) {
                         obstacles.splice(i, 1);
-                        awardDodge();
+                        handleVillainEscape(obstacle);
                         continue;
                     }
 
@@ -3139,6 +3270,27 @@
                 state.comboTimer = Math.max(0, state.comboTimer - 400);
             }
 
+            function getVillainEscapePenalty(obstacle) {
+                const basePenalty = config.score?.villainEscape ?? 0;
+                const durabilityPenalty = Math.max(0, (obstacle.maxHealth ?? 0) - 1) * 45;
+                const sizePenalty = Math.round((obstacle.width ?? 0) * 0.35);
+                return Math.max(0, basePenalty + durabilityPenalty + sizePenalty);
+            }
+
+            function handleVillainEscape(obstacle) {
+                const penalty = getVillainEscapePenalty(obstacle);
+                if (penalty > 0) {
+                    state.score = Math.max(0, state.score - penalty);
+                }
+                state.comboTimer = config.comboDecayWindow;
+                resetStreak();
+                createHitSpark({
+                    x: player.x + player.width * 0.5,
+                    y: player.y + player.height * 0.5,
+                    color: { r: 255, g: 120, b: 120 }
+                });
+            }
+
             function awardScore(basePoints) {
                 state.comboTimer = 0;
                 state.streak += 1;
@@ -3740,7 +3892,7 @@
 
             runCyborgLoadingSequence();
             createInitialStars();
-            createInitialAsteroids();
+            scheduleNextMeteorShower();
             requestAnimationFrame(gameLoop);
         });
     </script>
