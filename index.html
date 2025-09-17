@@ -761,6 +761,9 @@
                         asteroid: { src: 'assets/audio/explosion-asteroid.mp3', voices: 3, volume: 0.68 },
                         powerbomb: { src: 'assets/audio/explosion-powerbomb.mp3', voices: 2, volume: 0.76 },
                         generic: { src: 'assets/audio/explosion-generic.mp3', voices: 3, volume: 0.66 }
+                    },
+                    collectible: {
+                        point: { src: 'assets/audio/point.mp3', voices: 4, volume: 0.6, mimeType: 'audio/mpeg' }
                     }
                 };
 
@@ -772,12 +775,53 @@
                 };
 
                 function createSoundPool(definition) {
-                    const { src, voices = 4 } = definition;
+                    const { src, voices = 4, mimeType } = definition;
                     const elements = [];
                     let disabled = false;
+                    let ready = !mimeType;
+                    let objectUrl = null;
+                    let loadPromise = null;
+
+                    const loadSource = () => {
+                        if (!mimeType || typeof fetch !== 'function' || typeof URL?.createObjectURL !== 'function') {
+                            for (const element of elements) {
+                                if (!element.src) {
+                                    element.src = src;
+                                }
+                            }
+                            ready = true;
+                            return;
+                        }
+                        if (loadPromise) {
+                            return;
+                        }
+                        loadPromise = fetch(src)
+                            .then((response) => {
+                                if (!response.ok) {
+                                    throw new Error('Failed to load audio');
+                                }
+                                return response.arrayBuffer();
+                            })
+                            .then((buffer) => {
+                                if (objectUrl) {
+                                    URL.revokeObjectURL(objectUrl);
+                                }
+                                objectUrl = URL.createObjectURL(new Blob([buffer], { type: mimeType }));
+                                for (const element of elements) {
+                                    element.src = objectUrl;
+                                }
+                                ready = true;
+                            })
+                            .catch(() => {
+                                disabled = true;
+                            })
+                            .finally(() => {
+                                loadPromise = null;
+                            });
+                    };
 
                     for (let i = 0; i < voices; i++) {
-                        const audio = new Audio(src);
+                        const audio = new Audio(mimeType ? '' : src);
                         audio.preload = 'auto';
                         audio.crossOrigin = 'anonymous';
                         audio.volume = clamp01((definition.volume ?? 1) * state.masterVolume);
@@ -787,12 +831,21 @@
                         elements.push(audio);
                     }
 
+                    loadSource();
+
                     let index = 0;
 
                     return {
                         play() {
                             if (!isSupported || disabled || state.muted || !state.unlocked) {
                                 return;
+                            }
+
+                            if (!ready) {
+                                loadSource();
+                                if (!ready) {
+                                    return;
+                                }
                             }
 
                             const audio = elements[index];
@@ -844,6 +897,9 @@
                     },
                     playExplosion(type) {
                         play('explosion', type, 'generic');
+                    },
+                    playCollect(type = 'point') {
+                        play('collectible', type, 'point');
                     },
                     unlock
                 };
@@ -3374,6 +3430,7 @@
                 const points = collectible?.points ?? config.score.collect;
                 state.nyan += points;
                 awardScore(points);
+                audioManager.playCollect(collectible?.audioKey ?? 'point');
             }
 
             function awardDestroy(obstacle) {
