@@ -13,6 +13,14 @@
             box-sizing: border-box;
         }
 
+        @font-face {
+            font-family: 'FlightTime';
+            src: url('fonts/flight-time.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
         body {
             margin: 0;
             background: #000;
@@ -20,7 +28,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'FlightTime', "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             color: #fff;
             overflow: hidden;
             position: relative;
@@ -188,6 +196,10 @@
             text-shadow: 0 0 12px rgba(255, 138, 212, 0.6);
         }
 
+        #overlay h1:empty {
+            display: none;
+        }
+
         #overlay p {
             margin: 0;
             font-size: 1rem;
@@ -295,7 +307,7 @@
         <div class="backgroundLayer" id="backgroundLayerB"></div>
     </div>
     <canvas id="gameCanvas" width="900" height="600"></canvas>
-    <div id="survivalTimer">Survival: <span class="value" id="timerValue">00:00.0</span></div>
+    <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
     <div id="stats">
         Score: <span class="value" id="score">0</span><br>
         NYAN: <span class="value" id="nyan">0</span><br>
@@ -356,11 +368,15 @@
             const overlay = document.getElementById('overlay');
             const overlayMessage = document.getElementById('overlayMessage');
             const overlayButton = document.getElementById('overlayButton');
+            const overlayTitle = overlay.querySelector('h1');
+            const overlayDefaultTitle = overlayTitle?.textContent ?? '';
             const loadingScreen = document.getElementById('loadingScreen');
             const loadingStatus = document.getElementById('loadingStatus');
             const timerValueEl = document.getElementById('timerValue');
             const highScoreListEl = document.getElementById('highScoreList');
             const highScoreTitleEl = document.getElementById('highScoreTitle');
+
+            const primaryFontStack = '"FlightTime", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
 
             const STORAGE_KEYS = {
                 playerName: 'nyanEscape.playerName',
@@ -978,9 +994,13 @@
                 return lerp(settings.start, settings.end, eased);
             }
 
-            function showOverlay(message, buttonText) {
+            function showOverlay(message, buttonText, options = {}) {
                 overlayMessage.textContent = message;
                 overlayButton.textContent = buttonText;
+                if (overlayTitle) {
+                    const titleText = options.title ?? overlayDefaultTitle;
+                    overlayTitle.textContent = titleText;
+                }
                 overlay.classList.remove('hidden');
             }
 
@@ -1733,7 +1753,11 @@
                 updateHighScorePanel();
                 updateTimerDisplay();
                 const formattedTime = formatTime(finalTimeMs);
-                showOverlay(`${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — NYAN collected: ${state.nyan}`, 'Run It Back');
+                showOverlay(
+                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — NYAN collected: ${state.nyan}`,
+                    'Run It Back',
+                    { title: '' }
+                );
             }
 
             function updateCombo(delta) {
@@ -1879,7 +1903,7 @@
                     ctx.arc(0, 0, collectible.width / 2, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#1a237e';
-                    ctx.font = '700 12px "Segoe UI"';
+                    ctx.font = `700 12px ${primaryFontStack}`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText('NYAN', 0, 0);
@@ -1916,7 +1940,7 @@
                         ctx.drawImage(sprite, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
                     } else {
                         ctx.fillStyle = '#060b28';
-                        ctx.font = '700 12px "Segoe UI"';
+                        ctx.font = `700 12px ${primaryFontStack}`;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         const label = powerUpLabels[powerUp.type] ?? 'BOOST';
