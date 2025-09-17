@@ -413,7 +413,7 @@
 
             const config = {
                 baseGameSpeed: 160,
-                speedGrowth: 6,
+                speedGrowth: 5,
                 obstacleSpawnInterval: 950,
                 collectibleSpawnInterval: 1400,
                 powerUpSpawnInterval: 11000,
@@ -428,13 +428,14 @@
                 projectileCooldown: 200,
                 projectileSpeed: 900,
                 difficulty: {
-                    rampDuration: 60000,
-                    speedRamp: { start: 0.35, end: 1.05 },
+                    rampDuration: 90000,
+                    speedRamp: { start: 0.28, end: 0.9 },
                     spawnIntensity: {
-                        obstacle: { start: 0.45, end: 1.15 },
-                        collectible: { start: 0.6, end: 0.95 },
-                        powerUp: { start: 0.5, end: 0.85 }
-                    }
+                        obstacle: { start: 0.38, end: 1.08 },
+                        collectible: { start: 0.68, end: 1.02 },
+                        powerUp: { start: 0.58, end: 0.95 }
+                    },
+                    healthRamp: { start: 0.7, end: 1.25 }
                 },
                 player: {
                     width: 120,
@@ -496,7 +497,8 @@
                     missiles: 0
                 },
                 powerBombPulseTimer: 0,
-                lastVillainKey: null
+                lastVillainKey: null,
+                recentVillains: []
             };
 
             const keys = new Set();
@@ -506,6 +508,7 @@
             const powerUps = [];
             const stars = [];
             const particles = [];
+            const villainExplosions = [];
             const trail = [];
             const areaBursts = [];
             const spawnTimers = {
@@ -526,16 +529,34 @@
                 missiles: { r: 255, g: 182, b: 92 }
             };
 
+            const villainExplosionPalettes = {
+                villain1: {
+                    core: { r: 255, g: 170, b: 255 },
+                    halo: { r: 140, g: 195, b: 255 },
+                    spark: { r: 210, g: 240, b: 255 }
+                },
+                villain2: {
+                    core: { r: 120, g: 255, b: 214 },
+                    halo: { r: 90, g: 200, b: 255 },
+                    spark: { r: 180, g: 255, b: 220 }
+                },
+                villain3: {
+                    core: { r: 255, g: 120, b: 160 },
+                    halo: { r: 255, g: 200, b: 120 },
+                    spark: { r: 255, g: 180, b: 140 }
+                }
+            };
+
             const villainTypes = [
                 {
                     key: 'villain1',
                     name: 'Void Raider',
                     imageSrc: 'assets/villain1.png',
                     size: { min: 44, max: 58 },
-                    speedOffset: { min: 12, max: 32 },
+                    speedOffset: { min: 14, max: 34 },
                     rotation: { min: -1.8, max: 1.8 },
-                    baseHealth: 1.5,
-                    healthGrowth: 1.05,
+                    baseHealth: 1,
+                    healthGrowth: 0.7,
                     behavior: { type: 'sine', amplitude: 36, speed: 2.8 }
                 },
                 {
@@ -543,10 +564,10 @@
                     name: 'Nebula Marauder',
                     imageSrc: 'assets/villain2.png',
                     size: { min: 70, max: 96 },
-                    speedOffset: { min: 6, max: 32 },
+                    speedOffset: { min: 8, max: 30 },
                     rotation: { min: -1.4, max: 1.4 },
-                    baseHealth: 3.2,
-                    healthGrowth: 1.75,
+                    baseHealth: 2.3,
+                    healthGrowth: 1.2,
                     behavior: { type: 'drift', verticalSpeed: 120 }
                 },
                 {
@@ -554,28 +575,29 @@
                     name: 'Abyss Overlord',
                     imageSrc: 'assets/villain3.png',
                     size: { min: 102, max: 138 },
-                    speedOffset: { min: -4, max: 36 },
+                    speedOffset: { min: -2, max: 32 },
                     rotation: { min: -1, max: 1 },
-                    baseHealth: 5,
-                    healthGrowth: 2.6,
+                    baseHealth: 3.4,
+                    healthGrowth: 1.8,
                     behavior: { type: 'tracker', acceleration: 200, maxSpeed: 260 }
                 }
             ];
 
             function getVillainWeights() {
                 const progress = getDifficultyProgress();
-                const earlyBias = 1 - progress;
-                const midBias = 1 - Math.min(1, Math.abs(progress - 0.5) * 2);
-                const lateBias = progress;
+                const eased = easeInOutQuad(progress);
+                const baseWeights = [0.55, 0.32, 0.13];
+                const villain2Boost = lerp(0, 0.12, eased);
+                const villain3Boost = lerp(0, 0.07, Math.pow(progress, 1.4));
 
-                const rawWeights = [
-                    0.6 * earlyBias + 0.3 * (1 - lateBias) + 0.1,
-                    0.3 + 0.4 * midBias,
-                    0.15 + 0.6 * lateBias
+                const weights = [
+                    Math.max(0.28, baseWeights[0] - (villain2Boost * 0.45 + villain3Boost)),
+                    baseWeights[1] + villain2Boost,
+                    Math.max(0.08, baseWeights[2] + villain3Boost)
                 ];
 
-                const total = rawWeights.reduce((sum, weight) => sum + weight, 0);
-                return rawWeights.map((weight) => (total > 0 ? weight / total : 1 / rawWeights.length));
+                const total = weights.reduce((sum, weight) => sum + weight, 0);
+                return weights.map((weight) => (total > 0 ? weight / total : 1 / weights.length));
             }
 
             function selectVillainType() {
@@ -587,6 +609,26 @@
                     if (lastIndex >= 0) {
                         adjustedWeights[lastIndex] *= 0.45;
                     }
+                }
+
+                if (state.recentVillains.length) {
+                    const recentCounts = {};
+                    for (const key of state.recentVillains) {
+                        recentCounts[key] = (recentCounts[key] ?? 0) + 1;
+                    }
+                    const historySize = Math.max(1, state.recentVillains.length);
+                    for (let i = 0; i < villainTypes.length; i++) {
+                        const key = villainTypes[i].key;
+                        const recentCount = recentCounts[key] ?? 0;
+                        if (recentCount > 0) {
+                            const dampen = 1 + recentCount / historySize;
+                            adjustedWeights[i] /= dampen;
+                        }
+                    }
+                }
+
+                if (villainTypes.length > 0) {
+                    adjustedWeights[villainTypes.length - 1] *= 0.85;
                 }
 
                 const adjustedTotal = adjustedWeights.reduce((sum, weight) => sum + weight, 0);
@@ -637,6 +679,7 @@
                 state.powerUpTimers.missiles = 0;
                 state.powerBombPulseTimer = 0;
                 state.lastVillainKey = null;
+                state.recentVillains.length = 0;
                 player.x = canvas.width * 0.18;
                 player.y = canvas.height * 0.5;
                 player.vx = 0;
@@ -645,6 +688,7 @@
                 obstacles.length = 0;
                 collectibles.length = 0;
                 powerUps.length = 0;
+                villainExplosions.length = 0;
                 particles.length = 0;
                 trail.length = 0;
                 areaBursts.length = 0;
@@ -698,6 +742,13 @@
 
             function getSpawnIntensity(type) {
                 const settings = config.difficulty?.spawnIntensity?.[type];
+                if (!settings) return 1;
+                const eased = easeInOutQuad(getDifficultyProgress());
+                return lerp(settings.start, settings.end, eased);
+            }
+
+            function getHealthRampMultiplier() {
+                const settings = config.difficulty?.healthRamp;
                 if (!settings) return 1;
                 const eased = easeInOutQuad(getDifficultyProgress());
                 return lerp(settings.start, settings.end, eased);
@@ -905,7 +956,8 @@
                 const range = villainType.size.max - villainType.size.min;
                 const normalized = range > 0 ? (size - villainType.size.min) / range : 0;
                 const base = villainType.baseHealth + normalized * villainType.healthGrowth;
-                return Math.max(1, Math.round(base));
+                const scaled = base * getHealthRampMultiplier();
+                return Math.max(1, Math.round(scaled));
             }
 
             function createVillainBehaviorState(villainType, size) {
@@ -981,6 +1033,10 @@
                     image: villainImages[villainType.key]
                 });
                 state.lastVillainKey = villainType.key;
+                state.recentVillains.push(villainType.key);
+                if (state.recentVillains.length > 6) {
+                    state.recentVillains.shift();
+                }
                 if (behaviorState.baseY === undefined) {
                     behaviorState.baseY = spawnY;
                 }
@@ -1208,16 +1264,25 @@
                             burst.hitSet.add(obstacle);
                             obstacles.splice(j, 1);
                             awardDestroy(obstacle);
-                            createParticles({
-                                x: centerX,
-                                y: centerY,
-                                color: { r: 255, g: 200, b: 160 }
-                            });
+                            createVillainExplosion(obstacle);
                         }
                     }
 
                     if (burst.life <= 0) {
                         areaBursts.splice(i, 1);
+                    }
+                }
+            }
+
+            function updateVillainExplosions(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = villainExplosions.length - 1; i >= 0; i--) {
+                    const explosion = villainExplosions[i];
+                    explosion.radius = Math.min(explosion.maxRadius, explosion.radius + explosion.expansionSpeed * deltaSeconds);
+                    explosion.ringRadius = Math.min(explosion.maxRingRadius, explosion.ringRadius + explosion.ringGrowth * deltaSeconds);
+                    explosion.life -= delta;
+                    if (explosion.life <= 0) {
+                        villainExplosions.splice(i, 1);
                     }
                 }
             }
@@ -1303,11 +1368,7 @@
                         if (obstacle.health <= 0) {
                             obstacles.splice(j, 1);
                             awardDestroy(obstacle);
-                            createParticles({
-                                x: obstacle.x + obstacle.width * 0.5,
-                                y: obstacle.y + obstacle.height * 0.5,
-                                color: { r: 159, g: 168, b: 218 }
-                            });
+                            createVillainExplosion(obstacle);
                         } else {
                             createHitSpark({
                                 x: obstacle.x + obstacle.width * 0.5,
@@ -1351,20 +1412,61 @@
                 }
             }
 
-            function createParticles({ x, y, color }) {
-                for (let i = 0; i < 18; i++) {
+            function createParticles({ x, y, color, count = 18, speedRange = [60, 340], sizeRange = [1.4, 4.4], lifeRange = [500, 900] }) {
+                for (let i = 0; i < count; i++) {
                     const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 280 + 60;
+                    const speed = randomBetween(speedRange[0], speedRange[1]);
                     particles.push({
                         x,
                         y,
                         vx: Math.cos(angle) * speed,
                         vy: Math.sin(angle) * speed,
-                        life: 500 + Math.random() * 400,
+                        life: randomBetween(lifeRange[0], lifeRange[1]),
                         color,
-                        size: Math.random() * 3 + 1.4
+                        size: randomBetween(sizeRange[0], sizeRange[1])
                     });
                 }
+            }
+
+            function createVillainExplosion(obstacle) {
+                const centerX = obstacle.x + obstacle.width * 0.5;
+                const centerY = obstacle.y + obstacle.height * 0.5;
+                const palette = villainExplosionPalettes[obstacle.villainType?.key] ?? villainExplosionPalettes.villain1;
+                const sizeFactor = obstacle.width;
+                villainExplosions.push({
+                    x: centerX,
+                    y: centerY,
+                    radius: sizeFactor * 0.45,
+                    maxRadius: sizeFactor * 1.85,
+                    expansionSpeed: 320 + sizeFactor * 2.1,
+                    ringRadius: sizeFactor * 0.7,
+                    maxRingRadius: sizeFactor * 2.4,
+                    ringGrowth: 480 + sizeFactor * 2.6,
+                    ringThickness: Math.max(4, sizeFactor * 0.12),
+                    life: 520,
+                    maxLife: 520,
+                    palette
+                });
+
+                createParticles({
+                    x: centerX,
+                    y: centerY,
+                    color: palette.core,
+                    count: 28,
+                    speedRange: [160, 420],
+                    sizeRange: [1.1, 3.4],
+                    lifeRange: [360, 620]
+                });
+
+                createParticles({
+                    x: centerX,
+                    y: centerY,
+                    color: palette.spark,
+                    count: 18,
+                    speedRange: [220, 520],
+                    sizeRange: [0.6, 1.6],
+                    lifeRange: [260, 480]
+                });
             }
 
             function awardCollect() {
@@ -1621,6 +1723,37 @@
                 ctx.restore();
             }
 
+            function drawVillainExplosions() {
+                if (!villainExplosions.length) return;
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                for (const explosion of villainExplosions) {
+                    const palette = explosion.palette ?? villainExplosionPalettes.villain1;
+                    const alpha = clamp(explosion.life / explosion.maxLife, 0, 1);
+                    const gradient = ctx.createRadialGradient(
+                        explosion.x,
+                        explosion.y,
+                        Math.max(6, explosion.radius * 0.2),
+                        explosion.x,
+                        explosion.y,
+                        Math.max(explosion.radius, 1)
+                    );
+                    gradient.addColorStop(0, `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.55 * alpha})`);
+                    gradient.addColorStop(1, `rgba(${palette.halo.r}, ${palette.halo.g}, ${palette.halo.b}, 0)`);
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.35 * alpha})`;
+                    ctx.lineWidth = explosion.ringThickness;
+                    ctx.beginPath();
+                    ctx.arc(explosion.x, explosion.y, explosion.ringRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
             function drawProjectiles() {
                 for (const projectile of projectiles) {
                     if (projectile.type === 'missile') {
@@ -1708,11 +1841,13 @@
                     updatePowerUpTimers(delta);
                     updatePowerBomb(delta);
                     updateAreaBursts(delta);
+                    updateVillainExplosions(delta);
                     updateCombo(delta);
                 } else {
                     updateStars(delta);
                     updateParticles(delta);
                     updateAreaBursts(delta);
+                    updateVillainExplosions(delta);
                 }
 
                 drawBackground();
@@ -1721,6 +1856,7 @@
                 drawCollectibles(timestamp);
                 drawPowerUps(timestamp);
                 drawAreaBursts();
+                drawVillainExplosions();
                 drawObstacles();
                 drawProjectiles();
                 drawParticles();
