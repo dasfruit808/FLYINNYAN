@@ -5,336 +5,808 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nyan Escape</title>
     <style>
-        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; color: #fff; }
-        canvas { border: 1px solid #fff; background: linear-gradient(to bottom, #000428, #004e92); }
-        #stats { position: absolute; top: 10px; left: 10px; font-size: 14px; }
-        #instructions { position: absolute; top: 10px; right: 10px; font-size: 14px; text-align: right; opacity: 0.8; }
+        :root {
+            color-scheme: dark;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: radial-gradient(circle at top, #1a237e 0%, #0d0221 40%, #000 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        canvas {
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            background: linear-gradient(180deg, rgba(5, 18, 55, 0.95) 0%, rgba(8, 27, 70, 0.95) 45%, rgba(0, 4, 20, 0.98) 100%);
+            border-radius: 10px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
+        }
+
+        #stats {
+            position: absolute;
+            top: 12px;
+            left: 16px;
+            font-size: 15px;
+            line-height: 1.4;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+        }
+
+        #stats span.value {
+            font-weight: 700;
+            color: #ffd54f;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 14px;
+            text-align: right;
+            opacity: 0.82;
+            max-width: 220px;
+            line-height: 1.5;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+        }
+
+        #overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(6px);
+            background: rgba(9, 11, 31, 0.6);
+            text-align: center;
+            padding: 24px;
+            gap: 18px;
+            transition: opacity 200ms ease;
+        }
+
+        #overlay.hidden {
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        #overlay h1 {
+            font-size: 2.2rem;
+            margin: 0;
+            letter-spacing: 4px;
+            color: #ff8ad4;
+            text-shadow: 0 0 12px rgba(255, 138, 212, 0.6);
+        }
+
+        #overlay p {
+            margin: 0;
+            font-size: 1rem;
+            max-width: 360px;
+            color: rgba(255, 255, 255, 0.82);
+        }
+
+        #overlay button {
+            background: linear-gradient(90deg, #ff6bd6, #ff4081);
+            border: none;
+            border-radius: 999px;
+            padding: 12px 32px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 12px 30px rgba(255, 105, 180, 0.45);
+            transition: transform 150ms ease, box-shadow 150ms ease;
+        }
+
+        #overlay button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 36px rgba(255, 105, 180, 0.6);
+        }
+
+        #overlay button:active {
+            transform: translateY(0);
+        }
+
+        #comboMeter {
+            width: 160px;
+            height: 8px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.12);
+            margin-top: 8px;
+        }
+
+        #comboFill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #6a5acd, #00e5ff);
+            transition: width 100ms ease-out;
+        }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="gameCanvas" width="900" height="600"></canvas>
     <div id="stats">
-        Score: <span id="score">0</span><br>
-        NYAN: <span id="nyan">0</span><br>
-        MCAP: $<span id="mcap">6.6K</span><br>
-        VOL: $<span id="vol">2.8K</span>
+        Score: <span class="value" id="score">0</span><br>
+        NYAN: <span class="value" id="nyan">0</span><br>
+        Streak: <span class="value" id="streak">x1</span><br>
+        Best Tail: <span class="value" id="bestStreak">0</span><br>
+        MCAP: $<span class="value" id="mcap">6.6K</span><br>
+        VOL: $<span class="value" id="vol">2.8K</span>
+        <div id="comboMeter"><div id="comboFill"></div></div>
     </div>
     <div id="instructions">
         Controls:<br>
-        Arrow keys: Move<br>
-        Space: Shoot arrows<br>
-        Dodge asteroids, collect NYAN,<br>
-        Shoot to destroy for extra points!<br>
-        Build streak by collecting/destroying<br>
-        without missing—grows your tail!
+        ← → ↑ ↓ : Glide the catship<br>
+        Space: Launch cosmic arrows<br>
+        Collect NYAN, dodge asteroids,<br>
+        and snipe debris to grow your tail!<br>
+        Keep the combo alive for massive gains.
+    </div>
+    <div id="overlay">
+        <h1>NYAN ESCAPE</h1>
+        <p id="overlayMessage">Thread the cosmic needle, gather NYAN, and keep that rainbow tail alive. Ready to glide?</p>
+        <button id="overlayButton">Start Flight</button>
     </div>
 
     <script>
-        // Wait for DOM to load
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('gameCanvas');
-            if (!canvas) {
-                console.error('Canvas element with id="gameCanvas" not found!');
-                return;
-            }
             const ctx = canvas.getContext('2d');
+
             const scoreEl = document.getElementById('score');
             const nyanEl = document.getElementById('nyan');
+            const streakEl = document.getElementById('streak');
+            const bestStreakEl = document.getElementById('bestStreak');
             const mcapEl = document.getElementById('mcap');
             const volEl = document.getElementById('vol');
+            const comboFillEl = document.getElementById('comboFill');
 
-            // Load player image
+            const overlay = document.getElementById('overlay');
+            const overlayMessage = document.getElementById('overlayMessage');
+            const overlayButton = document.getElementById('overlayButton');
+
             const playerImage = new Image();
-            playerImage.src = 'assets/player.png'; // Update this path to your .png file
+            playerImage.src = 'assets/player.png';
 
-            // Game state
-            let score = 0;
-            let nyanCount = 0;
-            let gameSpeed = 2;
-            let keys = {};
-            let lastShotTime = 0;
-            let shotCooldown = 500;
-            let streak = 0;
-            let maxTrailLength = 20;
-            let frameCount = 0;
-            const trailUpdateInterval = 2; // Push to trail every N frames for spacing
-
-            // Player
-            const player = {
-                x: 100,
-                y: 300,
-                width: 128, // Increased 4x from 32
-                height: 128, // Increased 4x from 32
-                speed: 5
+            const config = {
+                baseGameSpeed: 180,
+                speedGrowth: 6,
+                obstacleSpawnInterval: 950,
+                collectibleSpawnInterval: 1400,
+                trailSpacing: 18,
+                baseTrailLength: 20,
+                trailGrowthPerStreak: 4,
+                comboDecayWindow: 3200,
+                projectileCooldown: 200,
+                projectileSpeed: 900,
+                player: {
+                    width: 120,
+                    height: 120,
+                    acceleration: 2100,
+                    drag: 5.2,
+                    maxSpeed: 480
+                },
+                obstacle: {
+                    minSize: 26,
+                    maxSize: 74,
+                    minSpeed: -60,
+                    maxSpeed: 60
+                },
+                collectible: {
+                    minSpeed: -30,
+                    maxSpeed: 30
+                },
+                star: {
+                    count: 120,
+                    baseSpeed: 120
+                },
+                comboMultiplierStep: 0.15,
+                score: {
+                    collect: 80,
+                    destroy: 120,
+                    dodge: 18
+                }
             };
 
-            // Projectiles, obstacles, collectibles, stars
-            let projectiles = [];
-            let obstacles = [];
-            let collectibles = [];
-            let stars = [];
-            for (let i = 0; i < 100; i++) {
-                stars.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    speed: Math.random() * 2 + 1
-                });
+            const state = {
+                score: 0,
+                nyan: 0,
+                streak: 0,
+                bestStreak: 0,
+                tailLength: config.baseTrailLength,
+                comboTimer: 0,
+                gameSpeed: config.baseGameSpeed,
+                timeSinceLastShot: 0,
+                gameState: 'ready'
+            };
+
+            const keys = new Set();
+            const projectiles = [];
+            const obstacles = [];
+            const collectibles = [];
+            const stars = [];
+            const particles = [];
+            const trail = [];
+            const spawnTimers = {
+                obstacle: 0,
+                collectible: 0
+            };
+
+            const player = {
+                x: canvas.width * 0.18,
+                y: canvas.height * 0.5,
+                width: config.player.width,
+                height: config.player.height,
+                vx: 0,
+                vy: 0
+            };
+
+            function resetGame() {
+                state.score = 0;
+                state.nyan = 0;
+                state.streak = 0;
+                state.bestStreak = 0;
+                state.tailLength = config.baseTrailLength;
+                state.comboTimer = 0;
+                state.gameSpeed = config.baseGameSpeed;
+                state.timeSinceLastShot = 0;
+                player.x = canvas.width * 0.18;
+                player.y = canvas.height * 0.5;
+                player.vx = 0;
+                player.vy = 0;
+                projectiles.length = 0;
+                obstacles.length = 0;
+                collectibles.length = 0;
+                particles.length = 0;
+                trail.length = 0;
+                spawnTimers.obstacle = 0;
+                spawnTimers.collectible = 0;
+                createInitialStars();
+                comboFillEl.style.width = '100%';
+                updateHUD();
             }
 
-            // Rainbow trail (Snake-like following)
-            let trail = [];
-
-            // Input handling
-            window.addEventListener('keydown', (e) => { keys[e.key] = true; });
-            window.addEventListener('keyup', (e) => { keys[e.key] = false; });
-
-            // Create obstacle
-            function createObstacle() {
-                obstacles.push({
-                    x: canvas.width,
-                    y: Math.random() * (canvas.height - 50),
-                    width: 30,
-                    height: 30,
-                    color: '#8b4513'
-                });
+            function createInitialStars() {
+                stars.length = 0;
+                for (let i = 0; i < config.star.count; i++) {
+                    stars.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        speed: (Math.random() * 0.8 + 0.4) * config.star.baseSpeed,
+                        size: Math.random() * 2.5 + 0.6,
+                        twinkleOffset: Math.random() * Math.PI * 2
+                    });
+                }
             }
 
-            // Create collectible
-            function createCollectible() {
-                collectibles.push({
-                    x: canvas.width,
-                    y: Math.random() * canvas.height,
-                    width: 20,
-                    height: 20,
-                    color: '#ffd700'
-                });
+            function clamp(value, min, max) {
+                return Math.max(min, Math.min(max, value));
             }
 
-            // Create projectile
-            function shootProjectile() {
-                const now = Date.now();
-                if (now - lastShotTime > shotCooldown) {
+            function showOverlay(message, buttonText) {
+                overlayMessage.textContent = message;
+                overlayButton.textContent = buttonText;
+                overlay.classList.remove('hidden');
+            }
+
+            function hideOverlay() {
+                overlay.classList.add('hidden');
+            }
+
+            function startGame() {
+                resetGame();
+                state.gameState = 'running';
+                lastTime = null;
+                hideOverlay();
+            }
+
+            overlayButton.addEventListener('click', () => {
+                if (state.gameState === 'ready' || state.gameState === 'gameover') {
+                    startGame();
+                }
+            });
+
+            window.addEventListener('keydown', (event) => {
+                if (event.repeat) return;
+                keys.add(event.code);
+                if (event.code === 'Space') {
+                    event.preventDefault();
+                }
+                if (event.code === 'Enter' && state.gameState === 'gameover') {
+                    startGame();
+                }
+            });
+
+            window.addEventListener('keyup', (event) => {
+                keys.delete(event.code);
+            });
+
+            function attemptShoot(delta) {
+                state.timeSinceLastShot += delta;
+                if (keys.has('Space') && state.timeSinceLastShot >= config.projectileCooldown) {
                     projectiles.push({
-                        x: player.x + player.width,
-                        y: player.y + player.height / 2 - 2.5,
-                        width: 10,
-                        height: 5,
-                        speed: 8,
-                        color: '#00ff00'
+                        x: player.x + player.width - 12,
+                        y: player.y + player.height * 0.5 - 6,
+                        width: 24,
+                        height: 12,
+                        speed: config.projectileSpeed,
+                        life: 2200
                     });
-                    lastShotTime = now;
+                    state.timeSinceLastShot = 0;
                 }
             }
 
-            // Update player
             function updatePlayer(delta) {
-                const moveAmount = player.speed * (delta / 16);
-                if (keys['ArrowLeft'] && player.x > 0) player.x -= moveAmount;
-                if (keys['ArrowRight'] && player.x < canvas.width - player.width) player.x += moveAmount;
-                if (keys['ArrowUp'] && player.y > 0) player.y -= moveAmount;
-                if (keys['ArrowDown'] && player.y < canvas.height - player.height) player.y += moveAmount;
+                const deltaSeconds = delta / 1000;
+                const inputX = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
+                const inputY = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
 
-                if (keys[' ']) shootProjectile();
+                const accel = config.player.acceleration;
+                const drag = config.player.drag;
+                const maxSpeed = config.player.maxSpeed;
 
-                // Update trail periodically for Snake-like effect
-                frameCount++;
-                if (frameCount % trailUpdateInterval === 0) {
-                    trail.push({ x: player.x, y: player.y + player.height / 2 });
-                    if (trail.length > maxTrailLength) {
-                        trail.shift(); // Remove oldest (front)
+                player.vx += (inputX * accel - player.vx * drag) * deltaSeconds;
+                player.vy += (inputY * accel - player.vy * drag) * deltaSeconds;
+
+                player.vx = clamp(player.vx, -maxSpeed, maxSpeed);
+                player.vy = clamp(player.vy, -maxSpeed, maxSpeed);
+
+                player.x += player.vx * deltaSeconds;
+                player.y += player.vy * deltaSeconds;
+
+                player.x = clamp(player.x, 0, canvas.width - player.width);
+                player.y = clamp(player.y, 0, canvas.height - player.height);
+
+                attemptShoot(delta);
+
+                updateTrail();
+            }
+
+            function updateTrail() {
+                const centerX = player.x + player.width * 0.45;
+                const centerY = player.y + player.height * 0.55;
+                const lastPoint = trail[trail.length - 1];
+                if (!lastPoint || Math.hypot(centerX - lastPoint.x, centerY - lastPoint.y) > config.trailSpacing) {
+                    trail.push({
+                        x: centerX,
+                        y: centerY
+                    });
+                    if (trail.length > state.tailLength) {
+                        trail.shift();
                     }
                 }
             }
 
-            // Update projectiles
             function updateProjectiles(delta) {
-                projectiles.forEach((proj, index) => {
-                    proj.x += proj.speed * (delta / 16);
-                    if (proj.x > canvas.width) {
-                        projectiles.splice(index, 1);
+                const deltaSeconds = delta / 1000;
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    const projectile = projectiles[i];
+                    projectile.x += projectile.speed * deltaSeconds;
+                    projectile.life -= delta;
+                    if (projectile.x > canvas.width || projectile.life <= 0) {
+                        projectiles.splice(i, 1);
                     }
+                }
+            }
+
+            function spawnObstacle() {
+                const size = Math.random() * (config.obstacle.maxSize - config.obstacle.minSize) + config.obstacle.minSize;
+                obstacles.push({
+                    x: canvas.width + size,
+                    y: Math.random() * (canvas.height - size),
+                    width: size,
+                    height: size,
+                    speed: state.gameSpeed + (Math.random() * (config.obstacle.maxSpeed - config.obstacle.minSpeed) + config.obstacle.minSpeed),
+                    rotation: Math.random() * Math.PI * 2,
+                    rotationSpeed: (Math.random() - 0.5) * 1.8
                 });
             }
 
-            // Check projectile collisions
-            function checkProjectileCollisions() {
-                projectiles.forEach((proj, pIndex) => {
-                    obstacles.forEach((obs, oIndex) => {
-                        if (proj.x < obs.x + obs.width &&
-                            proj.x + proj.width > obs.x &&
-                            proj.y < obs.y + obs.height &&
-                            proj.y + proj.height > obs.y) {
-                            obstacles.splice(oIndex, 1);
-                            projectiles.splice(pIndex, 1);
-                            score += 100;
-                            streak++;
-                            maxTrailLength = 20 + streak * 10; // Grow tail
-                        }
-                    });
+            function spawnCollectible() {
+                const size = 26;
+                collectibles.push({
+                    x: canvas.width + size,
+                    y: Math.random() * (canvas.height - size) + size * 0.5,
+                    width: size,
+                    height: size,
+                    speed: state.gameSpeed + (Math.random() * (config.collectible.maxSpeed - config.collectible.minSpeed) + config.collectible.minSpeed),
+                    wobbleTime: Math.random() * Math.PI * 2
                 });
             }
 
-            // Update obstacles
             function updateObstacles(delta) {
-                const moveAmount = gameSpeed * (delta / 16);
-                obstacles.forEach((obs, index) => {
-                    obs.x -= moveAmount;
-                    if (obs.x + obs.width < 0) {
-                        obstacles.splice(index, 1);
-                        score += 10;
-                        streak = 0; // Reset streak on dodge/miss
-                        maxTrailLength = 20;
-                        return;
+                const deltaSeconds = delta / 1000;
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = obstacles[i];
+                    obstacle.x -= obstacle.speed * deltaSeconds;
+                    obstacle.rotation += obstacle.rotationSpeed * deltaSeconds;
+
+                    if (obstacle.x + obstacle.width < 0) {
+                        obstacles.splice(i, 1);
+                        awardDodge();
+                        continue;
                     }
 
-                    // Player collision
-                    if (obs.x < player.x + player.width &&
-                        obs.x + obs.width > player.x &&
-                        obs.y < player.y + player.height &&
-                        obs.y + obs.height > player.y) {
-                        alert('Game Over! Score: ' + score);
-                        location.reload();
+                    if (rectOverlap(player, obstacle)) {
+                        return triggerGameOver('Your rainbow ship took a direct hit!');
                     }
 
-                    // Tail collision (check each trail point, treat as 4x4 hitbox)
-                    trail.forEach(trailPoint => {
-                        if (obs.x < trailPoint.x + 2 &&
-                            obs.x + obs.width > trailPoint.x - 2 &&
-                            obs.y < trailPoint.y + 2 &&
-                            obs.y + obs.height > trailPoint.y - 2) {
-                            alert('Tail Hit! Game Over! Score: ' + score);
-                            location.reload();
+                    for (let j = trail.length - 1; j >= 0; j--) {
+                        const t = trail[j];
+                        if (circleRectOverlap({ x: t.x, y: t.y, radius: 10 }, obstacle)) {
+                            return triggerGameOver('Your tail tangled with space junk!');
                         }
-                    });
-                });
-
-                if (Math.random() < 0.02) createObstacle();
+                    }
+                }
             }
 
-            // Update collectibles
             function updateCollectibles(delta) {
-                const moveAmount = gameSpeed * (delta / 16);
-                collectibles.forEach((col, index) => {
-                    col.x -= moveAmount;
-                    if (col.x + col.width < 0) {
-                        collectibles.splice(index, 1);
-                        streak = 0; // Reset streak on miss
-                        maxTrailLength = 20;
-                        return;
+                const deltaSeconds = delta / 1000;
+                for (let i = collectibles.length - 1; i >= 0; i--) {
+                    const collectible = collectibles[i];
+                    collectible.x -= collectible.speed * deltaSeconds;
+                    collectible.wobbleTime += deltaSeconds * 4;
+                    collectible.y += Math.sin(collectible.wobbleTime) * 18 * deltaSeconds;
+                    collectible.y = clamp(collectible.y, 24, canvas.height - 48);
+
+                    if (collectible.x + collectible.width < 0) {
+                        collectibles.splice(i, 1);
+                        resetStreak();
+                        continue;
                     }
 
-                    // Player collision
-                    if (col.x < player.x + player.width &&
-                        col.x + col.width > player.x &&
-                        col.y < player.y + player.height &&
-                        col.y + col.height > player.y) {
-                        collectibles.splice(index, 1);
-                        nyanCount += 1;
-                        score += 50;
-                        streak++;
-                        maxTrailLength = 20 + streak * 10; // Grow tail
+                    if (rectOverlap(player, collectible)) {
+                        collectibles.splice(i, 1);
+                        awardCollect();
+                        createParticles({
+                            x: collectible.x + collectible.width * 0.5,
+                            y: collectible.y + collectible.height * 0.5,
+                            color: { r: 255, g: 215, b: 0 }
+                        });
                     }
-                });
-
-                if (Math.random() < 0.01) createCollectible();
+                }
             }
 
-            // Update stars
             function updateStars(delta) {
-                stars.forEach(star => {
-                    star.x -= star.speed * (delta / 16);
-                    if (star.x < 0) star.x = canvas.width;
-                });
+                const deltaSeconds = delta / 1000;
+                for (let i = stars.length - 1; i >= 0; i--) {
+                    const star = stars[i];
+                    star.x -= star.speed * deltaSeconds * (0.4 + state.gameSpeed / 600);
+                    if (star.x < -star.size) {
+                        star.x = canvas.width + star.size;
+                        star.y = Math.random() * canvas.height;
+                        star.speed = (Math.random() * 0.8 + 0.4) * config.star.baseSpeed;
+                    }
+                }
             }
 
-            // Draw
-            function draw() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            function updateParticles(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const particle = particles[i];
+                    particle.life -= delta;
+                    if (particle.life <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                    particle.x += particle.vx * deltaSeconds;
+                    particle.y += particle.vy * deltaSeconds;
+                    particle.vx *= 0.96;
+                    particle.vy *= 0.96;
+                }
+            }
 
-                // Stars
-                ctx.fillStyle = '#fff';
-                stars.forEach(star => ctx.fillRect(star.x, star.y, 2, 2));
+            function updateSpawns(delta) {
+                spawnTimers.obstacle += delta;
+                spawnTimers.collectible += delta;
 
-                // Rainbow trail (smoother, Snake-like segments)
+                const obstacleInterval = config.obstacleSpawnInterval / (1 + state.gameSpeed * 0.005);
+                const collectibleInterval = config.collectibleSpawnInterval / (1 + state.gameSpeed * 0.004);
+
+                if (spawnTimers.obstacle >= obstacleInterval) {
+                    spawnTimers.obstacle = 0;
+                    spawnObstacle();
+                }
+
+                if (spawnTimers.collectible >= collectibleInterval) {
+                    spawnTimers.collectible = 0;
+                    spawnCollectible();
+                }
+            }
+
+            function updateProjectilesCollisions() {
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    const projectile = projectiles[i];
+                    for (let j = obstacles.length - 1; j >= 0; j--) {
+                        const obstacle = obstacles[j];
+                        if (rectOverlap(projectile, obstacle)) {
+                            obstacles.splice(j, 1);
+                            projectiles.splice(i, 1);
+                            awardDestroy(obstacle);
+                            createParticles({
+                                x: obstacle.x + obstacle.width * 0.5,
+                                y: obstacle.y + obstacle.height * 0.5,
+                                color: { r: 159, g: 168, b: 218 }
+                            });
+                            break;
+                        }
+                    }
+                }
+            }
+
+            function rectOverlap(a, b) {
+                return a.x < b.x + b.width &&
+                    a.x + a.width > b.x &&
+                    a.y < b.y + b.height &&
+                    a.y + a.height > b.y;
+            }
+
+            function circleRectOverlap(circle, rect) {
+                const closestX = clamp(circle.x, rect.x, rect.x + rect.width);
+                const closestY = clamp(circle.y, rect.y, rect.y + rect.height);
+                const distanceX = circle.x - closestX;
+                const distanceY = circle.y - closestY;
+                return (distanceX * distanceX + distanceY * distanceY) < (circle.radius * circle.radius);
+            }
+
+            function createParticles({ x, y, color }) {
+                for (let i = 0; i < 18; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 280 + 60;
+                    particles.push({
+                        x,
+                        y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 500 + Math.random() * 400,
+                        color,
+                        size: Math.random() * 3 + 1.4
+                    });
+                }
+            }
+
+            function awardCollect() {
+                state.nyan += 1;
+                awardScore(config.score.collect);
+            }
+
+            function awardDestroy(obstacle) {
+                const sizeBonus = Math.floor(obstacle.width * 0.6);
+                awardScore(config.score.destroy + sizeBonus);
+            }
+
+            function awardDodge() {
+                state.score += config.score.dodge;
+                state.comboTimer = Math.max(0, state.comboTimer - 400);
+            }
+
+            function awardScore(basePoints) {
+                state.comboTimer = 0;
+                state.streak += 1;
+                if (state.streak > state.bestStreak) {
+                    state.bestStreak = state.streak;
+                }
+                state.tailLength = config.baseTrailLength + state.streak * config.trailGrowthPerStreak;
+                const multiplier = 1 + state.streak * config.comboMultiplierStep;
+                state.score += Math.floor(basePoints * multiplier);
+            }
+
+            function resetStreak() {
+                state.streak = 0;
+                state.tailLength = config.baseTrailLength;
+            }
+
+            function triggerGameOver(message) {
+                if (state.gameState !== 'running') return;
+                state.gameState = 'gameover';
+                showOverlay(`${message}\nFinal Score: ${state.score} — NYAN collected: ${state.nyan}`, 'Run It Back');
+            }
+
+            function updateCombo(delta) {
+                state.comboTimer += delta;
+                if (state.comboTimer >= config.comboDecayWindow && state.streak > 0) {
+                    resetStreak();
+                }
+                const ratio = clamp(1 - state.comboTimer / config.comboDecayWindow, 0, 1);
+                comboFillEl.style.width = `${ratio * 100}%`;
+            }
+
+            function updateHUD() {
+                scoreEl.textContent = state.score.toLocaleString();
+                nyanEl.textContent = state.nyan;
+                const comboMultiplier = 1 + state.streak * config.comboMultiplierStep;
+                streakEl.textContent = `x${comboMultiplier.toFixed(2)}`;
+                const bestTailLength = Math.round(config.baseTrailLength + state.bestStreak * config.trailGrowthPerStreak);
+                bestStreakEl.textContent = `${bestTailLength}`;
+                const marketCap = 6.6 + state.score / 1400;
+                const volume = 2.8 + state.nyan * 0.6 + state.streak * 0.3;
+                mcapEl.textContent = `${marketCap.toFixed(1)}K`;
+                volEl.textContent = `${volume.toFixed(1)}K`;
+            }
+
+            function drawBackground() {
+                ctx.fillStyle = '#05091f';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, 'rgba(26, 35, 126, 0.85)');
+                gradient.addColorStop(0.5, 'rgba(21, 11, 45, 0.85)');
+                gradient.addColorStop(1, 'rgba(0, 2, 12, 0.95)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            function drawStars(time) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                for (const star of stars) {
+                    const twinkle = (Math.sin(time * 0.002 + star.twinkleOffset) + 1) * 0.5;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + twinkle * 0.7})`;
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            function drawTrail() {
+                if (trail.length < 2) return;
                 for (let i = 0; i < trail.length; i++) {
-                    const hue = (i / trail.length) * 360; // Rainbow gradient along length
-                    ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-                    ctx.fillRect(trail[i].x - 5, trail[i].y - 2, 10, 4); // Small segments
+                    const t = trail[i];
+                    const alpha = i / trail.length;
+                    const hue = (alpha * 300 + performance.now() * 0.05) % 360;
+                    ctx.fillStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
+                    ctx.fillRect(t.x - 36, t.y - 6, 72, 12);
                 }
-
-                // Draw player
-                if (playerImage.complete && playerImage.naturalWidth !== 0) {
-                    ctx.drawImage(playerImage, player.x, player.y, player.width, player.height);
-                } else {
-                    // Fallback
-                    ctx.fillStyle = '#ff69b4';
-                    ctx.fillRect(player.x, player.y, player.width, player.height);
-                }
-
-                // Obstacles
-                obstacles.forEach(obs => {
-                    ctx.fillStyle = obs.color;
-                    ctx.beginPath();
-                    ctx.arc(obs.x + obs.width / 2, obs.y + obs.height / 2, obs.width / 2, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-
-                // Collectibles
-                collectibles.forEach(col => {
-                    ctx.fillStyle = col.color;
-                    ctx.beginPath();
-                    ctx.arc(col.x + col.width / 2, col.y + col.height / 2, col.width / 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#000';
-                    ctx.font = '10px Arial';
-                    ctx.fillText('NYAN', col.x + 2, col.y + col.height / 2 + 3);
-                });
-
-                // Projectiles
-                projectiles.forEach(proj => {
-                    ctx.fillStyle = proj.color;
-                    ctx.beginPath();
-                    ctx.moveTo(proj.x, proj.y);
-                    ctx.lineTo(proj.x + proj.width, proj.y + proj.height / 2);
-                    ctx.lineTo(proj.x, proj.y + proj.height);
-                    ctx.fill();
-                });
-
-                // Stats
-                scoreEl.textContent = score;
-                nyanEl.textContent = nyanCount;
-                mcapEl.textContent = (6.6 + score / 1000).toFixed(1) + 'K';
-                volEl.textContent = (2.8 + nyanCount * 0.5).toFixed(1) + 'K';
             }
 
-            // Game loop
-            let lastTime = 0;
-            function gameLoop(timestamp) {
-                const delta = timestamp - lastTime || 16;
+            function drawPlayer() {
+                const bob = Math.sin(performance.now() * 0.005) * 4;
+                const drawX = player.x;
+                const drawY = player.y + bob;
+                if (playerImage.complete && playerImage.naturalWidth !== 0) {
+                    ctx.drawImage(playerImage, drawX, drawY, player.width, player.height);
+                } else {
+                    const gradient = ctx.createLinearGradient(drawX, drawY, drawX + player.width, drawY + player.height);
+                    gradient.addColorStop(0, '#ff9a9e');
+                    gradient.addColorStop(0.5, '#fad0c4');
+                    gradient.addColorStop(1, '#fad0c4');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(drawX, drawY, player.width, player.height);
+                }
+            }
+
+            function drawObstacles() {
+                ctx.fillStyle = '#8b5cf6';
+                for (const obstacle of obstacles) {
+                    ctx.save();
+                    ctx.translate(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2);
+                    ctx.rotate(obstacle.rotation);
+                    const radius = obstacle.width / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(radius, 0);
+                    for (let i = 1; i < 6; i++) {
+                        const angle = i * (Math.PI * 2 / 6);
+                        ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+                    }
+                    ctx.closePath();
+                    ctx.fillStyle = '#4f46e5';
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+
+            function drawCollectibles(time) {
+                for (const collectible of collectibles) {
+                    ctx.save();
+                    ctx.translate(collectible.x + collectible.width / 2, collectible.y + collectible.height / 2);
+                    ctx.rotate(Math.sin(time * 0.004 + collectible.wobbleTime) * 0.2);
+                    const gradient = ctx.createRadialGradient(0, 0, 4, 0, 0, collectible.width * 0.6);
+                    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                    gradient.addColorStop(0.4, '#fff59d');
+                    gradient.addColorStop(1, 'rgba(255, 215, 0, 0.75)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, collectible.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#1a237e';
+                    ctx.font = '700 12px "Segoe UI"';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('NYAN', 0, 0);
+                    ctx.restore();
+                }
+            }
+
+            function drawProjectiles() {
+                for (const projectile of projectiles) {
+                    const gradient = ctx.createLinearGradient(projectile.x, projectile.y, projectile.x + projectile.width, projectile.y + projectile.height);
+                    gradient.addColorStop(0, '#00e5ff');
+                    gradient.addColorStop(1, '#6a5acd');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(projectile.x, projectile.y);
+                    ctx.lineTo(projectile.x + projectile.width, projectile.y + projectile.height * 0.5);
+                    ctx.lineTo(projectile.x, projectile.y + projectile.height);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+
+            function drawParticles() {
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                for (const particle of particles) {
+                    const alpha = clamp(particle.life / 500, 0, 1);
+                    ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha.toFixed(2)})`;
+                    ctx.beginPath();
+                    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            let lastTime = null;
+            function gameLoop(timestamp = performance.now()) {
+                requestAnimationFrame(gameLoop);
+
+                if (state.gameState === 'ready') {
+                    updateStars(16);
+                    drawBackground();
+                    drawStars(timestamp);
+                    drawPlayer();
+                    return;
+                }
+
+                if (lastTime === null) {
+                    lastTime = timestamp;
+                }
+                let delta = timestamp - lastTime;
+                if (delta > 50) delta = 50;
                 lastTime = timestamp;
 
-                updatePlayer(delta);
-                updateProjectiles(delta);
-                checkProjectileCollisions();
-                updateObstacles(delta);
-                updateCollectibles(delta);
-                updateStars(delta);
-                draw();
+                if (state.gameState === 'running') {
+                    state.gameSpeed += config.speedGrowth * (delta / 1000);
 
-                gameSpeed += 0.0005 * (delta / 16);
+                    updatePlayer(delta);
+                    updateProjectiles(delta);
+                    updateObstacles(delta);
+                    updateCollectibles(delta);
+                    updateProjectilesCollisions();
+                    updateStars(delta);
+                    updateParticles(delta);
+                    updateSpawns(delta);
+                    updateCombo(delta);
+                } else {
+                    updateStars(delta);
+                    updateParticles(delta);
+                }
 
-                requestAnimationFrame(gameLoop);
+                drawBackground();
+                drawStars(timestamp);
+                drawTrail();
+                drawCollectibles(timestamp);
+                drawObstacles();
+                drawProjectiles();
+                drawParticles();
+                drawPlayer();
+
+                updateHUD();
             }
 
-            // Start game after image loads or fails
-            playerImage.onload = () => {
-                console.log('Player image loaded successfully');
-                gameLoop();
-            };
-            playerImage.onerror = () => {
-                console.error('Failed to load player image at: ' + playerImage.src + '. Using fallback.');
-                gameLoop();
-            };
+            createInitialStars();
+            requestAnimationFrame(gameLoop);
         });
     </script>
 </body>
