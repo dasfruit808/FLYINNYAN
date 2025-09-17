@@ -1084,6 +1084,13 @@
             const playerImage = new Image();
             playerImage.src = 'assets/player.png';
 
+            const asteroidImageSources = ['assets/asteroid1.png', 'assets/asteroid2.png', 'assets/asteroid3.png'];
+            const asteroidImages = asteroidImageSources.map((src) => {
+                const image = new Image();
+                image.src = src;
+                return image;
+            });
+
             const powerUpImageSources = {
                 powerBomb: 'assets/powerbomb.png',
                 bulletSpread: 'assets/powerburger.png',
@@ -1160,6 +1167,14 @@
                 star: {
                     count: 120,
                     baseSpeed: 120
+                },
+                asteroid: {
+                    count: 9,
+                    sizeRange: [90, 210],
+                    speedRange: [40, 140],
+                    rotationSpeedRange: [-0.6, 0.6],
+                    driftRange: [-18, 18],
+                    depthRange: [0.35, 1]
                 },
                 comboMultiplierStep: 0.15,
                 score: {
@@ -1259,6 +1274,7 @@
             const collectibles = [];
             const powerUps = [];
             const stars = [];
+            const asteroids = [];
             const particles = [];
             const villainExplosions = [];
             const trail = [];
@@ -1448,6 +1464,7 @@
                 spawnTimers.collectible = 0;
                 spawnTimers.powerUp = 0;
                 createInitialStars();
+                createInitialAsteroids();
                 comboFillEl.style.width = '100%';
                 updateHUD();
                 updateTimerDisplay();
@@ -1465,6 +1482,99 @@
                         twinkleOffset: Math.random() * Math.PI * 2
                     });
                 }
+            }
+
+            function createAsteroid(initial = false) {
+                const depth = randomBetween(config.asteroid.depthRange[0], config.asteroid.depthRange[1]);
+                const asteroid = {
+                    depth,
+                    size: lerp(config.asteroid.sizeRange[0], config.asteroid.sizeRange[1], depth),
+                    speed: lerp(config.asteroid.speedRange[0], config.asteroid.speedRange[1], depth),
+                    rotation: Math.random() * Math.PI * 2,
+                    rotationSpeed:
+                        randomBetween(config.asteroid.rotationSpeedRange[0], config.asteroid.rotationSpeedRange[1]) *
+                        (0.4 + depth),
+                    drift:
+                        randomBetween(config.asteroid.driftRange[0], config.asteroid.driftRange[1]) *
+                        Math.max(0.12, 1 - depth * 0.6),
+                    x: initial ? Math.random() * canvas.width : canvas.width + Math.random() * canvas.width * 0.6,
+                    y: Math.random() * canvas.height,
+                    image: asteroidImages[Math.floor(Math.random() * asteroidImages.length)] ?? null,
+                    bobOffset: Math.random() * Math.PI * 2
+                };
+                return asteroid;
+            }
+
+            function createInitialAsteroids() {
+                asteroids.length = 0;
+                const count = config.asteroid?.count ?? 0;
+                for (let i = 0; i < count; i++) {
+                    asteroids.push(createAsteroid(true));
+                }
+            }
+
+            function recycleAsteroid(asteroid) {
+                const depth = randomBetween(config.asteroid.depthRange[0], config.asteroid.depthRange[1]);
+                asteroid.depth = depth;
+                asteroid.size = lerp(config.asteroid.sizeRange[0], config.asteroid.sizeRange[1], depth);
+                asteroid.speed = lerp(config.asteroid.speedRange[0], config.asteroid.speedRange[1], depth);
+                asteroid.rotation = Math.random() * Math.PI * 2;
+                asteroid.rotationSpeed =
+                    randomBetween(config.asteroid.rotationSpeedRange[0], config.asteroid.rotationSpeedRange[1]) *
+                    (0.4 + depth);
+                asteroid.drift =
+                    randomBetween(config.asteroid.driftRange[0], config.asteroid.driftRange[1]) *
+                    Math.max(0.12, 1 - depth * 0.6);
+                asteroid.x = canvas.width + Math.random() * canvas.width * 0.6;
+                asteroid.y = Math.random() * canvas.height;
+                asteroid.image = asteroidImages[Math.floor(Math.random() * asteroidImages.length)] ?? null;
+                asteroid.bobOffset = Math.random() * Math.PI * 2;
+            }
+
+            function updateAsteroids(delta) {
+                if (!asteroids.length) return;
+                const deltaSeconds = delta / 1000;
+                const parallaxFactor = 0.4 + state.gameSpeed / 900;
+                for (const asteroid of asteroids) {
+                    asteroid.x -= asteroid.speed * deltaSeconds * parallaxFactor * (0.6 + asteroid.depth * 0.8);
+                    asteroid.y += asteroid.drift * deltaSeconds;
+                    asteroid.rotation += asteroid.rotationSpeed * deltaSeconds;
+
+                    if (asteroid.y < -asteroid.size * 0.5) {
+                        asteroid.y = canvas.height + asteroid.size * 0.5;
+                    } else if (asteroid.y > canvas.height + asteroid.size * 0.5) {
+                        asteroid.y = -asteroid.size * 0.5;
+                    }
+
+                    if (asteroid.x < -asteroid.size) {
+                        recycleAsteroid(asteroid);
+                    }
+                }
+            }
+
+            function drawAsteroids(time) {
+                if (!asteroids.length) return;
+                ctx.save();
+                for (const asteroid of asteroids) {
+                    const bob = Math.sin(time * 0.0012 + asteroid.bobOffset) * asteroid.depth * 8;
+                    const alpha = clamp(0.25 + asteroid.depth * 0.6, 0, 1);
+                    const drawSize = asteroid.size;
+                    ctx.save();
+                    ctx.translate(asteroid.x, asteroid.y + bob);
+                    ctx.rotate(asteroid.rotation);
+                    ctx.globalAlpha = alpha;
+                    const image = asteroid.image;
+                    if (image && image.complete && image.naturalWidth > 0) {
+                        ctx.drawImage(image, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+                    } else {
+                        ctx.fillStyle = `rgba(94, 106, 134, ${alpha})`;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, drawSize / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+                ctx.restore();
             }
 
             function clamp(value, min, max) {
@@ -2241,8 +2351,93 @@
                 const deltaSeconds = delta / 1000;
                 for (let i = villainExplosions.length - 1; i >= 0; i--) {
                     const explosion = villainExplosions[i];
-                    explosion.radius = Math.min(explosion.maxRadius, explosion.radius + explosion.expansionSpeed * deltaSeconds);
-                    explosion.ringRadius = Math.min(explosion.maxRingRadius, explosion.ringRadius + explosion.ringGrowth * deltaSeconds);
+
+                    if (typeof explosion.expansionSpeed === 'number' && typeof explosion.maxRadius === 'number') {
+                        explosion.radius = Math.min(
+                            explosion.maxRadius,
+                            explosion.radius + explosion.expansionSpeed * deltaSeconds
+                        );
+                    }
+
+                    if (typeof explosion.ringRadius === 'number' && typeof explosion.ringGrowth === 'number') {
+                        const maxRing = explosion.maxRingRadius ?? Number.POSITIVE_INFINITY;
+                        explosion.ringRadius = Math.min(maxRing, explosion.ringRadius + explosion.ringGrowth * deltaSeconds);
+                    }
+
+                    switch (explosion.type) {
+                        case 'nova': {
+                            explosion.pulse = (explosion.pulse ?? 0) + deltaSeconds * 5;
+                            if (explosion.spokes) {
+                                for (const spoke of explosion.spokes) {
+                                    spoke.length = Math.min(spoke.maxLength, spoke.length + spoke.growth * deltaSeconds);
+                                }
+                            }
+                            break;
+                        }
+                        case 'ionBurst': {
+                            if (explosion.orbits) {
+                                for (const orbit of explosion.orbits) {
+                                    if (orbit.radius < orbit.targetRadius) {
+                                        orbit.radius = Math.min(
+                                            orbit.targetRadius,
+                                            orbit.radius + orbit.growth * deltaSeconds
+                                        );
+                                    }
+                                    orbit.angle += orbit.rotationSpeed * deltaSeconds;
+                                    if (orbit.targetEccentricity !== undefined) {
+                                        orbit.eccentricity +=
+                                            (orbit.targetEccentricity - orbit.eccentricity) * deltaSeconds * 0.8;
+                                    }
+                                }
+                            }
+                            if (explosion.sparks) {
+                                for (const spark of explosion.sparks) {
+                                    spark.distance += spark.speed * deltaSeconds;
+                                    spark.angle += spark.drift * deltaSeconds;
+                                }
+                            }
+                            if (explosion.swirl) {
+                                explosion.swirl.angle += explosion.swirl.speed * deltaSeconds;
+                            }
+                            break;
+                        }
+                        case 'gravityRift': {
+                            if (explosion.core) {
+                                explosion.core.radius = Math.max(
+                                    explosion.core.minRadius,
+                                    explosion.core.radius - explosion.core.collapseSpeed * deltaSeconds
+                                );
+                            }
+                            if (explosion.shockwaves) {
+                                for (const shock of explosion.shockwaves) {
+                                    if (shock.delay > 0) {
+                                        shock.delay = Math.max(0, shock.delay - delta);
+                                        continue;
+                                    }
+                                    shock.radius = Math.min(shock.maxRadius, shock.radius + shock.speed * deltaSeconds);
+                                }
+                            }
+                            if (explosion.fractures) {
+                                for (const fracture of explosion.fractures) {
+                                    fracture.length = Math.min(
+                                        fracture.maxLength,
+                                        fracture.length + fracture.growth * deltaSeconds
+                                    );
+                                }
+                            }
+                            if (explosion.embers) {
+                                for (const ember of explosion.embers) {
+                                    ember.radius += ember.growth * deltaSeconds;
+                                    ember.angle += ember.rotationSpeed * deltaSeconds;
+                                    ember.opacity = Math.max(0, ember.opacity - delta / explosion.maxLife);
+                                }
+                            }
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+
                     explosion.life -= delta;
                     if (explosion.life <= 0) {
                         villainExplosions.splice(i, 1);
@@ -2396,40 +2591,202 @@
                 const centerY = obstacle.y + obstacle.height * 0.5;
                 const palette = villainExplosionPalettes[obstacle.villainType?.key] ?? villainExplosionPalettes.villain1;
                 const sizeFactor = obstacle.width;
-                villainExplosions.push({
-                    x: centerX,
-                    y: centerY,
-                    radius: sizeFactor * 0.45,
-                    maxRadius: sizeFactor * 1.85,
-                    expansionSpeed: 320 + sizeFactor * 2.1,
-                    ringRadius: sizeFactor * 0.7,
-                    maxRingRadius: sizeFactor * 2.4,
-                    ringGrowth: 480 + sizeFactor * 2.6,
-                    ringThickness: Math.max(4, sizeFactor * 0.12),
-                    life: 520,
-                    maxLife: 520,
-                    palette
-                });
+                const villainKey = obstacle.villainType?.key;
+                let explosion;
 
-                createParticles({
-                    x: centerX,
-                    y: centerY,
-                    color: palette.core,
-                    count: 28,
-                    speedRange: [160, 420],
-                    sizeRange: [1.1, 3.4],
-                    lifeRange: [360, 620]
-                });
+                switch (villainKey) {
+                    case 'villain2': {
+                        const orbitCount = 3 + Math.floor(sizeFactor / 36);
+                        const orbits = Array.from({ length: orbitCount }, (_, index) => {
+                            const depth = index / Math.max(1, orbitCount - 1);
+                            const targetRadius = sizeFactor * (0.5 + depth * 0.65);
+                            return {
+                                radius: targetRadius * 0.45,
+                                targetRadius,
+                                growth: (260 + sizeFactor * 1.8) * (0.4 + depth * 0.8),
+                                thickness: Math.max(3, sizeFactor * (0.035 + depth * 0.018)),
+                                angle: Math.random() * Math.PI * 2,
+                                rotationSpeed: randomBetween(-1.8, 1.8),
+                                eccentricity: randomBetween(0.45, 0.7),
+                                targetEccentricity: randomBetween(0.75, 1.05)
+                            };
+                        });
+                        const sparks = Array.from({ length: 14 + Math.floor(sizeFactor / 12) }, () => ({
+                            angle: Math.random() * Math.PI * 2,
+                            distance: sizeFactor * randomBetween(0.28, 0.6),
+                            speed: randomBetween(160, 260),
+                            size: randomBetween(2, 5),
+                            drift: randomBetween(-1.2, 1.2)
+                        }));
+                        explosion = {
+                            type: 'ionBurst',
+                            x: centerX,
+                            y: centerY,
+                            palette,
+                            radius: sizeFactor * 0.34,
+                            maxRadius: sizeFactor * 1.72,
+                            expansionSpeed: 240 + sizeFactor * 1.6,
+                            ringRadius: sizeFactor * 0.58,
+                            maxRingRadius: sizeFactor * 2.8,
+                            ringGrowth: 260 + sizeFactor * 1.8,
+                            ringThickness: Math.max(4, sizeFactor * 0.08),
+                            life: 640,
+                            maxLife: 640,
+                            orbits,
+                            sparks,
+                            swirl: { angle: Math.random() * Math.PI * 2, speed: randomBetween(1.1, 1.8) }
+                        };
+                        break;
+                    }
+                    case 'villain3': {
+                        const shockwaves = [
+                            {
+                                radius: sizeFactor * 0.62,
+                                maxRadius: sizeFactor * 3.3,
+                                speed: 520 + sizeFactor * 2.4,
+                                lineWidth: Math.max(9, sizeFactor * 0.14),
+                                opacity: 0.55,
+                                delay: 0
+                            },
+                            {
+                                radius: sizeFactor * 0.34,
+                                maxRadius: sizeFactor * 2.6,
+                                speed: 420 + sizeFactor * 2.0,
+                                lineWidth: Math.max(6, sizeFactor * 0.1),
+                                opacity: 0.38,
+                                delay: 140
+                            }
+                        ];
+                        const fractures = Array.from({ length: 10 + Math.floor(sizeFactor / 12) }, () => ({
+                            angle: Math.random() * Math.PI * 2,
+                            length: sizeFactor * randomBetween(0.35, 0.8),
+                            maxLength: sizeFactor * randomBetween(1.1, 1.8),
+                            growth: randomBetween(160, 320),
+                            width: Math.max(1.2, sizeFactor * 0.015)
+                        }));
+                        const embers = Array.from({ length: 18 + Math.floor(sizeFactor / 10) }, () => ({
+                            radius: sizeFactor * randomBetween(0.6, 1.6),
+                            growth: randomBetween(40, 120),
+                            angle: Math.random() * Math.PI * 2,
+                            rotationSpeed: randomBetween(-0.8, 0.8),
+                            size: randomBetween(2.2, 5),
+                            opacity: 0.65
+                        }));
+                        explosion = {
+                            type: 'gravityRift',
+                            x: centerX,
+                            y: centerY,
+                            palette,
+                            radius: sizeFactor * 0.46,
+                            maxRadius: sizeFactor * 1.52,
+                            expansionSpeed: 300 + sizeFactor * 1.4,
+                            life: 720,
+                            maxLife: 720,
+                            shockwaves,
+                            fractures,
+                            embers,
+                            core: { radius: sizeFactor * 0.26, minRadius: sizeFactor * 0.08, collapseSpeed: 220 + sizeFactor * 0.9 }
+                        };
+                        break;
+                    }
+                    default: {
+                        const spokes = Array.from({ length: 6 + Math.floor(sizeFactor / 16) }, () => ({
+                            angle: Math.random() * Math.PI * 2,
+                            length: sizeFactor * randomBetween(0.4, 0.7),
+                            maxLength: sizeFactor * randomBetween(1, 1.6),
+                            growth: randomBetween(180, 320),
+                            width: Math.max(2, sizeFactor * 0.04)
+                        }));
+                        explosion = {
+                            type: 'nova',
+                            x: centerX,
+                            y: centerY,
+                            palette,
+                            radius: sizeFactor * 0.45,
+                            maxRadius: sizeFactor * 1.85,
+                            expansionSpeed: 320 + sizeFactor * 2.1,
+                            ringRadius: sizeFactor * 0.7,
+                            maxRingRadius: sizeFactor * 2.4,
+                            ringGrowth: 480 + sizeFactor * 2.6,
+                            ringThickness: Math.max(4, sizeFactor * 0.12),
+                            life: 520,
+                            maxLife: 520,
+                            spokes,
+                            pulse: Math.random() * Math.PI * 2
+                        };
+                        break;
+                    }
+                }
 
-                createParticles({
-                    x: centerX,
-                    y: centerY,
-                    color: palette.spark,
-                    count: 18,
-                    speedRange: [220, 520],
-                    sizeRange: [0.6, 1.6],
-                    lifeRange: [260, 480]
-                });
+                villainExplosions.push(explosion);
+
+                switch (explosion.type) {
+                    case 'ionBurst': {
+                        createParticles({
+                            x: centerX,
+                            y: centerY,
+                            color: palette.core,
+                            count: 34,
+                            speedRange: [140, 360],
+                            sizeRange: [1.2, 3.2],
+                            lifeRange: [420, 700]
+                        });
+                        createParticles({
+                            x: centerX,
+                            y: centerY,
+                            color: palette.spark,
+                            count: 22,
+                            speedRange: [200, 480],
+                            sizeRange: [0.8, 2.2],
+                            lifeRange: [320, 560]
+                        });
+                        break;
+                    }
+                    case 'gravityRift': {
+                        createParticles({
+                            x: centerX,
+                            y: centerY,
+                            color: palette.core,
+                            count: 42,
+                            speedRange: [180, 520],
+                            sizeRange: [1.6, 4.8],
+                            lifeRange: [520, 880]
+                        });
+                        createParticles({
+                            x: centerX,
+                            y: centerY,
+                            color: palette.spark,
+                            count: 28,
+                            speedRange: [220, 620],
+                            sizeRange: [1, 2.6],
+                            lifeRange: [360, 640]
+                        });
+                        createHitSpark({ x: centerX, y: centerY, color: palette.halo });
+                        break;
+                    }
+                    default: {
+                        createParticles({
+                            x: centerX,
+                            y: centerY,
+                            color: palette.core,
+                            count: 28,
+                            speedRange: [160, 420],
+                            sizeRange: [1.1, 3.4],
+                            lifeRange: [360, 620]
+                        });
+
+                        createParticles({
+                            x: centerX,
+                            y: centerY,
+                            color: palette.spark,
+                            count: 18,
+                            speedRange: [220, 520],
+                            sizeRange: [0.6, 1.6],
+                            lifeRange: [260, 480]
+                        });
+                        break;
+                    }
+                }
             }
 
             function awardCollect(collectible) {
@@ -2725,26 +3082,204 @@
                 for (const explosion of villainExplosions) {
                     const palette = explosion.palette ?? villainExplosionPalettes.villain1;
                     const alpha = clamp(explosion.life / explosion.maxLife, 0, 1);
-                    const gradient = ctx.createRadialGradient(
-                        explosion.x,
-                        explosion.y,
-                        Math.max(6, explosion.radius * 0.2),
-                        explosion.x,
-                        explosion.y,
-                        Math.max(explosion.radius, 1)
-                    );
-                    gradient.addColorStop(0, `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.55 * alpha})`);
-                    gradient.addColorStop(1, `rgba(${palette.halo.r}, ${palette.halo.g}, ${palette.halo.b}, 0)`);
-                    ctx.fillStyle = gradient;
-                    ctx.beginPath();
-                    ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
-                    ctx.fill();
 
-                    ctx.strokeStyle = `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.35 * alpha})`;
-                    ctx.lineWidth = explosion.ringThickness;
-                    ctx.beginPath();
-                    ctx.arc(explosion.x, explosion.y, explosion.ringRadius, 0, Math.PI * 2);
-                    ctx.stroke();
+                    switch (explosion.type) {
+                        case 'ionBurst': {
+                            const gradient = ctx.createRadialGradient(
+                                explosion.x,
+                                explosion.y,
+                                Math.max(6, explosion.radius * 0.2),
+                                explosion.x,
+                                explosion.y,
+                                Math.max(explosion.radius, 1)
+                            );
+                            gradient.addColorStop(
+                                0,
+                                `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.65 * alpha})`
+                            );
+                            gradient.addColorStop(
+                                0.6,
+                                `rgba(${palette.halo.r}, ${palette.halo.g}, ${palette.halo.b}, ${0.4 * alpha})`
+                            );
+                            gradient.addColorStop(1, `rgba(${palette.halo.r}, ${palette.halo.g}, ${palette.halo.b}, 0)`);
+                            ctx.fillStyle = gradient;
+                            ctx.beginPath();
+                            ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+                            ctx.fill();
+
+                            if (explosion.orbits) {
+                                for (const orbit of explosion.orbits) {
+                                    const orbitAlpha = alpha * 0.35;
+                                    ctx.save();
+                                    ctx.translate(explosion.x, explosion.y);
+                                    ctx.rotate(orbit.angle);
+                                    ctx.strokeStyle = `rgba(${palette.halo.r}, ${palette.halo.g}, ${palette.halo.b}, ${orbitAlpha})`;
+                                    ctx.lineWidth = orbit.thickness;
+                                    ctx.beginPath();
+                                    ctx.ellipse(0, 0, orbit.radius, orbit.radius * orbit.eccentricity, 0, 0, Math.PI * 2);
+                                    ctx.stroke();
+                                    ctx.restore();
+                                }
+                            }
+
+                            if (typeof explosion.ringRadius === 'number') {
+                                ctx.strokeStyle = `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.25 * alpha})`;
+                                ctx.lineWidth = explosion.ringThickness ?? 6;
+                                ctx.beginPath();
+                                ctx.arc(explosion.x, explosion.y, explosion.ringRadius, 0, Math.PI * 2);
+                                ctx.stroke();
+                            }
+
+                            if (explosion.swirl) {
+                                const swirlSegments = 18;
+                                ctx.strokeStyle = `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.4 * alpha})`;
+                                ctx.lineWidth = Math.max(2, (explosion.ringThickness ?? 6) * 0.4);
+                                ctx.beginPath();
+                                for (let i = 0; i < swirlSegments; i++) {
+                                    const t = i / (swirlSegments - 1);
+                                    const angle = explosion.swirl.angle + t * Math.PI * 2;
+                                    const radius = explosion.radius * (0.2 + t * 0.8);
+                                    const px = explosion.x + Math.cos(angle) * radius;
+                                    const py = explosion.y + Math.sin(angle) * radius * 0.6;
+                                    if (i === 0) {
+                                        ctx.moveTo(px, py);
+                                    } else {
+                                        ctx.lineTo(px, py);
+                                    }
+                                }
+                                ctx.stroke();
+                            }
+
+                            if (explosion.sparks) {
+                                for (const spark of explosion.sparks) {
+                                    const px = explosion.x + Math.cos(spark.angle) * spark.distance;
+                                    const py = explosion.y + Math.sin(spark.angle) * spark.distance * 0.9;
+                                    const sparkAlpha = alpha * 0.65;
+                                    ctx.fillStyle = `rgba(${palette.spark.r}, ${palette.spark.g}, ${palette.spark.b}, ${sparkAlpha})`;
+                                    ctx.beginPath();
+                                    ctx.arc(px, py, spark.size, 0, Math.PI * 2);
+                                    ctx.fill();
+                                }
+                            }
+                            break;
+                        }
+                        case 'gravityRift': {
+                            const gradient = ctx.createRadialGradient(
+                                explosion.x,
+                                explosion.y,
+                                Math.max(4, explosion.radius * 0.12),
+                                explosion.x,
+                                explosion.y,
+                                Math.max(explosion.radius, 1)
+                            );
+                            gradient.addColorStop(
+                                0,
+                                `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.7 * alpha})`
+                            );
+                            gradient.addColorStop(
+                                0.5,
+                                `rgba(${palette.halo.r}, ${palette.halo.g}, ${palette.halo.b}, ${0.45 * alpha})`
+                            );
+                            gradient.addColorStop(1, `rgba(${palette.halo.r}, ${palette.halo.g}, ${palette.halo.b}, 0)`);
+                            ctx.fillStyle = gradient;
+                            ctx.beginPath();
+                            ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+                            ctx.fill();
+
+                            if (explosion.shockwaves) {
+                                for (const shock of explosion.shockwaves) {
+                                    if (shock.delay > 0) continue;
+                                    const shockAlpha = alpha * shock.opacity;
+                                    ctx.strokeStyle = `rgba(${palette.halo.r}, ${palette.halo.g}, ${palette.halo.b}, ${shockAlpha})`;
+                                    ctx.lineWidth = shock.lineWidth;
+                                    ctx.beginPath();
+                                    ctx.arc(explosion.x, explosion.y, shock.radius, 0, Math.PI * 2);
+                                    ctx.stroke();
+                                }
+                            }
+
+                            if (explosion.fractures) {
+                                ctx.lineCap = 'round';
+                                for (const fracture of explosion.fractures) {
+                                    const fx = explosion.x + Math.cos(fracture.angle) * fracture.length;
+                                    const fy = explosion.y + Math.sin(fracture.angle) * fracture.length;
+                                    ctx.strokeStyle = `rgba(${palette.spark.r}, ${palette.spark.g}, ${palette.spark.b}, ${0.35 * alpha})`;
+                                    ctx.lineWidth = fracture.width;
+                                    ctx.beginPath();
+                                    ctx.moveTo(explosion.x, explosion.y);
+                                    ctx.lineTo(fx, fy);
+                                    ctx.stroke();
+                                }
+                            }
+
+                            if (explosion.embers) {
+                                for (const ember of explosion.embers) {
+                                    if (ember.opacity <= 0) continue;
+                                    const ex = explosion.x + Math.cos(ember.angle) * ember.radius;
+                                    const ey = explosion.y + Math.sin(ember.angle) * ember.radius * 0.85;
+                                    const emberAlpha = alpha * ember.opacity;
+                                    ctx.fillStyle = `rgba(${palette.spark.r}, ${palette.spark.g}, ${palette.spark.b}, ${emberAlpha})`;
+                                    ctx.beginPath();
+                                    ctx.arc(ex, ey, ember.size, 0, Math.PI * 2);
+                                    ctx.fill();
+                                }
+                            }
+
+                            if (explosion.core) {
+                                ctx.save();
+                                ctx.globalCompositeOperation = 'source-over';
+                                ctx.fillStyle = 'rgba(6, 8, 20, 0.85)';
+                                ctx.beginPath();
+                                ctx.arc(explosion.x, explosion.y, explosion.core.radius, 0, Math.PI * 2);
+                                ctx.fill();
+                                ctx.restore();
+                            }
+                            break;
+                        }
+                        default: {
+                            const gradient = ctx.createRadialGradient(
+                                explosion.x,
+                                explosion.y,
+                                Math.max(6, explosion.radius * 0.2),
+                                explosion.x,
+                                explosion.y,
+                                Math.max(explosion.radius, 1)
+                            );
+                            gradient.addColorStop(
+                                0,
+                                `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.55 * alpha})`
+                            );
+                            gradient.addColorStop(1, `rgba(${palette.halo.r}, ${palette.halo.g}, ${palette.halo.b}, 0)`);
+                            ctx.fillStyle = gradient;
+                            ctx.beginPath();
+                            ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+                            ctx.fill();
+
+                            if (typeof explosion.ringRadius === 'number') {
+                                const pulse = Math.sin(explosion.pulse ?? 0) * 0.5 + 0.5;
+                                ctx.strokeStyle = `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.35 * alpha * pulse})`;
+                                ctx.lineWidth = explosion.ringThickness;
+                                ctx.beginPath();
+                                ctx.arc(explosion.x, explosion.y, explosion.ringRadius, 0, Math.PI * 2);
+                                ctx.stroke();
+                            }
+
+                            if (explosion.spokes) {
+                                ctx.lineCap = 'round';
+                                for (const spoke of explosion.spokes) {
+                                    const sx = explosion.x + Math.cos(spoke.angle) * spoke.length;
+                                    const sy = explosion.y + Math.sin(spoke.angle) * spoke.length;
+                                    ctx.strokeStyle = `rgba(${palette.spark.r}, ${palette.spark.g}, ${palette.spark.b}, ${0.6 * alpha})`;
+                                    ctx.lineWidth = spoke.width;
+                                    ctx.beginPath();
+                                    ctx.moveTo(explosion.x, explosion.y);
+                                    ctx.lineTo(sx, sy);
+                                    ctx.stroke();
+                                }
+                            }
+                            break;
+                        }
+                    }
                 }
                 ctx.restore();
             }
@@ -2807,8 +3342,10 @@
 
                 if (state.gameState === 'ready') {
                     updateStars(16);
+                    updateAsteroids(16);
                     drawBackground();
                     drawStars(timestamp);
+                    drawAsteroids(timestamp);
                     drawPlayer();
                     return;
                 }
@@ -2831,6 +3368,7 @@
                     updatePowerUps(delta);
                     updateProjectilesCollisions();
                     updateStars(delta);
+                    updateAsteroids(delta);
                     updateParticles(delta);
                     updateSpawns(delta);
                     updatePowerUpTimers(delta);
@@ -2840,6 +3378,7 @@
                     updateCombo(delta);
                 } else {
                     updateStars(delta);
+                    updateAsteroids(delta);
                     updateParticles(delta);
                     updateAreaBursts(delta);
                     updateVillainExplosions(delta);
@@ -2847,6 +3386,7 @@
 
                 drawBackground();
                 drawStars(timestamp);
+                drawAsteroids(timestamp);
                 drawTrail();
                 drawCollectibles(timestamp);
                 drawPowerUps(timestamp);
@@ -2863,6 +3403,7 @@
 
             runCyborgLoadingSequence();
             createInitialStars();
+            createInitialAsteroids();
             requestAnimationFrame(gameLoop);
         });
     </script>
