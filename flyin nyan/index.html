@@ -167,6 +167,85 @@
             z-index: 1;
         }
 
+        #touchControls {
+            position: fixed;
+            inset: 0;
+            display: none;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
+
+        #joystickZone {
+            position: absolute;
+            width: clamp(132px, 26vw, 188px);
+            height: clamp(132px, 26vw, 188px);
+            left: max(16px, calc(50% - 450px - 108px));
+            bottom: clamp(16px, 8vh, 72px);
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.58);
+            border: 2px solid rgba(148, 163, 184, 0.32);
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(2px);
+            pointer-events: auto;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #joystickZone .joystick-ring {
+            position: absolute;
+            inset: 14%;
+            border-radius: 50%;
+            border: 2px dashed rgba(148, 163, 184, 0.28);
+        }
+
+        #joystickZone .joystick-thumb {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 38%;
+            height: 38%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(125, 211, 252, 0.9), rgba(2, 132, 199, 0.75));
+            box-shadow: 0 6px 16px rgba(14, 116, 144, 0.65);
+            transform: translate(calc(-50% + var(--thumb-x, 0px)), calc(-50% + var(--thumb-y, 0px)));
+            transition: transform 80ms ease-out;
+        }
+
+        #fireButton {
+            position: absolute;
+            right: max(16px, calc(50% - 450px - 96px));
+            bottom: clamp(20px, 8vh, 84px);
+            width: clamp(108px, 24vw, 160px);
+            height: clamp(108px, 24vw, 160px);
+            border-radius: 40px;
+            border: none;
+            pointer-events: auto;
+            font-size: clamp(1rem, 4vw, 1.2rem);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #fff;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 107, 214, 0.92), rgba(255, 64, 129, 0.88));
+            box-shadow: 0 18px 38px rgba(255, 64, 129, 0.45);
+            transition: transform 120ms ease, box-shadow 120ms ease;
+            touch-action: manipulation;
+        }
+
+        #fireButton:active,
+        #fireButton.active {
+            transform: translateY(2px) scale(0.98);
+            box-shadow: 0 12px 28px rgba(255, 64, 129, 0.35);
+        }
+
         #overlay {
             position: absolute;
             inset: 0;
@@ -306,7 +385,7 @@
         <div class="backgroundLayer visible" id="backgroundLayerA"></div>
         <div class="backgroundLayer" id="backgroundLayerB"></div>
     </div>
-    <canvas id="gameCanvas" width="900" height="600"></canvas>
+    <canvas id="gameCanvas" width="900" height="600" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
     <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
     <div id="stats">
         Score: <span class="value" id="score">0</span><br>
@@ -327,6 +406,13 @@
         unleash Nova Pulses to clear threats,<br>
         and snipe debris to grow your tail!<br>
         Keep the combo alive for massive gains.
+    </div>
+    <div id="touchControls" aria-hidden="true">
+        <div id="joystickZone">
+            <div class="joystick-ring"></div>
+            <div class="joystick-thumb"></div>
+        </div>
+        <button id="fireButton" type="button" aria-label="Fire cosmic arrows">Fire</button>
     </div>
     <div id="overlay">
         <h1>NYAN ESCAPE</h1>
@@ -364,6 +450,9 @@
             const volEl = document.getElementById('vol');
             const powerUpsEl = document.getElementById('powerUps');
             const comboFillEl = document.getElementById('comboFill');
+            const joystickZone = document.getElementById('joystickZone');
+            const joystickThumb = joystickZone?.querySelector('.joystick-thumb') ?? null;
+            const fireButton = document.getElementById('fireButton');
 
             const overlay = document.getElementById('overlay');
             const overlayMessage = document.getElementById('overlayMessage');
@@ -741,6 +830,15 @@
             updateTimerDisplay();
 
             const keys = new Set();
+            const virtualInput = {
+                moveX: 0,
+                moveY: 0,
+                firing: false
+            };
+            const joystickState = {
+                pointerId: null
+            };
+            let firePointerId = null;
             const projectiles = [];
             const obstacles = [];
             const collectibles = [];
@@ -938,6 +1036,7 @@
                 comboFillEl.style.width = '100%';
                 updateHUD();
                 updateTimerDisplay();
+                resetVirtualControls();
             }
 
             function createInitialStars() {
@@ -1001,6 +1100,7 @@
                     const titleText = options.title ?? overlayDefaultTitle;
                     overlayTitle.textContent = titleText;
                 }
+                resetVirtualControls();
                 overlay.classList.remove('hidden');
             }
 
@@ -1008,11 +1108,114 @@
                 overlay.classList.add('hidden');
             }
 
+            function setJoystickThumbPosition(dx, dy) {
+                if (!joystickThumb) return;
+                const xValue = typeof dx === 'number' ? `${dx}px` : dx;
+                const yValue = typeof dy === 'number' ? `${dy}px` : dy;
+                joystickThumb.style.setProperty('--thumb-x', xValue);
+                joystickThumb.style.setProperty('--thumb-y', yValue);
+            }
+
+            function resetJoystick() {
+                const pointerId = joystickState.pointerId;
+                if (pointerId !== null && joystickZone?.hasPointerCapture?.(pointerId)) {
+                    joystickZone.releasePointerCapture(pointerId);
+                }
+                joystickState.pointerId = null;
+                virtualInput.moveX = 0;
+                virtualInput.moveY = 0;
+                setJoystickThumbPosition('0px', '0px');
+            }
+
+            function resetFiring() {
+                const pointerId = firePointerId;
+                if (pointerId !== null && fireButton?.hasPointerCapture?.(pointerId)) {
+                    fireButton.releasePointerCapture(pointerId);
+                }
+                firePointerId = null;
+                virtualInput.firing = false;
+                if (fireButton) {
+                    fireButton.classList.remove('active');
+                }
+            }
+
+            function resetVirtualControls() {
+                resetJoystick();
+                resetFiring();
+            }
+
+            function updateJoystickFromPointer(event) {
+                if (!joystickZone) return;
+                const rect = joystickZone.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                let dx = event.clientX - centerX;
+                let dy = event.clientY - centerY;
+                const maxDistance = rect.width * 0.5;
+                const distance = Math.hypot(dx, dy);
+                if (distance > maxDistance && distance > 0) {
+                    const scale = maxDistance / distance;
+                    dx *= scale;
+                    dy *= scale;
+                }
+
+                setJoystickThumbPosition(dx, dy);
+
+                const normalizedX = clamp(dx / maxDistance, -1, 1);
+                const normalizedY = clamp(dy / maxDistance, -1, 1);
+                const deadZone = 0.14;
+                virtualInput.moveX = Math.abs(normalizedX) < deadZone ? 0 : normalizedX;
+                virtualInput.moveY = Math.abs(normalizedY) < deadZone ? 0 : normalizedY;
+            }
+
+            function endJoystickControl() {
+                resetJoystick();
+            }
+
+            function handleJoystickPointerEnd(event) {
+                if (joystickState.pointerId !== event.pointerId) {
+                    return;
+                }
+                if (joystickZone?.hasPointerCapture?.(event.pointerId)) {
+                    joystickZone.releasePointerCapture(event.pointerId);
+                }
+                endJoystickControl();
+            }
+
+            function engageFireControl(event) {
+                firePointerId = event.pointerId;
+                virtualInput.firing = true;
+                if (fireButton) {
+                    fireButton.classList.add('active');
+                    fireButton.setPointerCapture?.(event.pointerId);
+                }
+            }
+
+            function handleFirePointerEnd(event) {
+                if (firePointerId !== event.pointerId) {
+                    return;
+                }
+                if (fireButton?.hasPointerCapture?.(event.pointerId)) {
+                    fireButton.releasePointerCapture(event.pointerId);
+                }
+                resetFiring();
+            }
+
+            function focusGameCanvas() {
+                if (!canvas) return;
+                try {
+                    canvas.focus({ preventScroll: true });
+                } catch {
+                    canvas.focus();
+                }
+            }
+
             function startGame() {
                 resetGame();
                 state.gameState = 'running';
                 lastTime = null;
                 hideOverlay();
+                focusGameCanvas();
             }
 
             overlayButton.addEventListener('click', () => {
@@ -1020,6 +1223,63 @@
                     startGame();
                 }
             });
+
+            if (canvas) {
+                canvas.addEventListener('pointerdown', () => {
+                    focusGameCanvas();
+                });
+            }
+
+            if (joystickZone) {
+                joystickZone.addEventListener('pointerdown', (event) => {
+                    joystickState.pointerId = event.pointerId;
+                    focusGameCanvas();
+                    event.preventDefault();
+                    joystickZone.setPointerCapture?.(event.pointerId);
+                    updateJoystickFromPointer(event);
+                });
+
+                joystickZone.addEventListener('pointermove', (event) => {
+                    if (joystickState.pointerId !== event.pointerId) return;
+                    updateJoystickFromPointer(event);
+                });
+
+                joystickZone.addEventListener('pointerup', (event) => {
+                    handleJoystickPointerEnd(event);
+                });
+
+                joystickZone.addEventListener('pointercancel', (event) => {
+                    handleJoystickPointerEnd(event);
+                });
+
+                joystickZone.addEventListener('lostpointercapture', (event) => {
+                    if (joystickState.pointerId === event.pointerId) {
+                        endJoystickControl();
+                    }
+                });
+            }
+
+            if (fireButton) {
+                fireButton.addEventListener('pointerdown', (event) => {
+                    focusGameCanvas();
+                    event.preventDefault();
+                    engageFireControl(event);
+                });
+
+                fireButton.addEventListener('pointerup', (event) => {
+                    handleFirePointerEnd(event);
+                });
+
+                fireButton.addEventListener('pointercancel', (event) => {
+                    handleFirePointerEnd(event);
+                });
+
+                fireButton.addEventListener('lostpointercapture', (event) => {
+                    if (firePointerId === event.pointerId) {
+                        resetFiring();
+                    }
+                });
+            }
 
             window.addEventListener('keydown', (event) => {
                 if (event.repeat) return;
@@ -1036,6 +1296,11 @@
                 keys.delete(event.code);
             });
 
+            window.addEventListener('blur', () => {
+                keys.clear();
+                resetVirtualControls();
+            });
+
             function isPowerUpActive(type) {
                 return state.powerUpTimers[type] > 0;
             }
@@ -1043,7 +1308,7 @@
             function attemptShoot(delta) {
                 state.timeSinceLastShot += delta;
                 const cooldown = config.projectileCooldown;
-                if (keys.has('Space') && state.timeSinceLastShot >= cooldown) {
+                if ((keys.has('Space') || virtualInput.firing) && state.timeSinceLastShot >= cooldown) {
                     spawnProjectiles();
                     state.timeSinceLastShot = 0;
                 }
@@ -1098,8 +1363,10 @@
 
             function updatePlayer(delta) {
                 const deltaSeconds = delta / 1000;
-                const inputX = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
-                const inputY = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
+                const keyboardX = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
+                const keyboardY = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
+                const inputX = clamp(keyboardX + virtualInput.moveX, -1, 1);
+                const inputY = clamp(keyboardY + virtualInput.moveY, -1, 1);
 
                 const accel = config.player.acceleration;
                 const drag = config.player.drag;
