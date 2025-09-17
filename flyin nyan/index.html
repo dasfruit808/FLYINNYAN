@@ -15,7 +15,7 @@
 
         body {
             margin: 0;
-            background: radial-gradient(circle at top, #1a237e 0%, #0d0221 40%, #000 100%);
+            background: #000;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -23,9 +23,35 @@
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             color: #fff;
             overflow: hidden;
+            position: relative;
+        }
+
+        #backgroundContainer {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            overflow: hidden;
+            background: radial-gradient(circle at top, #1a237e 0%, #0d0221 40%, #000 100%);
+        }
+
+        .backgroundLayer {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0;
+            transition: opacity 4s ease-in-out;
+            will-change: opacity;
+        }
+
+        .backgroundLayer.visible {
+            opacity: 1;
         }
 
         canvas {
+            position: relative;
+            z-index: 0;
             border: 1px solid rgba(255, 255, 255, 0.4);
             background: linear-gradient(180deg, rgba(5, 18, 55, 0.95) 0%, rgba(8, 27, 70, 0.95) 45%, rgba(0, 4, 20, 0.98) 100%);
             border-radius: 10px;
@@ -39,6 +65,7 @@
             font-size: 15px;
             line-height: 1.4;
             text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+            z-index: 1;
         }
 
         #stats span.value {
@@ -56,6 +83,7 @@
             max-width: 220px;
             line-height: 1.5;
             text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+            z-index: 1;
         }
 
         #overlay {
@@ -71,6 +99,7 @@
             padding: 24px;
             gap: 18px;
             transition: opacity 200ms ease;
+            z-index: 2;
         }
 
         #overlay.hidden {
@@ -133,6 +162,10 @@
     </style>
 </head>
 <body>
+    <div id="backgroundContainer">
+        <div class="backgroundLayer visible" id="backgroundLayerA"></div>
+        <div class="backgroundLayer" id="backgroundLayerB"></div>
+    </div>
     <canvas id="gameCanvas" width="900" height="600"></canvas>
     <div id="stats">
         Score: <span class="value" id="score">0</span><br>
@@ -165,6 +198,19 @@
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
 
+            const backgroundImages = [
+                'assets/background1.png',
+                'assets/background2.png',
+                'assets/background3.png'
+            ];
+            const backgroundLayers = [
+                document.getElementById('backgroundLayerA'),
+                document.getElementById('backgroundLayerB')
+            ];
+            const backgroundChangeInterval = 20000;
+            let currentBackgroundIndex = 0;
+            let activeLayerIndex = 0;
+
             const scoreEl = document.getElementById('score');
             const nyanEl = document.getElementById('nyan');
             const streakEl = document.getElementById('streak');
@@ -177,6 +223,61 @@
             const overlay = document.getElementById('overlay');
             const overlayMessage = document.getElementById('overlayMessage');
             const overlayButton = document.getElementById('overlayButton');
+
+            function preloadImages(sources) {
+                return Promise.all(sources.map((src) => new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                    img.src = src;
+                })));
+            }
+
+            function setLayerBackground(layer, src) {
+                if (layer) {
+                    layer.style.backgroundImage = `url('${src}')`;
+                }
+            }
+
+            function showLayer(layer) {
+                if (layer) {
+                    layer.classList.add('visible');
+                }
+            }
+
+            function hideLayer(layer) {
+                if (layer) {
+                    layer.classList.remove('visible');
+                }
+            }
+
+            function cycleBackground() {
+                if (backgroundImages.length <= 1) {
+                    return;
+                }
+                const nextIndex = (currentBackgroundIndex + 1) % backgroundImages.length;
+                const nextLayerIndex = 1 - activeLayerIndex;
+                const nextLayer = backgroundLayers[nextLayerIndex];
+                const currentLayer = backgroundLayers[activeLayerIndex];
+
+                setLayerBackground(nextLayer, backgroundImages[nextIndex]);
+
+                requestAnimationFrame(() => {
+                    showLayer(nextLayer);
+                    hideLayer(currentLayer);
+                    activeLayerIndex = nextLayerIndex;
+                    currentBackgroundIndex = nextIndex;
+                });
+            }
+
+            preloadImages(backgroundImages).then(() => {
+                setLayerBackground(backgroundLayers[activeLayerIndex], backgroundImages[currentBackgroundIndex]);
+                showLayer(backgroundLayers[activeLayerIndex]);
+                if (backgroundImages.length > 1) {
+                    setLayerBackground(backgroundLayers[1 - activeLayerIndex], backgroundImages[(currentBackgroundIndex + 1) % backgroundImages.length]);
+                    setInterval(cycleBackground, backgroundChangeInterval);
+                }
+            });
 
             const playerImage = new Image();
             playerImage.src = 'assets/player.png';
