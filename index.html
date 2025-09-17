@@ -356,6 +356,14 @@
             font-size: 0.86rem;
         }
 
+        #intelCard .card-body {
+            transition: opacity 220ms ease;
+        }
+
+        #intelCard .card-body.updating {
+            opacity: 0;
+        }
+
         #touchControls {
             position: fixed;
             inset: 0;
@@ -632,9 +640,14 @@
                 </ul>
             </div>
         </div>
-        <div class="hud-card" id="intelCard">
-            <div class="card-title">Tactical Intel</div>
-            <p class="card-body">Nova Pulses clear the field when charged — time them with debris clusters to extend your tail and dominate the leaderboard.</p>
+        <div class="hud-card collapsible open" id="intelCard">
+            <button class="card-toggle" type="button" id="intelToggle" aria-expanded="true" aria-controls="intelContent">
+                <span class="card-title">Tactical Intel</span>
+                <span class="toggle-icon" aria-hidden="true"></span>
+            </button>
+            <div class="card-content" id="intelContent" role="region" aria-labelledby="intelToggle">
+                <p class="card-body" id="intelMessage" aria-live="polite"></p>
+            </div>
         </div>
     </aside>
     <div id="touchControls" aria-hidden="true">
@@ -695,6 +708,56 @@
             const highScoreListEl = document.getElementById('highScoreList');
             const highScoreTitleEl = document.getElementById('highScoreTitle');
             const collapsibleCards = Array.from(document.querySelectorAll('#instructions .hud-card.collapsible'));
+            const intelCard = document.getElementById('intelCard');
+            const intelContent = document.getElementById('intelContent');
+            const intelMessageEl = document.getElementById('intelMessage');
+
+            const intelTips = [
+                "Nova Pulses clear the field when charged—time them with debris clusters to stretch your lead.",
+                "Power cores boost both fire rate and agility—snag them when the sky is most crowded.",
+                "Keep the combo meter glowing by chaining pickups and takedowns without breaking stride.",
+                "Diagonal drifts slip past enemy fire—small corrections keep your streak intact.",
+                "Pulse the plasma cannon in bursts to manage recoil while keeping threats in check.",
+                "Sweep up stray Points before they fade to keep the leaderboard within reach."
+            ];
+
+            let intelTipIndex = -1;
+
+            const setIntelTip = (index) => {
+                if (!intelMessageEl || intelTips.length === 0) return;
+
+                const normalizedIndex = ((index % intelTips.length) + intelTips.length) % intelTips.length;
+                if (normalizedIndex === intelTipIndex && intelMessageEl.textContent?.trim()) {
+                    return;
+                }
+
+                intelMessageEl.classList.add('updating');
+
+                window.setTimeout(() => {
+                    intelMessageEl.textContent = intelTips[normalizedIndex];
+                    intelTipIndex = normalizedIndex;
+
+                    if (intelCard?.classList.contains('open') && intelContent) {
+                        updateCardMaxHeight(intelCard, intelContent);
+                    }
+
+                    window.requestAnimationFrame(() => {
+                        intelMessageEl.classList.remove('updating');
+                    });
+                }, 160);
+            };
+
+            if (intelMessageEl && intelTips.length > 0) {
+                setIntelTip(0);
+
+                if (intelTips.length > 1) {
+                    const intelRotationInterval = 26000;
+                    window.setInterval(() => {
+                        const nextIndex = intelTipIndex + 1;
+                        setIntelTip(nextIndex);
+                    }, intelRotationInterval);
+                }
+            }
 
             const updateCardMaxHeight = (card, content) => {
                 const viewportLimit = Math.max(window.innerHeight * 0.45, 220);
