@@ -764,12 +764,32 @@
                     }
                 };
 
-                const pools = new Map();
                 const state = {
                     masterVolume: 0.85,
                     muted: false,
                     unlocked: !isSupported
                 };
+
+                const pools = new Map();
+                const musicDefinition = { src: 'assets/audio/gameplay.mp3', volume: 0.52 };
+                let gameplayMusic = null;
+                let shouldResumeGameplayMusic = false;
+
+                if (isSupported) {
+                    try {
+                        gameplayMusic = new Audio(musicDefinition.src);
+                        gameplayMusic.preload = 'auto';
+                        gameplayMusic.crossOrigin = 'anonymous';
+                        gameplayMusic.loop = true;
+                        gameplayMusic.volume = clamp01((musicDefinition.volume ?? 1) * state.masterVolume);
+                        gameplayMusic.addEventListener('error', () => {
+                            gameplayMusic = null;
+                            shouldResumeGameplayMusic = false;
+                        });
+                    } catch {
+                        gameplayMusic = null;
+                    }
+                }
 
                 function createSoundPool(definition) {
                     const { src, voices = 4 } = definition;
@@ -833,9 +853,57 @@
                     pool?.play();
                 }
 
+                function updateGameplayMusicVolume() {
+                    if (!gameplayMusic) return;
+                    gameplayMusic.volume = clamp01((musicDefinition.volume ?? 1) * state.masterVolume);
+                }
+
+                function attemptPlayGameplayMusic() {
+                    if (!gameplayMusic || !state.unlocked || state.muted) return;
+                    updateGameplayMusicVolume();
+                    const playPromise = gameplayMusic.play();
+                    if (playPromise?.catch) {
+                        playPromise.catch(() => undefined);
+                    }
+                }
+
+                function playGameplayMusic() {
+                    if (!isSupported || !gameplayMusic) {
+                        shouldResumeGameplayMusic = false;
+                        return;
+                    }
+                    shouldResumeGameplayMusic = true;
+                    try {
+                        gameplayMusic.currentTime = 0;
+                    } catch {
+                        // Ignore if resetting currentTime fails (e.g., not yet loaded)
+                    }
+                    attemptPlayGameplayMusic();
+                }
+
+                function stopGameplayMusic({ reset = true } = {}) {
+                    shouldResumeGameplayMusic = false;
+                    if (!gameplayMusic) {
+                        return;
+                    }
+                    if (!gameplayMusic.paused) {
+                        gameplayMusic.pause();
+                    }
+                    if (reset) {
+                        try {
+                            gameplayMusic.currentTime = 0;
+                        } catch {
+                            // Ignore if resetting currentTime fails
+                        }
+                    }
+                }
+
                 function unlock() {
                     if (state.unlocked) return;
                     state.unlocked = true;
+                    if (shouldResumeGameplayMusic) {
+                        attemptPlayGameplayMusic();
+                    }
                 }
 
                 return {
@@ -845,6 +913,8 @@
                     playExplosion(type) {
                         play('explosion', type, 'generic');
                     },
+                    playGameplayMusic,
+                    stopGameplayMusic,
                     unlock
                 };
             })();
@@ -2284,6 +2354,7 @@
                 state.gameState = 'running';
                 lastTime = null;
                 hideOverlay();
+                audioManager.playGameplayMusic();
                 focusGameCanvas();
             }
 
@@ -3427,6 +3498,7 @@
             function triggerGameOver(message) {
                 if (state.gameState !== 'running') return;
                 state.gameState = 'gameover';
+                audioManager.stopGameplayMusic();
                 const finalTimeMs = state.elapsedTime;
                 recordHighScore(finalTimeMs, state.score);
                 updateHighScorePanel();
