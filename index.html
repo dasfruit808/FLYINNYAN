@@ -128,15 +128,58 @@
             box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
         }
 
-        #stats {
+        #hudPanel {
             position: absolute;
             top: 12px;
             right: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 12px;
+            z-index: 2;
+        }
+
+        #stats {
+            position: relative;
             font-size: 15px;
             line-height: 1.4;
             text-align: right;
-            text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
-            z-index: 1;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+            padding: 18px 20px 16px;
+            border-radius: 18px;
+            background: linear-gradient(165deg, rgba(15, 23, 42, 0.88), rgba(8, 16, 32, 0.82));
+            box-shadow:
+                0 18px 38px rgba(2, 6, 23, 0.45),
+                inset 0 0 0 1px rgba(94, 234, 212, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            backdrop-filter: blur(12px);
+            min-width: clamp(220px, 22vw, 280px);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        #stats .stat-list {
+            display: grid;
+            gap: 10px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        #stats .stat-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+            color: rgba(226, 232, 240, 0.9);
+        }
+
+        #stats .stat-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: rgba(148, 163, 184, 0.85);
         }
 
         #survivalTimer {
@@ -162,6 +205,11 @@
         #stats span.value {
             font-weight: 700;
             color: #ffd54f;
+        }
+
+        #stats #comboMeter {
+            width: 100%;
+            margin: 4px 0 0;
         }
 
         #instructions {
@@ -584,15 +632,42 @@
     </div>
     <canvas id="gameCanvas" width="900" height="600" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
     <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
-    <div id="stats">
-        Score: <span class="value" id="score">0</span><br>
-        Points: <span class="value" id="nyan">0</span><br>
-        Streak: <span class="value" id="streak">x1</span><br>
-        Best Tail: <span class="value" id="bestStreak">0</span><br>
-        MCAP: $<span class="value" id="mcap">6.6K</span><br>
-        VOL: $<span class="value" id="vol">2.8K</span><br>
-        Boosts: <span class="value" id="powerUps">None</span>
-        <div id="comboMeter"><div id="comboFill"></div></div>
+    <div id="hudPanel" role="complementary" aria-label="Flight telemetry">
+        <section id="stats" aria-live="polite">
+            <div class="stat-list" role="presentation">
+                <div class="stat-row">
+                    <span class="stat-label">Score</span>
+                    <span class="value" id="score">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Points</span>
+                    <span class="value" id="nyan">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Streak</span>
+                    <span class="value" id="streak">x1</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Best Tail</span>
+                    <span class="value" id="bestStreak">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">MCAP</span>
+                    <span class="value" id="mcap">6.6K</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">VOL</span>
+                    <span class="value" id="vol">2.8K</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Boosts</span>
+                    <span class="value" id="powerUps">None</span>
+                </div>
+            </div>
+            <div id="comboMeter" role="progressbar" aria-label="Combo charge" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div id="comboFill"></div>
+            </div>
+        </section>
     </div>
     <aside id="instructions" aria-label="Controls and mission information">
         <div class="hud-card collapsible open" id="controlsCard">
@@ -693,6 +768,7 @@
             const volEl = document.getElementById('vol');
             const powerUpsEl = document.getElementById('powerUps');
             const comboFillEl = document.getElementById('comboFill');
+            const comboMeterEl = document.getElementById('comboMeter');
             const joystickZone = document.getElementById('joystickZone');
             const joystickThumb = joystickZone?.querySelector('.joystick-thumb') ?? null;
             const fireButton = document.getElementById('fireButton');
@@ -1449,6 +1525,9 @@
                 spawnTimers.powerUp = 0;
                 createInitialStars();
                 comboFillEl.style.width = '100%';
+                if (comboMeterEl) {
+                    comboMeterEl.setAttribute('aria-valuenow', '100');
+                }
                 updateHUD();
                 updateTimerDisplay();
                 resetVirtualControls();
@@ -2486,7 +2565,11 @@
                     resetStreak();
                 }
                 const ratio = clamp(1 - state.comboTimer / config.comboDecayWindow, 0, 1);
-                comboFillEl.style.width = `${ratio * 100}%`;
+                const percentage = Math.round(ratio * 100);
+                comboFillEl.style.width = `${percentage}%`;
+                if (comboMeterEl) {
+                    comboMeterEl.setAttribute('aria-valuenow', String(percentage));
+                }
             }
 
             function updateHUD() {
