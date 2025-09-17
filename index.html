@@ -716,6 +716,9 @@
             const playerImage = new Image();
             playerImage.src = 'assets/player.png';
 
+            const collectibleImage = new Image();
+            collectibleImage.src = 'assets/point.png';
+
             const powerUpImageSources = {
                 powerBomb: 'assets/powerbomb.png',
                 bulletSpread: 'assets/powerburger.png',
@@ -770,8 +773,10 @@
                     maxSpeed: 70
                 },
                 collectible: {
+                    size: 42,
                     minSpeed: -30,
-                    maxSpeed: 30
+                    maxSpeed: 30,
+                    verticalPadding: 48
                 },
                 powerUp: {
                     size: 85,
@@ -1546,10 +1551,13 @@
             }
 
             function spawnCollectible() {
-                const size = 26;
+                const size = config.collectible.size ?? 32;
+                const verticalPadding = config.collectible.verticalPadding ?? 48;
+                const spawnRange = Math.max(canvas.height - size - verticalPadding * 2, 0);
+                const spawnY = verticalPadding + Math.random() * spawnRange;
                 collectibles.push({
                     x: canvas.width + size,
-                    y: Math.random() * (canvas.height - size) + size * 0.5,
+                    y: spawnY,
                     width: size,
                     height: size,
                     speed: state.gameSpeed + (Math.random() * (config.collectible.maxSpeed - config.collectible.minSpeed) + config.collectible.minSpeed),
@@ -1651,7 +1659,8 @@
                     collectible.x -= collectible.speed * deltaSeconds;
                     collectible.wobbleTime += deltaSeconds * 4;
                     collectible.y += Math.sin(collectible.wobbleTime) * 18 * deltaSeconds;
-                    collectible.y = clamp(collectible.y, 24, canvas.height - 48);
+                    const verticalPadding = config.collectible.verticalPadding ?? 48;
+                    collectible.y = clamp(collectible.y, verticalPadding, canvas.height - collectible.height - verticalPadding);
 
                     if (collectible.x + collectible.width < 0) {
                         collectibles.splice(i, 1);
@@ -2153,19 +2162,36 @@
                     ctx.save();
                     ctx.translate(collectible.x + collectible.width / 2, collectible.y + collectible.height / 2);
                     ctx.rotate(Math.sin(time * 0.004 + collectible.wobbleTime) * 0.2);
-                    const gradient = ctx.createRadialGradient(0, 0, 4, 0, 0, collectible.width * 0.6);
-                    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-                    gradient.addColorStop(0.4, '#fff59d');
-                    gradient.addColorStop(1, 'rgba(255, 215, 0, 0.75)');
-                    ctx.fillStyle = gradient;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, collectible.width / 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#1a237e';
-                    ctx.font = `700 12px ${primaryFontStack}`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('NYAN', 0, 0);
+                    const pulse = Math.sin(time * 0.004 + collectible.wobbleTime);
+                    const spriteReady = collectibleImage.complete && collectibleImage.naturalWidth > 0;
+
+                    if (spriteReady) {
+                        const glowRadius = collectible.width * (0.62 + 0.06 * pulse);
+                        const gradient = ctx.createRadialGradient(0, 0, glowRadius * 0.35, 0, 0, glowRadius);
+                        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+                        gradient.addColorStop(1, 'rgba(255, 215, 0, 0.25)');
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        const drawSize = collectible.width * (0.94 + 0.08 * pulse);
+                        ctx.drawImage(collectibleImage, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+                    } else {
+                        const gradient = ctx.createRadialGradient(0, 0, 4, 0, 0, collectible.width * 0.6);
+                        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                        gradient.addColorStop(0.4, '#fff59d');
+                        gradient.addColorStop(1, 'rgba(255, 215, 0, 0.75)');
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, collectible.width / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#1a237e';
+                        ctx.font = `700 12px ${primaryFontStack}`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('NYAN', 0, 0);
+                    }
                     ctx.restore();
                 }
             }
