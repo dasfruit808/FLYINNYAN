@@ -27,11 +27,33 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             font-family: 'FlightTime', "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             color: #fff;
             overflow: hidden;
             position: relative;
+            padding: clamp(12px, 3vh, 48px);
+        }
+
+        #gameContainer {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            max-width: min(1180px, 100%);
+        }
+
+        #hud {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: clamp(12px, 3vw, 36px);
+            pointer-events: none;
+            gap: clamp(12px, 3vw, 48px);
+            flex-wrap: wrap;
+            align-content: flex-start;
         }
 
         #loadingScreen {
@@ -113,6 +135,7 @@
         canvas {
             position: relative;
             z-index: 0;
+            display: block;
             border: 1px solid rgba(255, 255, 255, 0.4);
             background: linear-gradient(180deg, rgba(5, 18, 55, 0.95) 0%, rgba(8, 27, 70, 0.95) 45%, rgba(0, 4, 20, 0.98) 100%);
             border-radius: 10px;
@@ -120,29 +143,28 @@
         }
 
         #stats {
-            position: absolute;
-            top: 12px;
-            left: 16px;
-            font-size: 15px;
-            line-height: 1.4;
-            text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+            font-size: clamp(0.78rem, 1.6vw, 1rem);
+            line-height: 1.45;
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
             z-index: 1;
+            max-width: clamp(160px, 26vw, 240px);
+            pointer-events: none;
         }
 
         #survivalTimer {
-            position: absolute;
-            top: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 16px;
+            align-self: flex-start;
+            margin-inline: auto;
+            text-align: center;
+            font-size: clamp(0.92rem, 1.8vw, 1.2rem);
             font-weight: 600;
             letter-spacing: 0.04em;
-            padding: 6px 16px;
+            padding: clamp(6px, 1.4vh, 10px) clamp(14px, 3.4vw, 24px);
             border-radius: 999px;
-            background: rgba(15, 23, 42, 0.7);
+            background: rgba(15, 23, 42, 0.75);
             box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
             text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
             z-index: 2;
+            pointer-events: none;
         }
 
         #survivalTimer .value {
@@ -155,16 +177,16 @@
         }
 
         #instructions {
-            position: absolute;
-            top: 12px;
-            right: 16px;
-            font-size: 14px;
+            font-size: clamp(0.75rem, 1.4vw, 0.95rem);
             text-align: right;
-            opacity: 0.82;
-            max-width: 220px;
+            opacity: 0.85;
+            max-width: clamp(170px, 28vw, 260px);
             line-height: 1.5;
-            text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
             z-index: 1;
+            pointer-events: none;
+            margin-left: auto;
+            align-self: flex-start;
         }
 
         #overlay {
@@ -175,12 +197,13 @@
             justify-content: center;
             align-items: center;
             backdrop-filter: blur(6px);
-            background: rgba(9, 11, 31, 0.6);
+            background: rgba(9, 11, 31, 0.65);
             text-align: center;
-            padding: 24px;
-            gap: 18px;
+            padding: clamp(18px, 4vw, 36px);
+            gap: clamp(16px, 4vh, 28px);
             transition: opacity 200ms ease;
             z-index: 2;
+            border-radius: 10px;
         }
 
         #overlay.hidden {
@@ -189,9 +212,9 @@
         }
 
         #overlay h1 {
-            font-size: 2.2rem;
+            font-size: clamp(1.8rem, 4.8vw, 2.6rem);
             margin: 0;
-            letter-spacing: 4px;
+            letter-spacing: clamp(3px, 0.6vw, 6px);
             color: #ff8ad4;
             text-shadow: 0 0 12px rgba(255, 138, 212, 0.6);
         }
@@ -202,8 +225,8 @@
 
         #overlay p {
             margin: 0;
-            font-size: 1rem;
-            max-width: 360px;
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            max-width: min(360px, 80vw);
             color: rgba(255, 255, 255, 0.82);
             white-space: pre-line;
         }
@@ -212,13 +235,14 @@
             background: linear-gradient(90deg, #ff6bd6, #ff4081);
             border: none;
             border-radius: 999px;
-            padding: 12px 32px;
+            padding: clamp(10px, 2.6vh, 14px) clamp(24px, 6vw, 40px);
             color: #fff;
-            font-size: 1rem;
+            font-size: clamp(0.95rem, 2.4vw, 1.1rem);
             font-weight: 700;
             cursor: pointer;
             box-shadow: 0 12px 30px rgba(255, 105, 180, 0.45);
             transition: transform 150ms ease, box-shadow 150ms ease;
+            width: min(260px, 80%);
         }
 
         #overlay button:hover {
@@ -231,12 +255,12 @@
         }
 
         #comboMeter {
-            width: 160px;
+            width: clamp(120px, 22vw, 200px);
             height: 8px;
             border-radius: 999px;
             overflow: hidden;
             background: rgba(255, 255, 255, 0.12);
-            margin-top: 8px;
+            margin-top: clamp(6px, 1vh, 12px);
         }
 
         #comboFill {
@@ -247,13 +271,13 @@
         }
 
         #highScorePanel {
-            margin-top: 8px;
-            padding: 12px 18px;
+            margin-top: clamp(6px, 2vh, 14px);
+            padding: clamp(10px, 2.4vh, 16px) clamp(14px, 3.2vw, 24px);
             border-radius: 12px;
             background: rgba(12, 15, 35, 0.6);
             box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
             text-align: left;
-            max-width: 320px;
+            max-width: min(320px, 80vw);
         }
 
         #highScoreTitle {
@@ -306,35 +330,39 @@
         <div class="backgroundLayer visible" id="backgroundLayerA"></div>
         <div class="backgroundLayer" id="backgroundLayerB"></div>
     </div>
-    <canvas id="gameCanvas" width="900" height="600"></canvas>
-    <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
-    <div id="stats">
-        Score: <span class="value" id="score">0</span><br>
-        NYAN: <span class="value" id="nyan">0</span><br>
-        Streak: <span class="value" id="streak">x1</span><br>
-        Best Tail: <span class="value" id="bestStreak">0</span><br>
-        MCAP: $<span class="value" id="mcap">6.6K</span><br>
-        VOL: $<span class="value" id="vol">2.8K</span><br>
-        Boosts: <span class="value" id="powerUps">None</span>
-        <div id="comboMeter"><div id="comboFill"></div></div>
-    </div>
-    <div id="instructions">
-        Controls:<br>
-        ← → ↑ ↓ : Glide the catship<br>
-        Space: Launch cosmic arrows<br>
-        Grab boost cores for temporary upgrades.<br>
-        Collect NYAN, dodge asteroids,<br>
-        unleash Nova Pulses to clear threats,<br>
-        and snipe debris to grow your tail!<br>
-        Keep the combo alive for massive gains.
-    </div>
-    <div id="overlay">
-        <h1>NYAN ESCAPE</h1>
-        <p id="overlayMessage">Thread the cosmic needle, gather NYAN, and charge Nova Pulses to vaporize space junk. Ready to glide?</p>
-        <button id="overlayButton">Start Flight</button>
-        <div id="highScorePanel">
-            <div id="highScoreTitle">Top Flight Times</div>
-            <ol id="highScoreList"></ol>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
+        <div id="hud">
+            <div id="stats">
+                Score: <span class="value" id="score">0</span><br>
+                NYAN: <span class="value" id="nyan">0</span><br>
+                Streak: <span class="value" id="streak">x1</span><br>
+                Best Tail: <span class="value" id="bestStreak">0</span><br>
+                MCAP: $<span class="value" id="mcap">6.6K</span><br>
+                VOL: $<span class="value" id="vol">2.8K</span><br>
+                Boosts: <span class="value" id="powerUps">None</span>
+                <div id="comboMeter"><div id="comboFill"></div></div>
+            </div>
+            <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
+            <div id="instructions">
+                Controls:<br>
+                ← → ↑ ↓ : Glide the catship<br>
+                Space: Launch cosmic arrows<br>
+                Grab boost cores for temporary upgrades.<br>
+                Collect NYAN, dodge asteroids,<br>
+                unleash Nova Pulses to clear threats,<br>
+                and snipe debris to grow your tail!<br>
+                Keep the combo alive for massive gains.
+            </div>
+        </div>
+        <div id="overlay">
+            <h1>NYAN ESCAPE</h1>
+            <p id="overlayMessage">Thread the cosmic needle, gather NYAN, and charge Nova Pulses to vaporize space junk. Ready to glide?</p>
+            <button id="overlayButton">Start Flight</button>
+            <div id="highScorePanel">
+                <div id="highScoreTitle">Top Flight Times</div>
+                <ol id="highScoreList"></ol>
+            </div>
         </div>
     </div>
 
@@ -342,6 +370,39 @@
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
+
+            const canvasBounds = {
+                width: canvas.width,
+                height: canvas.height,
+                scale: window.devicePixelRatio || 1
+            };
+
+            function resizeCanvas() {
+                const previous = { width: canvasBounds.width, height: canvasBounds.height };
+                const horizontalMargin = Math.min(window.innerWidth * 0.06, 48);
+                const verticalMargin = Math.min(window.innerHeight * 0.08, 48);
+                let availableWidth = Math.max(window.innerWidth - horizontalMargin * 2, 1);
+                let availableHeight = Math.max(window.innerHeight - verticalMargin * 2, 1);
+                const maxAspectRatio = 3 / 2;
+                if (availableWidth / availableHeight > maxAspectRatio) {
+                    availableWidth = availableHeight * maxAspectRatio;
+                }
+                canvasBounds.width = Math.round(availableWidth);
+                canvasBounds.height = Math.round(availableHeight);
+                const dpr = Math.max(1, window.devicePixelRatio || 1);
+                canvasBounds.scale = dpr;
+                canvas.style.width = `${canvasBounds.width}px`;
+                canvas.style.height = `${canvasBounds.height}px`;
+                const scaledWidth = Math.floor(canvasBounds.width * dpr);
+                const scaledHeight = Math.floor(canvasBounds.height * dpr);
+                if (canvas.width !== scaledWidth || canvas.height !== scaledHeight) {
+                    canvas.width = scaledWidth;
+                    canvas.height = scaledHeight;
+                }
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.scale(dpr, dpr);
+                return previous;
+            }
 
             const backgroundImages = [
                 'assets/background1.png',
@@ -756,6 +817,58 @@
                 powerUp: 0
             };
 
+            function handleResize() {
+                const previous = resizeCanvas();
+                const widthRatio = previous.width ? canvasBounds.width / previous.width : 1;
+                const heightRatio = previous.height ? canvasBounds.height / previous.height : 1;
+                const safeWidthRatio = Number.isFinite(widthRatio) && widthRatio > 0 ? widthRatio : 1;
+                const safeHeightRatio = Number.isFinite(heightRatio) && heightRatio > 0 ? heightRatio : 1;
+
+                if (stars.length === 0) {
+                    createInitialStars();
+                } else if (previous.width && previous.height) {
+                    for (const star of stars) {
+                        star.x *= safeWidthRatio;
+                        star.y *= safeHeightRatio;
+                    }
+                }
+
+                player.x = clamp(player.x, 0, canvasBounds.width - player.width);
+                const verticalBleed = canvasBounds.height * config.player.verticalBleed;
+                player.y = clamp(player.y, -verticalBleed, canvasBounds.height - player.height + verticalBleed);
+
+                const scaleEntityList = (list) => {
+                    for (const entity of list) {
+                        if (typeof entity.x === 'number') {
+                            entity.x *= safeWidthRatio;
+                        }
+                        if (typeof entity.y === 'number') {
+                            entity.y *= safeHeightRatio;
+                        }
+                        if (typeof entity.targetY === 'number') {
+                            entity.targetY *= safeHeightRatio;
+                        }
+                        if (typeof entity.initialY === 'number') {
+                            entity.initialY *= safeHeightRatio;
+                        }
+                        if (typeof entity.baseY === 'number') {
+                            entity.baseY *= safeHeightRatio;
+                        }
+                    }
+                };
+
+                scaleEntityList(projectiles);
+                scaleEntityList(obstacles);
+                scaleEntityList(collectibles);
+                scaleEntityList(powerUps);
+                scaleEntityList(villainExplosions);
+                scaleEntityList(particles);
+                scaleEntityList(trail);
+                scaleEntityList(areaBursts);
+            }
+
+            window.addEventListener('resize', handleResize);
+
             const powerUpTypes = ['powerBomb', 'bulletSpread', 'missiles'];
             const powerUpLabels = {
                 powerBomb: 'Nova Pulse',
@@ -893,9 +1006,11 @@
                 villain.image = image;
             }
 
+            resizeCanvas();
+
             const player = {
-                x: canvas.width * 0.18,
-                y: canvas.height * 0.5,
+                x: canvasBounds.width * 0.18,
+                y: canvasBounds.height * 0.5,
                 width: config.player.width,
                 height: config.player.height,
                 vx: 0,
@@ -919,8 +1034,8 @@
                 state.powerBombPulseTimer = 0;
                 state.lastVillainKey = null;
                 state.recentVillains.length = 0;
-                player.x = canvas.width * 0.18;
-                player.y = canvas.height * 0.5;
+                player.x = canvasBounds.width * 0.18;
+                player.y = canvasBounds.height * 0.5;
                 player.vx = 0;
                 player.vy = 0;
                 projectiles.length = 0;
@@ -944,8 +1059,8 @@
                 stars.length = 0;
                 for (let i = 0; i < config.star.count; i++) {
                     stars.push({
-                        x: Math.random() * canvas.width,
-                        y: Math.random() * canvas.height,
+                        x: Math.random() * canvasBounds.width,
+                        y: Math.random() * canvasBounds.height,
                         speed: (Math.random() * 0.8 + 0.4) * config.star.baseSpeed,
                         size: Math.random() * 2.5 + 0.6,
                         twinkleOffset: Math.random() * Math.PI * 2
@@ -1114,9 +1229,9 @@
                 player.x += player.vx * deltaSeconds;
                 player.y += player.vy * deltaSeconds;
 
-                player.x = clamp(player.x, 0, canvas.width - player.width);
-                const verticalBleed = canvas.height * config.player.verticalBleed;
-                player.y = clamp(player.y, -verticalBleed, canvas.height - player.height + verticalBleed);
+                player.x = clamp(player.x, 0, canvasBounds.width - player.width);
+                const verticalBleed = canvasBounds.height * config.player.verticalBleed;
+                player.y = clamp(player.y, -verticalBleed, canvasBounds.height - player.height + verticalBleed);
 
                 attemptShoot(delta);
 
@@ -1185,10 +1300,10 @@
                     projectile.life -= delta;
 
                     if (
-                        projectile.x > canvas.width + 80 ||
+                        projectile.x > canvasBounds.width + 80 ||
                         projectile.x + projectile.width < -80 ||
                         projectile.y < -120 ||
-                        projectile.y > canvas.height + 120 ||
+                        projectile.y > canvasBounds.height + 120 ||
                         projectile.life <= 0
                     ) {
                         projectiles.splice(i, 1);
@@ -1211,10 +1326,10 @@
                 switch (behavior.type) {
                     case 'sine': {
                         const amplitude = behavior.amplitude ?? 40;
-                        const available = Math.max(0, canvas.height - size - amplitude * 2);
-                        const baseY = available > 0 ? Math.random() * available + amplitude : Math.random() * (canvas.height - size);
+                        const available = Math.max(0, canvasBounds.height - size - amplitude * 2);
+                        const baseY = available > 0 ? Math.random() * available + amplitude : Math.random() * (canvasBounds.height - size);
                         const phase = Math.random() * Math.PI * 2;
-                        const initialY = clamp(baseY + Math.sin(phase) * amplitude, 0, canvas.height - size);
+                        const initialY = clamp(baseY + Math.sin(phase) * amplitude, 0, canvasBounds.height - size);
                         Object.assign(state, {
                             amplitude,
                             speed: behavior.speed ?? 3,
@@ -1225,7 +1340,7 @@
                         break;
                     }
                     case 'drift': {
-                        const initialY = Math.random() * (canvas.height - size);
+                        const initialY = Math.random() * (canvasBounds.height - size);
                         const maxVertical = behavior.verticalSpeed ?? 120;
                         Object.assign(state, {
                             vy: randomBetween(-maxVertical, maxVertical),
@@ -1235,7 +1350,7 @@
                         break;
                     }
                     case 'tracker': {
-                        const initialY = Math.random() * (canvas.height - size);
+                        const initialY = Math.random() * (canvasBounds.height - size);
                         Object.assign(state, {
                             vy: 0,
                             acceleration: behavior.acceleration ?? 120,
@@ -1245,7 +1360,7 @@
                         break;
                     }
                     default: {
-                        state.initialY = Math.random() * (canvas.height - size);
+                        state.initialY = Math.random() * (canvasBounds.height - size);
                         break;
                     }
                 }
@@ -1258,11 +1373,11 @@
                 const size = randomBetween(villainType.size.min, villainType.size.max);
                 const health = getVillainHealth(size, villainType);
                 const behaviorState = createVillainBehaviorState(villainType, size);
-                const spawnY = behaviorState.initialY ?? Math.random() * (canvas.height - size);
+                const spawnY = behaviorState.initialY ?? Math.random() * (canvasBounds.height - size);
                 delete behaviorState.initialY;
                 const rotationSpeed = randomBetween(villainType.rotation.min, villainType.rotation.max);
                 obstacles.push({
-                    x: canvas.width + size,
+                    x: canvasBounds.width + size,
                     y: spawnY,
                     width: size,
                     height: size,
@@ -1289,8 +1404,8 @@
             function spawnCollectible() {
                 const size = 26;
                 collectibles.push({
-                    x: canvas.width + size,
-                    y: Math.random() * (canvas.height - size) + size * 0.5,
+                    x: canvasBounds.width + size,
+                    y: Math.random() * (canvasBounds.height - size) + size * 0.5,
                     width: size,
                     height: size,
                     speed: state.gameSpeed + (Math.random() * (config.collectible.maxSpeed - config.collectible.minSpeed) + config.collectible.minSpeed),
@@ -1302,8 +1417,8 @@
                 const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
                 const size = config.powerUp.size;
                 powerUps.push({
-                    x: canvas.width + size,
-                    y: Math.random() * (canvas.height - size * 2) + size,
+                    x: canvasBounds.width + size,
+                    y: Math.random() * (canvasBounds.height - size * 2) + size,
                     width: size,
                     height: size,
                     speed: state.gameSpeed + (Math.random() * (config.powerUp.maxSpeed - config.powerUp.minSpeed) + config.powerUp.minSpeed),
@@ -1324,7 +1439,7 @@
                         behaviorState.phase += deltaSeconds * (behaviorState.speed ?? villainBehavior.speed ?? 3);
                         const amplitude = behaviorState.amplitude ?? villainBehavior.amplitude ?? 40;
                         const targetY = behaviorState.baseY + Math.sin(behaviorState.phase) * amplitude;
-                        obstacle.y = clamp(targetY, 0, canvas.height - obstacle.height);
+                        obstacle.y = clamp(targetY, 0, canvasBounds.height - obstacle.height);
                         break;
                     }
                     case 'drift': {
@@ -1332,8 +1447,8 @@
                         if (obstacle.y < 24) {
                             obstacle.y = 24;
                             behaviorState.vy = Math.abs(behaviorState.vy);
-                        } else if (obstacle.y + obstacle.height > canvas.height - 24) {
-                            obstacle.y = canvas.height - 24 - obstacle.height;
+                        } else if (obstacle.y + obstacle.height > canvasBounds.height - 24) {
+                            obstacle.y = canvasBounds.height - 24 - obstacle.height;
                             behaviorState.vy = -Math.abs(behaviorState.vy);
                         }
                         break;
@@ -1346,7 +1461,7 @@
                         const maxSpeed = behaviorState.maxSpeed ?? villainBehavior.maxSpeed ?? 180;
                         behaviorState.vy = clamp(behaviorState.vy, -maxSpeed, maxSpeed);
                         obstacle.y += behaviorState.vy * deltaSeconds;
-                        obstacle.y = clamp(obstacle.y, 16, canvas.height - obstacle.height - 16);
+                        obstacle.y = clamp(obstacle.y, 16, canvasBounds.height - obstacle.height - 16);
                         break;
                     }
                     default:
@@ -1392,7 +1507,7 @@
                     collectible.x -= collectible.speed * deltaSeconds;
                     collectible.wobbleTime += deltaSeconds * 4;
                     collectible.y += Math.sin(collectible.wobbleTime) * 18 * deltaSeconds;
-                    collectible.y = clamp(collectible.y, 24, canvas.height - 48);
+                    collectible.y = clamp(collectible.y, 24, canvasBounds.height - 48);
 
                     if (collectible.x + collectible.width < 0) {
                         collectibles.splice(i, 1);
@@ -1450,7 +1565,7 @@
                     powerUp.x -= powerUp.speed * deltaSeconds;
                     powerUp.wobbleTime += deltaSeconds * config.powerUp.wobbleSpeed;
                     powerUp.y += Math.sin(powerUp.wobbleTime) * config.powerUp.wobbleAmplitude * deltaSeconds;
-                    powerUp.y = clamp(powerUp.y, 32, canvas.height - 32 - powerUp.height);
+                    powerUp.y = clamp(powerUp.y, 32, canvasBounds.height - 32 - powerUp.height);
 
                     if (powerUp.x + powerUp.width < 0) {
                         powerUps.splice(i, 1);
@@ -1537,8 +1652,8 @@
                     const star = stars[i];
                     star.x -= star.speed * deltaSeconds * (0.4 + state.gameSpeed / 600);
                     if (star.x < -star.size) {
-                        star.x = canvas.width + star.size;
-                        star.y = Math.random() * canvas.height;
+                        star.x = canvasBounds.width + star.size;
+                        star.y = Math.random() * canvasBounds.height;
                         star.speed = (Math.random() * 0.8 + 0.4) * config.star.baseSpeed;
                     }
                 }
@@ -1788,13 +1903,13 @@
 
             function drawBackground() {
                 ctx.fillStyle = '#05091f';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                ctx.fillRect(0, 0, canvasBounds.width, canvasBounds.height);
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvasBounds.height);
                 gradient.addColorStop(0, 'rgba(26, 35, 126, 0.85)');
                 gradient.addColorStop(0.5, 'rgba(21, 11, 45, 0.85)');
                 gradient.addColorStop(1, 'rgba(0, 2, 12, 0.95)');
                 ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, canvasBounds.width, canvasBounds.height);
             }
 
             function drawStars(time) {
@@ -2120,7 +2235,7 @@
             }
 
             runCyborgLoadingSequence();
-            createInitialStars();
+            handleResize();
             requestAnimationFrame(gameLoop);
         });
     </script>
