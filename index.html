@@ -754,6 +754,9 @@
                         spread: { src: 'assets/audio/projectile-spread.mp3', voices: 6, volume: 0.52 },
                         missile: { src: 'assets/audio/projectile-missile.mp3', voices: 4, volume: 0.6 }
                     },
+                    collect: {
+                        point: { src: 'assets/audio/point.mp3', voices: 4, volume: 0.6 }
+                    },
                     explosion: {
                         villain1: { src: 'assets/audio/explosion-villain1.mp3', voices: 3, volume: 0.7 },
                         villain2: { src: 'assets/audio/explosion-villain2.mp3', voices: 3, volume: 0.7 },
@@ -909,6 +912,9 @@
                 return {
                     playProjectile(type) {
                         play('projectile', type, 'standard');
+                    },
+                    playCollect(type = 'point') {
+                        play('collect', type, 'point');
                     },
                     playExplosion(type) {
                         play('explosion', type, 'generic');
@@ -3445,6 +3451,7 @@
                 const points = collectible?.points ?? config.score.collect;
                 state.nyan += points;
                 awardScore(points);
+                audioManager.playCollect(collectible?.key ?? 'point');
             }
 
             function awardDestroy(obstacle) {
