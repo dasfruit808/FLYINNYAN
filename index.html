@@ -13,14 +13,6 @@
             box-sizing: border-box;
         }
 
-        @font-face {
-            font-family: 'FlightTime';
-            src: url('flyin nyan/fonts/flight-time.woff2') format('woff2');
-            font-weight: 400;
-            font-style: normal;
-            font-display: swap;
-        }
-
         body {
             margin: 0;
             background: #000;
@@ -28,7 +20,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-family: 'FlightTime', "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             color: #fff;
             overflow: hidden;
             position: relative;
@@ -44,7 +36,7 @@
             gap: 28px;
             background:
                 linear-gradient(rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.82)),
-                url('flyin nyan/background.png') center / cover no-repeat;
+                url('assets/background.png') center / cover no-repeat;
             z-index: 999;
             transition: opacity 400ms ease;
         }
@@ -375,7 +367,7 @@
 </head>
 <body>
     <div id="loadingScreen">
-        <img src="flyin nyan/logo.png" alt="Cyborg boot sequence" id="loadingImage">
+        <img src="assets/logo.png" alt="Cyborg boot sequence" id="loadingImage">
         <div id="loadingStatus">
             <span class="loading-prefix">[SYS-BOOT:00]</span>
             <span class="loading-line">Initializing quantum cores — <span class="loading-percent">000%</span></span>
