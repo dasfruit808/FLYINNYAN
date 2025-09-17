@@ -4,7 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nyan Escape</title>
+    <link rel="preload" href="assets/FlightTime.ttf" as="font" type="font/ttf" crossorigin>
     <style>
+        @font-face {
+            font-family: "FlightTime";
+            src: url('assets/FlightTime.ttf') format('truetype');
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: "FlightTime";
+            src: url('assets/FlightTime.ttf') format('truetype');
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+        }
+
         :root {
             color-scheme: dark;
         }
@@ -20,7 +37,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-family: "FlightTime", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             color: #fff;
             overflow: hidden;
             position: relative;
@@ -457,7 +474,9 @@
             const highScoreListEl = document.getElementById('highScoreList');
             const highScoreTitleEl = document.getElementById('highScoreTitle');
 
-            const primaryFontStack = '"FlightTime", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
+            const customFontFamily = 'FlightTime';
+            const primaryFontStack = `"${customFontFamily}", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif`;
+            const fontsReady = loadCustomFont(customFontFamily);
 
             const STORAGE_KEYS = {
                 playerName: 'nyanEscape.playerName',
@@ -602,9 +621,26 @@
                 });
             }
 
+            function loadCustomFont(fontFamily) {
+                if (!document.fonts?.load) {
+                    return Promise.resolve();
+                }
+
+                const variantsToLoad = [
+                    `400 16px "${fontFamily}"`,
+                    `700 16px "${fontFamily}"`
+                ];
+
+                return Promise.all(variantsToLoad.map((descriptor) => document.fonts.load(descriptor)))
+                    .then(() => undefined)
+                    .catch(() => undefined);
+            }
+
             function runCyborgLoadingSequence() {
                 if (!loadingScreen || !loadingStatus) {
-                    startGame();
+                    fontsReady.catch(() => undefined).then(() => {
+                        startGame();
+                    });
                     return;
                 }
 
@@ -639,13 +675,15 @@
 
                     if (progress >= 100) {
                         setTimeout(() => {
-                            startGame();
-                            loadingScreen.classList.add('hidden');
-                            setTimeout(() => {
-                                if (loadingScreen.parentElement) {
-                                    loadingScreen.parentElement.removeChild(loadingScreen);
-                                }
-                            }, 520);
+                            fontsReady.catch(() => undefined).then(() => {
+                                startGame();
+                                loadingScreen.classList.add('hidden');
+                                setTimeout(() => {
+                                    if (loadingScreen.parentElement) {
+                                        loadingScreen.parentElement.removeChild(loadingScreen);
+                                    }
+                                }, 520);
+                            });
                         }, 480);
                         return;
                     }
