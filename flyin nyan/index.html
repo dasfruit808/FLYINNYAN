@@ -180,6 +180,19 @@
             const playerImage = new Image();
             playerImage.src = 'assets/player.png';
 
+            const powerUpImageSources = {
+                superSpeed: 'assets/powerbomb.png',
+                bulletSpread: 'assets/powerburger.png',
+                missiles: 'assets/powerpizza.png'
+            };
+
+            const powerUpImages = {};
+            for (const [type, src] of Object.entries(powerUpImageSources)) {
+                const image = new Image();
+                image.src = src;
+                powerUpImages[type] = image;
+            }
+
             const config = {
                 baseGameSpeed: 160,
                 speedGrowth: 6,
@@ -1070,14 +1083,21 @@
                     ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
                     ctx.stroke();
 
-                    ctx.fillStyle = '#060b28';
-                    ctx.font = '700 12px "Segoe UI"';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    const label = powerUpLabels[powerUp.type] ?? 'BOOST';
-                    ctx.fillText(label.split(' ')[0], 0, -6);
-                    if (label.includes(' ')) {
-                        ctx.fillText(label.split(' ')[1], 0, 8);
+                    const sprite = powerUpImages[powerUp.type];
+                    const isSpriteReady = sprite?.complete && sprite.naturalWidth !== 0;
+                    if (isSpriteReady) {
+                        const drawSize = powerUp.width;
+                        ctx.drawImage(sprite, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+                    } else {
+                        ctx.fillStyle = '#060b28';
+                        ctx.font = '700 12px "Segoe UI"';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        const label = powerUpLabels[powerUp.type] ?? 'BOOST';
+                        ctx.fillText(label.split(' ')[0], 0, -6);
+                        if (label.includes(' ')) {
+                            ctx.fillText(label.split(' ')[1], 0, 8);
+                        }
                     }
                     ctx.restore();
                 }
