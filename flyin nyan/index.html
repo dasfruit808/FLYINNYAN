@@ -43,8 +43,9 @@
             align-items: center;
             gap: 28px;
             background:
-                linear-gradient(rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.82)),
-                url('background.png') center / cover no-repeat;
+                radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.18), transparent 55%),
+                radial-gradient(circle at 70% 30%, rgba(244, 114, 182, 0.24), transparent 60%),
+                linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(2, 6, 23, 0.98) 100%);
             z-index: 999;
             transition: opacity 400ms ease;
         }
@@ -55,8 +56,14 @@
         }
 
         #loadingImage {
-            width: min(420px, 80vw);
-            max-width: 520px;
+            font-size: clamp(1.5rem, 4vw, 2.8rem);
+            letter-spacing: 0.65em;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: rgba(148, 197, 255, 0.95);
+            text-shadow:
+                0 0 12px rgba(14, 165, 233, 0.45),
+                0 0 24px rgba(244, 114, 182, 0.35);
         }
 
         #loadingStatus {
@@ -375,7 +382,7 @@
 </head>
 <body>
     <div id="loadingScreen">
-        <img src="logo.png" alt="Cyborg boot sequence" id="loadingImage">
+        <div id="loadingImage" aria-hidden="true">NYAN ESCAPE</div>
         <div id="loadingStatus">
             <span class="loading-prefix">[SYS-BOOT:00]</span>
             <span class="loading-line">Initializing quantum cores — <span class="loading-percent">000%</span></span>
@@ -429,10 +436,31 @@
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
 
-            const backgroundImages = [
-                'assets/background1.png',
-                'assets/background2.png',
-                'assets/background3.png'
+            const backgroundScenes = [
+                {
+                    layers: [
+                        'radial-gradient(circle at 18% 22%, rgba(99, 102, 241, 0.38), transparent 58%)',
+                        'radial-gradient(circle at 78% 28%, rgba(236, 72, 153, 0.32), transparent 60%)',
+                        'linear-gradient(180deg, rgba(2, 6, 23, 0.95) 0%, rgba(15, 23, 42, 0.98) 40%, rgba(2, 6, 23, 1) 100%)'
+                    ],
+                    blendModes: ['screen', 'screen', 'normal']
+                },
+                {
+                    layers: [
+                        'radial-gradient(circle at 22% 70%, rgba(34, 211, 238, 0.32), transparent 56%)',
+                        'radial-gradient(circle at 82% 32%, rgba(251, 191, 36, 0.28), transparent 58%)',
+                        'linear-gradient(180deg, rgba(6, 17, 45, 0.96) 0%, rgba(2, 6, 23, 0.99) 45%, rgba(8, 11, 38, 1) 100%)'
+                    ],
+                    blendModes: ['screen', 'screen', 'normal']
+                },
+                {
+                    layers: [
+                        'radial-gradient(circle at 32% 28%, rgba(244, 114, 182, 0.34), transparent 55%)',
+                        'radial-gradient(circle at 74% 68%, rgba(129, 140, 248, 0.36), transparent 60%)',
+                        'linear-gradient(180deg, rgba(10, 15, 38, 0.95) 0%, rgba(17, 24, 64, 0.96) 50%, rgba(5, 8, 24, 1) 100%)'
+                    ],
+                    blendModes: ['screen', 'screen', 'normal']
+                }
             ];
             const backgroundLayers = [
                 document.getElementById('backgroundLayerA'),
@@ -666,18 +694,32 @@
                 setTimeout(advance, 420);
             }
 
-            function preloadImages(sources) {
-                return Promise.all(sources.map((src) => new Promise((resolve) => {
-                    const img = new Image();
-                    img.onload = resolve;
-                    img.onerror = resolve;
-                    img.src = src;
-                })));
+            function setLayerBackground(layer, scene) {
+                if (!layer || !scene) {
+                    return;
+                }
+                layer.style.backgroundImage = scene.layers.join(', ');
+                if (scene.blendModes?.length) {
+                    layer.style.backgroundBlendMode = scene.blendModes.join(', ');
+                } else {
+                    layer.style.removeProperty('background-blend-mode');
+                }
             }
 
-            function setLayerBackground(layer, src) {
-                if (layer) {
-                    layer.style.backgroundImage = `url('${src}')`;
+            function initializeBackgrounds() {
+                if (!backgroundLayers.length || !backgroundScenes.length) {
+                    return;
+                }
+
+                setLayerBackground(backgroundLayers[activeLayerIndex], backgroundScenes[currentBackgroundIndex]);
+                showLayer(backgroundLayers[activeLayerIndex]);
+
+                if (backgroundScenes.length > 1) {
+                    const nextIndex = (currentBackgroundIndex + 1) % backgroundScenes.length;
+                    setLayerBackground(backgroundLayers[1 - activeLayerIndex], backgroundScenes[nextIndex]);
+                    if (backgroundChangeInterval > 0) {
+                        setInterval(cycleBackground, backgroundChangeInterval);
+                    }
                 }
             }
 
@@ -694,15 +736,15 @@
             }
 
             function cycleBackground() {
-                if (backgroundImages.length <= 1) {
+                if (backgroundScenes.length <= 1) {
                     return;
                 }
-                const nextIndex = (currentBackgroundIndex + 1) % backgroundImages.length;
+                const nextIndex = (currentBackgroundIndex + 1) % backgroundScenes.length;
                 const nextLayerIndex = 1 - activeLayerIndex;
                 const nextLayer = backgroundLayers[nextLayerIndex];
                 const currentLayer = backgroundLayers[activeLayerIndex];
 
-                setLayerBackground(nextLayer, backgroundImages[nextIndex]);
+                setLayerBackground(nextLayer, backgroundScenes[nextIndex]);
 
                 requestAnimationFrame(() => {
                     showLayer(nextLayer);
@@ -712,14 +754,7 @@
                 });
             }
 
-            preloadImages(backgroundImages).then(() => {
-                setLayerBackground(backgroundLayers[activeLayerIndex], backgroundImages[currentBackgroundIndex]);
-                showLayer(backgroundLayers[activeLayerIndex]);
-                if (backgroundImages.length > 1) {
-                    setLayerBackground(backgroundLayers[1 - activeLayerIndex], backgroundImages[(currentBackgroundIndex + 1) % backgroundImages.length]);
-                    setInterval(cycleBackground, backgroundChangeInterval);
-                }
-            });
+            initializeBackgrounds();
 
             const playerImage = new Image();
             playerImage.src = 'assets/player.png';
