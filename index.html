@@ -1,0 +1,2395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyan Escape</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        @font-face {
+            font-family: 'FlightTime';
+            src: url('flyin nyan/fonts/flight-time.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        body {
+            margin: 0;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'FlightTime', "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #loadingScreen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 28px;
+            background:
+                linear-gradient(rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.82)),
+                url('flyin nyan/background.png') center / cover no-repeat;
+            z-index: 999;
+            transition: opacity 400ms ease;
+        }
+
+        #loadingScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #loadingImage {
+            width: min(420px, 80vw);
+            max-width: 520px;
+        }
+
+        #loadingStatus {
+            text-align: center;
+            font-family: "Consolas", "Lucida Console", "Courier New", monospace;
+            letter-spacing: 0.2em;
+            color: #0f172a;
+            text-transform: uppercase;
+            line-height: 1.6;
+        }
+
+        #loadingStatus .loading-prefix {
+            display: block;
+            font-size: 0.72rem;
+            letter-spacing: 0.35em;
+            color: #475569;
+            margin-bottom: 8px;
+        }
+
+        #loadingStatus .loading-line {
+            display: block;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        #loadingStatus .loading-percent {
+            color: #0284c7;
+        }
+
+        #backgroundContainer {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            overflow: hidden;
+            background: radial-gradient(circle at top, #1a237e 0%, #0d0221 40%, #000 100%);
+        }
+
+        .backgroundLayer {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0;
+            transition: opacity 4s ease-in-out;
+            will-change: opacity;
+        }
+
+        .backgroundLayer.visible {
+            opacity: 1;
+        }
+
+        canvas {
+            position: relative;
+            z-index: 0;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            background: linear-gradient(180deg, rgba(5, 18, 55, 0.95) 0%, rgba(8, 27, 70, 0.95) 45%, rgba(0, 4, 20, 0.98) 100%);
+            border-radius: 10px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
+        }
+
+        #stats {
+            position: absolute;
+            top: 12px;
+            left: 16px;
+            font-size: 15px;
+            line-height: 1.4;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+            z-index: 1;
+        }
+
+        #survivalTimer {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            padding: 6px 16px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.7);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+            z-index: 2;
+        }
+
+        #survivalTimer .value {
+            color: #7dd3fc;
+        }
+
+        #stats span.value {
+            font-weight: 700;
+            color: #ffd54f;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 14px;
+            text-align: right;
+            opacity: 0.82;
+            max-width: 220px;
+            line-height: 1.5;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+            z-index: 1;
+        }
+
+        #touchControls {
+            position: fixed;
+            inset: 0;
+            display: none;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
+
+        #joystickZone {
+            position: absolute;
+            width: clamp(132px, 26vw, 188px);
+            height: clamp(132px, 26vw, 188px);
+            left: max(16px, calc(50% - 450px - 108px));
+            bottom: clamp(16px, 8vh, 72px);
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.58);
+            border: 2px solid rgba(148, 163, 184, 0.32);
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(2px);
+            pointer-events: auto;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #joystickZone .joystick-ring {
+            position: absolute;
+            inset: 14%;
+            border-radius: 50%;
+            border: 2px dashed rgba(148, 163, 184, 0.28);
+        }
+
+        #joystickZone .joystick-thumb {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 38%;
+            height: 38%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(125, 211, 252, 0.9), rgba(2, 132, 199, 0.75));
+            box-shadow: 0 6px 16px rgba(14, 116, 144, 0.65);
+            transform: translate(calc(-50% + var(--thumb-x, 0px)), calc(-50% + var(--thumb-y, 0px)));
+            transition: transform 80ms ease-out;
+        }
+
+        #fireButton {
+            position: absolute;
+            right: max(16px, calc(50% - 450px - 96px));
+            bottom: clamp(20px, 8vh, 84px);
+            width: clamp(108px, 24vw, 160px);
+            height: clamp(108px, 24vw, 160px);
+            border-radius: 40px;
+            border: none;
+            pointer-events: auto;
+            font-size: clamp(1rem, 4vw, 1.2rem);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #fff;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 107, 214, 0.92), rgba(255, 64, 129, 0.88));
+            box-shadow: 0 18px 38px rgba(255, 64, 129, 0.45);
+            transition: transform 120ms ease, box-shadow 120ms ease;
+            touch-action: manipulation;
+        }
+
+        #fireButton:active,
+        #fireButton.active {
+            transform: translateY(2px) scale(0.98);
+            box-shadow: 0 12px 28px rgba(255, 64, 129, 0.35);
+        }
+
+        #overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(6px);
+            background: rgba(9, 11, 31, 0.6);
+            text-align: center;
+            padding: 24px;
+            gap: 18px;
+            transition: opacity 200ms ease;
+            z-index: 2;
+        }
+
+        #overlay.hidden {
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        #overlay h1 {
+            font-size: 2.2rem;
+            margin: 0;
+            letter-spacing: 4px;
+            color: #ff8ad4;
+            text-shadow: 0 0 12px rgba(255, 138, 212, 0.6);
+        }
+
+        #overlay h1:empty {
+            display: none;
+        }
+
+        #overlay p {
+            margin: 0;
+            font-size: 1rem;
+            max-width: 360px;
+            color: rgba(255, 255, 255, 0.82);
+            white-space: pre-line;
+        }
+
+        #overlay button {
+            background: linear-gradient(90deg, #ff6bd6, #ff4081);
+            border: none;
+            border-radius: 999px;
+            padding: 12px 32px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 12px 30px rgba(255, 105, 180, 0.45);
+            transition: transform 150ms ease, box-shadow 150ms ease;
+        }
+
+        #overlay button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 36px rgba(255, 105, 180, 0.6);
+        }
+
+        #overlay button:active {
+            transform: translateY(0);
+        }
+
+        #comboMeter {
+            width: 160px;
+            height: 8px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.12);
+            margin-top: 8px;
+        }
+
+        #comboFill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #6a5acd, #00e5ff);
+            transition: width 100ms ease-out;
+        }
+
+        #highScorePanel {
+            margin-top: 8px;
+            padding: 12px 18px;
+            border-radius: 12px;
+            background: rgba(12, 15, 35, 0.6);
+            box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
+            text-align: left;
+            max-width: 320px;
+        }
+
+        #highScoreTitle {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            margin-bottom: 8px;
+            color: rgba(148, 163, 184, 0.95);
+        }
+
+        #highScoreList {
+            list-style: decimal inside;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.9rem;
+        }
+
+        #highScoreList li {
+            color: rgba(226, 232, 240, 0.92);
+        }
+
+        #highScoreList li.empty {
+            list-style: none;
+            color: rgba(148, 163, 184, 0.85);
+            font-style: italic;
+        }
+
+        #highScoreList li .time {
+            font-weight: 600;
+            color: #7dd3fc;
+        }
+
+        #highScoreList li .score {
+            color: #facc15;
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingScreen">
+        <img src="flyin nyan/logo.png" alt="Cyborg boot sequence" id="loadingImage">
+        <div id="loadingStatus">
+            <span class="loading-prefix">[SYS-BOOT:00]</span>
+            <span class="loading-line">Initializing quantum cores — <span class="loading-percent">000%</span></span>
+        </div>
+    </div>
+    <div id="backgroundContainer">
+        <div class="backgroundLayer visible" id="backgroundLayerA"></div>
+        <div class="backgroundLayer" id="backgroundLayerB"></div>
+    </div>
+    <canvas id="gameCanvas" width="900" height="600" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
+    <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
+    <div id="stats">
+        Score: <span class="value" id="score">0</span><br>
+        NYAN: <span class="value" id="nyan">0</span><br>
+        Streak: <span class="value" id="streak">x1</span><br>
+        Best Tail: <span class="value" id="bestStreak">0</span><br>
+        MCAP: $<span class="value" id="mcap">6.6K</span><br>
+        VOL: $<span class="value" id="vol">2.8K</span><br>
+        Boosts: <span class="value" id="powerUps">None</span>
+        <div id="comboMeter"><div id="comboFill"></div></div>
+    </div>
+    <div id="instructions">
+        Controls:<br>
+        ← → ↑ ↓ : Glide the catship<br>
+        Space: Launch cosmic arrows<br>
+        Grab boost cores for temporary upgrades.<br>
+        Collect NYAN, dodge asteroids,<br>
+        unleash Nova Pulses to clear threats,<br>
+        and snipe debris to grow your tail!<br>
+        Keep the combo alive for massive gains.
+    </div>
+    <div id="touchControls" aria-hidden="true">
+        <div id="joystickZone">
+            <div class="joystick-ring"></div>
+            <div class="joystick-thumb"></div>
+        </div>
+        <button id="fireButton" type="button" aria-label="Fire cosmic arrows">Fire</button>
+    </div>
+    <div id="overlay">
+        <h1>NYAN ESCAPE</h1>
+        <p id="overlayMessage">Thread the cosmic needle, gather NYAN, and charge Nova Pulses to vaporize space junk. Ready to glide?</p>
+        <button id="overlayButton">Start Flight</button>
+        <div id="highScorePanel">
+            <div id="highScoreTitle">Top Flight Times</div>
+            <ol id="highScoreList"></ol>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+
+            const backgroundImages = [
+                'assets/background1.png',
+                'assets/background2.png',
+                'assets/background3.png'
+            ];
+            const backgroundLayers = [
+                document.getElementById('backgroundLayerA'),
+                document.getElementById('backgroundLayerB')
+            ];
+            const backgroundChangeInterval = 20000;
+            let currentBackgroundIndex = 0;
+            let activeLayerIndex = 0;
+
+            const scoreEl = document.getElementById('score');
+            const nyanEl = document.getElementById('nyan');
+            const streakEl = document.getElementById('streak');
+            const bestStreakEl = document.getElementById('bestStreak');
+            const mcapEl = document.getElementById('mcap');
+            const volEl = document.getElementById('vol');
+            const powerUpsEl = document.getElementById('powerUps');
+            const comboFillEl = document.getElementById('comboFill');
+            const joystickZone = document.getElementById('joystickZone');
+            const joystickThumb = joystickZone?.querySelector('.joystick-thumb') ?? null;
+            const fireButton = document.getElementById('fireButton');
+
+            const overlay = document.getElementById('overlay');
+            const overlayMessage = document.getElementById('overlayMessage');
+            const overlayButton = document.getElementById('overlayButton');
+            const overlayTitle = overlay.querySelector('h1');
+            const overlayDefaultTitle = overlayTitle?.textContent ?? '';
+            const loadingScreen = document.getElementById('loadingScreen');
+            const loadingStatus = document.getElementById('loadingStatus');
+            const timerValueEl = document.getElementById('timerValue');
+            const highScoreListEl = document.getElementById('highScoreList');
+            const highScoreTitleEl = document.getElementById('highScoreTitle');
+
+            const primaryFontStack = '"FlightTime", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
+
+            const STORAGE_KEYS = {
+                playerName: 'nyanEscape.playerName',
+                highScores: 'nyanEscape.highScores'
+            };
+
+            let storageAvailable = false;
+            try {
+                const testKey = '__nyanEscapeTest__';
+                localStorage.setItem(testKey, '1');
+                localStorage.removeItem(testKey);
+                storageAvailable = true;
+            } catch (error) {
+                storageAvailable = false;
+            }
+
+            function readStorage(key) {
+                if (!storageAvailable) return null;
+                try {
+                    return localStorage.getItem(key);
+                } catch (error) {
+                    storageAvailable = false;
+                    return null;
+                }
+            }
+
+            function writeStorage(key, value) {
+                if (!storageAvailable) return;
+                try {
+                    localStorage.setItem(key, value);
+                } catch (error) {
+                    storageAvailable = false;
+                }
+            }
+
+            function loadHighScores() {
+                const raw = readStorage(STORAGE_KEYS.highScores);
+                if (!raw) return {};
+                try {
+                    const parsed = JSON.parse(raw);
+                    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+                } catch (error) {
+                    return {};
+                }
+            }
+
+            function persistHighScores(data) {
+                if (!storageAvailable) return;
+                writeStorage(STORAGE_KEYS.highScores, JSON.stringify(data));
+            }
+
+            function requestPlayerName() {
+                const defaultName = 'Ace Pilot';
+                const storedName = readStorage(STORAGE_KEYS.playerName);
+                if (storedName) {
+                    return storedName;
+                }
+                const canPrompt = typeof prompt === 'function';
+                const prompted = canPrompt ? prompt('Choose your pilot callsign to track high scores:', defaultName) : null;
+                const name = (prompted ?? '').trim() || defaultName;
+                writeStorage(STORAGE_KEYS.playerName, name);
+                return name;
+            }
+
+            let highScoreData = loadHighScores();
+            let playerName = requestPlayerName();
+
+            function formatTime(milliseconds) {
+                const totalSeconds = Math.floor(milliseconds / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                const tenths = Math.floor((milliseconds % 1000) / 100);
+                return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${tenths}`;
+            }
+
+            function updateTimerDisplay() {
+                if (!timerValueEl) return;
+                timerValueEl.textContent = formatTime(state.elapsedTime);
+            }
+
+            function recordHighScore(durationMs, score) {
+                if (!playerName || durationMs <= 0) return;
+                const entry = {
+                    timeMs: durationMs,
+                    score,
+                    recordedAt: Date.now()
+                };
+                const userScores = highScoreData[playerName] ? [...highScoreData[playerName]] : [];
+                userScores.push(entry);
+                userScores.sort((a, b) => {
+                    if (b.timeMs !== a.timeMs) return b.timeMs - a.timeMs;
+                    if (b.score !== a.score) return b.score - a.score;
+                    return b.recordedAt - a.recordedAt;
+                });
+                highScoreData[playerName] = userScores.slice(0, 3);
+                persistHighScores(highScoreData);
+            }
+
+            function updateHighScorePanel() {
+                if (!highScoreListEl || !highScoreTitleEl) return;
+                highScoreTitleEl.textContent = `Top Flight Times — ${playerName}`;
+                highScoreListEl.innerHTML = '';
+                const entries = highScoreData[playerName] ?? [];
+                if (!entries.length) {
+                    const emptyItem = document.createElement('li');
+                    emptyItem.className = 'empty';
+                    emptyItem.textContent = 'No recorded runs yet. Survive to set a record!';
+                    highScoreListEl.appendChild(emptyItem);
+                    return;
+                }
+                for (const entry of entries) {
+                    const item = document.createElement('li');
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'time';
+                    timeSpan.textContent = formatTime(entry.timeMs);
+                    const scoreSpan = document.createElement('span');
+                    scoreSpan.className = 'score';
+                    scoreSpan.textContent = ` — ${entry.score.toLocaleString()} pts`;
+                    item.appendChild(timeSpan);
+                    item.appendChild(scoreSpan);
+                    highScoreListEl.appendChild(item);
+                }
+            }
+
+            updateHighScorePanel();
+
+            if (highScoreTitleEl && typeof highScoreTitleEl.addEventListener === 'function') {
+                highScoreTitleEl.addEventListener('click', () => {
+                    if (typeof prompt !== 'function') return;
+                    const nextName = prompt('Update your pilot callsign:', playerName);
+                    const trimmed = (nextName ?? '').trim();
+                    if (!trimmed || trimmed === playerName) {
+                        return;
+                    }
+                    playerName = trimmed;
+                    writeStorage(STORAGE_KEYS.playerName, playerName);
+                    if (!highScoreData[playerName]) {
+                        highScoreData[playerName] = [];
+                    }
+                    persistHighScores(highScoreData);
+                    updateHighScorePanel();
+                });
+            }
+
+            function runCyborgLoadingSequence() {
+                if (!loadingScreen || !loadingStatus) {
+                    startGame();
+                    return;
+                }
+
+                const steps = [
+                    'Booting cybernetics kernel',
+                    'Calibrating optic relays',
+                    'Decrypting nav matrices',
+                    'Spooling plasma capacitors',
+                    'Synchronizing nyan drives',
+                    'Authorizing flight sequence'
+                ].map((step) => step.toUpperCase());
+
+                let progress = 0;
+                let stepIndex = 0;
+                const maxIndex = steps.length - 1;
+
+                const updateStatus = () => {
+                    const prefix = `[SYS-BOOT:${String(stepIndex + 1).padStart(2, '0')}]`;
+                    const percentText = `${progress.toString().padStart(3, '0')}%`;
+                    loadingStatus.innerHTML = `
+                        <span class="loading-prefix">${prefix}</span>
+                        <span class="loading-line">${steps[stepIndex]} — <span class="loading-percent">${percentText}</span></span>
+                    `;
+                };
+
+                const advance = () => {
+                    const increment = Math.floor(Math.random() * 11) + 4;
+                    progress = Math.min(progress + increment, 100);
+                    const ratio = progress / 100;
+                    stepIndex = Math.min(maxIndex, Math.floor(ratio * steps.length));
+                    updateStatus();
+
+                    if (progress >= 100) {
+                        setTimeout(() => {
+                            startGame();
+                            loadingScreen.classList.add('hidden');
+                            setTimeout(() => {
+                                if (loadingScreen.parentElement) {
+                                    loadingScreen.parentElement.removeChild(loadingScreen);
+                                }
+                            }, 520);
+                        }, 480);
+                        return;
+                    }
+
+                    const delay = Math.random() * 320 + 160;
+                    setTimeout(advance, delay);
+                };
+
+                updateStatus();
+                setTimeout(advance, 420);
+            }
+
+            function preloadImages(sources) {
+                return Promise.all(sources.map((src) => new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                    img.src = src;
+                })));
+            }
+
+            function setLayerBackground(layer, src) {
+                if (layer) {
+                    layer.style.backgroundImage = `url('${src}')`;
+                }
+            }
+
+            function showLayer(layer) {
+                if (layer) {
+                    layer.classList.add('visible');
+                }
+            }
+
+            function hideLayer(layer) {
+                if (layer) {
+                    layer.classList.remove('visible');
+                }
+            }
+
+            function cycleBackground() {
+                if (backgroundImages.length <= 1) {
+                    return;
+                }
+                const nextIndex = (currentBackgroundIndex + 1) % backgroundImages.length;
+                const nextLayerIndex = 1 - activeLayerIndex;
+                const nextLayer = backgroundLayers[nextLayerIndex];
+                const currentLayer = backgroundLayers[activeLayerIndex];
+
+                setLayerBackground(nextLayer, backgroundImages[nextIndex]);
+
+                requestAnimationFrame(() => {
+                    showLayer(nextLayer);
+                    hideLayer(currentLayer);
+                    activeLayerIndex = nextLayerIndex;
+                    currentBackgroundIndex = nextIndex;
+                });
+            }
+
+            preloadImages(backgroundImages).then(() => {
+                setLayerBackground(backgroundLayers[activeLayerIndex], backgroundImages[currentBackgroundIndex]);
+                showLayer(backgroundLayers[activeLayerIndex]);
+                if (backgroundImages.length > 1) {
+                    setLayerBackground(backgroundLayers[1 - activeLayerIndex], backgroundImages[(currentBackgroundIndex + 1) % backgroundImages.length]);
+                    setInterval(cycleBackground, backgroundChangeInterval);
+                }
+            });
+
+            const playerImage = new Image();
+            playerImage.src = 'assets/player.png';
+
+            const powerUpImageSources = {
+                powerBomb: 'assets/powerbomb.png',
+                bulletSpread: 'assets/powerburger.png',
+                missiles: 'assets/powerpizza.png'
+            };
+
+            const powerUpImages = {};
+            for (const [type, src] of Object.entries(powerUpImageSources)) {
+                const image = new Image();
+                image.src = src;
+                powerUpImages[type] = image;
+            }
+
+            const config = {
+                baseGameSpeed: 160,
+                speedGrowth: 5,
+                obstacleSpawnInterval: 950,
+                collectibleSpawnInterval: 1400,
+                powerUpSpawnInterval: 11000,
+                trailSpacing: 18,
+                baseTrailLength: 20,
+                trailGrowthPerStreak: 0.4,
+                tailSmoothing: {
+                    growth: 32,
+                    shrink: 64
+                },
+                comboDecayWindow: 3200,
+                projectileCooldown: 200,
+                projectileSpeed: 900,
+                difficulty: {
+                    rampDuration: 90000,
+                    speedRamp: { start: 0.28, end: 0.9 },
+                    spawnIntensity: {
+                        obstacle: { start: 0.38, end: 1.08 },
+                        collectible: { start: 0.68, end: 1.02 },
+                        powerUp: { start: 0.58, end: 0.95 }
+                    },
+                    healthRamp: { start: 0.7, end: 1.25 }
+                },
+                player: {
+                    width: 120,
+                    height: 120,
+                    acceleration: 2100,
+                    drag: 5.2,
+                    maxSpeed: 480,
+                    verticalBleed: 0.069
+                },
+                obstacle: {
+                    minSize: 42,
+                    maxSize: 128,
+                    minSpeed: -20,
+                    maxSpeed: 70
+                },
+                collectible: {
+                    minSpeed: -30,
+                    maxSpeed: 30
+                },
+                powerUp: {
+                    size: 85,
+                    minSpeed: -20,
+                    maxSpeed: 20,
+                    wobbleAmplitude: 28,
+                    wobbleSpeed: 3.4,
+                    duration: {
+                        powerBomb: 5200,
+                        bulletSpread: 6200,
+                        missiles: 5600
+                    }
+                },
+                star: {
+                    count: 120,
+                    baseSpeed: 120
+                },
+                comboMultiplierStep: 0.15,
+                score: {
+                    collect: 80,
+                    destroy: 120,
+                    dodge: 18
+                }
+            };
+
+            const state = {
+                score: 0,
+                nyan: 0,
+                streak: 0,
+                bestStreak: 0,
+                tailLength: config.baseTrailLength,
+                tailTarget: config.baseTrailLength,
+                comboTimer: 0,
+                gameSpeed: config.baseGameSpeed,
+                timeSinceLastShot: 0,
+                gameState: 'ready',
+                elapsedTime: 0,
+                powerUpTimers: {
+                    powerBomb: 0,
+                    bulletSpread: 0,
+                    missiles: 0
+                },
+                powerBombPulseTimer: 0,
+                lastVillainKey: null,
+                recentVillains: []
+            };
+
+            updateTimerDisplay();
+
+            const keys = new Set();
+            const virtualInput = {
+                moveX: 0,
+                moveY: 0,
+                firing: false
+            };
+            const joystickState = {
+                pointerId: null
+            };
+            let firePointerId = null;
+            const projectiles = [];
+            const obstacles = [];
+            const collectibles = [];
+            const powerUps = [];
+            const stars = [];
+            const particles = [];
+            const villainExplosions = [];
+            const trail = [];
+            const areaBursts = [];
+            const spawnTimers = {
+                obstacle: 0,
+                collectible: 0,
+                powerUp: 0
+            };
+
+            const powerUpTypes = ['powerBomb', 'bulletSpread', 'missiles'];
+            const powerUpLabels = {
+                powerBomb: 'Nova Pulse',
+                bulletSpread: 'Starlight Spread',
+                missiles: 'Comet Missiles'
+            };
+            const powerUpColors = {
+                powerBomb: { r: 255, g: 168, b: 112 },
+                bulletSpread: { r: 255, g: 128, b: 255 },
+                missiles: { r: 255, g: 182, b: 92 }
+            };
+
+            const villainExplosionPalettes = {
+                villain1: {
+                    core: { r: 255, g: 170, b: 255 },
+                    halo: { r: 140, g: 195, b: 255 },
+                    spark: { r: 210, g: 240, b: 255 }
+                },
+                villain2: {
+                    core: { r: 120, g: 255, b: 214 },
+                    halo: { r: 90, g: 200, b: 255 },
+                    spark: { r: 180, g: 255, b: 220 }
+                },
+                villain3: {
+                    core: { r: 255, g: 120, b: 160 },
+                    halo: { r: 255, g: 200, b: 120 },
+                    spark: { r: 255, g: 180, b: 140 }
+                }
+            };
+
+            const villainTypes = [
+                {
+                    key: 'villain1',
+                    name: 'Void Raider',
+                    imageSrc: 'assets/villain1.png',
+                    size: { min: 44, max: 58 },
+                    speedOffset: { min: 14, max: 34 },
+                    rotation: { min: -1.8, max: 1.8 },
+                    baseHealth: 1,
+                    healthGrowth: 0.7,
+                    behavior: { type: 'sine', amplitude: 36, speed: 2.8 }
+                },
+                {
+                    key: 'villain2',
+                    name: 'Nebula Marauder',
+                    imageSrc: 'assets/villain2.png',
+                    size: { min: 70, max: 96 },
+                    speedOffset: { min: 8, max: 30 },
+                    rotation: { min: -1.4, max: 1.4 },
+                    baseHealth: 2.3,
+                    healthGrowth: 1.2,
+                    behavior: { type: 'drift', verticalSpeed: 120 }
+                },
+                {
+                    key: 'villain3',
+                    name: 'Abyss Overlord',
+                    imageSrc: 'assets/villain3.png',
+                    size: { min: 102, max: 138 },
+                    speedOffset: { min: -2, max: 32 },
+                    rotation: { min: -1, max: 1 },
+                    baseHealth: 3.4,
+                    healthGrowth: 1.8,
+                    behavior: { type: 'tracker', acceleration: 200, maxSpeed: 260 }
+                }
+            ];
+
+            function getVillainWeights() {
+                const progress = getDifficultyProgress();
+                const eased = easeInOutQuad(progress);
+                const baseWeights = [0.55, 0.32, 0.13];
+                const villain2Boost = lerp(0, 0.12, eased);
+                const villain3Boost = lerp(0, 0.07, Math.pow(progress, 1.4));
+
+                const weights = [
+                    Math.max(0.28, baseWeights[0] - (villain2Boost * 0.45 + villain3Boost)),
+                    baseWeights[1] + villain2Boost,
+                    Math.max(0.08, baseWeights[2] + villain3Boost)
+                ];
+
+                const total = weights.reduce((sum, weight) => sum + weight, 0);
+                return weights.map((weight) => (total > 0 ? weight / total : 1 / weights.length));
+            }
+
+            function selectVillainType() {
+                const weights = getVillainWeights();
+                const adjustedWeights = [...weights];
+
+                if (state.lastVillainKey) {
+                    const lastIndex = villainTypes.findIndex((villain) => villain.key === state.lastVillainKey);
+                    if (lastIndex >= 0) {
+                        adjustedWeights[lastIndex] *= 0.45;
+                    }
+                }
+
+                if (state.recentVillains.length) {
+                    const recentCounts = {};
+                    for (const key of state.recentVillains) {
+                        recentCounts[key] = (recentCounts[key] ?? 0) + 1;
+                    }
+                    const historySize = Math.max(1, state.recentVillains.length);
+                    for (let i = 0; i < villainTypes.length; i++) {
+                        const key = villainTypes[i].key;
+                        const recentCount = recentCounts[key] ?? 0;
+                        if (recentCount > 0) {
+                            const dampen = 1 + recentCount / historySize;
+                            adjustedWeights[i] /= dampen;
+                        }
+                    }
+                }
+
+                if (villainTypes.length > 0) {
+                    adjustedWeights[villainTypes.length - 1] *= 0.85;
+                }
+
+                const adjustedTotal = adjustedWeights.reduce((sum, weight) => sum + weight, 0);
+                const normalizedTotal = adjustedTotal > 0 ? adjustedTotal : 1;
+                const roll = Math.random();
+                let cumulative = 0;
+
+                for (let i = 0; i < villainTypes.length; i++) {
+                    cumulative += adjustedWeights[i] / normalizedTotal;
+                    if (roll <= cumulative) {
+                        return villainTypes[i];
+                    }
+                }
+
+                return villainTypes[villainTypes.length - 1];
+            }
+
+            const villainImages = {};
+            for (const villain of villainTypes) {
+                const image = new Image();
+                image.src = villain.imageSrc;
+                villainImages[villain.key] = image;
+                villain.image = image;
+            }
+
+            const player = {
+                x: canvas.width * 0.18,
+                y: canvas.height * 0.5,
+                width: config.player.width,
+                height: config.player.height,
+                vx: 0,
+                vy: 0
+            };
+
+            function resetGame() {
+                state.score = 0;
+                state.nyan = 0;
+                state.streak = 0;
+                state.bestStreak = 0;
+                state.tailLength = config.baseTrailLength;
+                state.tailTarget = config.baseTrailLength;
+                state.comboTimer = 0;
+                state.gameSpeed = config.baseGameSpeed;
+                state.timeSinceLastShot = 0;
+                state.elapsedTime = 0;
+                state.powerUpTimers.powerBomb = 0;
+                state.powerUpTimers.bulletSpread = 0;
+                state.powerUpTimers.missiles = 0;
+                state.powerBombPulseTimer = 0;
+                state.lastVillainKey = null;
+                state.recentVillains.length = 0;
+                player.x = canvas.width * 0.18;
+                player.y = canvas.height * 0.5;
+                player.vx = 0;
+                player.vy = 0;
+                projectiles.length = 0;
+                obstacles.length = 0;
+                collectibles.length = 0;
+                powerUps.length = 0;
+                villainExplosions.length = 0;
+                particles.length = 0;
+                trail.length = 0;
+                areaBursts.length = 0;
+                spawnTimers.obstacle = 0;
+                spawnTimers.collectible = 0;
+                spawnTimers.powerUp = 0;
+                createInitialStars();
+                comboFillEl.style.width = '100%';
+                updateHUD();
+                updateTimerDisplay();
+                resetVirtualControls();
+            }
+
+            function createInitialStars() {
+                stars.length = 0;
+                for (let i = 0; i < config.star.count; i++) {
+                    stars.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        speed: (Math.random() * 0.8 + 0.4) * config.star.baseSpeed,
+                        size: Math.random() * 2.5 + 0.6,
+                        twinkleOffset: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            function clamp(value, min, max) {
+                return Math.max(min, Math.min(max, value));
+            }
+
+            function randomBetween(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            function lerp(a, b, t) {
+                return a + (b - a) * t;
+            }
+
+            function easeInOutQuad(t) {
+                return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            }
+
+            function getDifficultyProgress() {
+                if (!config.difficulty) return 1;
+                return clamp(state.elapsedTime / config.difficulty.rampDuration, 0, 1);
+            }
+
+            function getSpeedRampMultiplier() {
+                if (!config.difficulty?.speedRamp) return 1;
+                const eased = easeInOutQuad(getDifficultyProgress());
+                return lerp(config.difficulty.speedRamp.start, config.difficulty.speedRamp.end, eased);
+            }
+
+            function getSpawnIntensity(type) {
+                const settings = config.difficulty?.spawnIntensity?.[type];
+                if (!settings) return 1;
+                const eased = easeInOutQuad(getDifficultyProgress());
+                return lerp(settings.start, settings.end, eased);
+            }
+
+            function getHealthRampMultiplier() {
+                const settings = config.difficulty?.healthRamp;
+                if (!settings) return 1;
+                const eased = easeInOutQuad(getDifficultyProgress());
+                return lerp(settings.start, settings.end, eased);
+            }
+
+            function showOverlay(message, buttonText, options = {}) {
+                overlayMessage.textContent = message;
+                overlayButton.textContent = buttonText;
+                if (overlayTitle) {
+                    const titleText = options.title ?? overlayDefaultTitle;
+                    overlayTitle.textContent = titleText;
+                }
+                resetVirtualControls();
+                overlay.classList.remove('hidden');
+            }
+
+            function hideOverlay() {
+                overlay.classList.add('hidden');
+            }
+
+            function setJoystickThumbPosition(dx, dy) {
+                if (!joystickThumb) return;
+                const xValue = typeof dx === 'number' ? `${dx}px` : dx;
+                const yValue = typeof dy === 'number' ? `${dy}px` : dy;
+                joystickThumb.style.setProperty('--thumb-x', xValue);
+                joystickThumb.style.setProperty('--thumb-y', yValue);
+            }
+
+            function resetJoystick() {
+                const pointerId = joystickState.pointerId;
+                if (pointerId !== null && joystickZone?.hasPointerCapture?.(pointerId)) {
+                    joystickZone.releasePointerCapture(pointerId);
+                }
+                joystickState.pointerId = null;
+                virtualInput.moveX = 0;
+                virtualInput.moveY = 0;
+                setJoystickThumbPosition('0px', '0px');
+            }
+
+            function resetFiring() {
+                const pointerId = firePointerId;
+                if (pointerId !== null && fireButton?.hasPointerCapture?.(pointerId)) {
+                    fireButton.releasePointerCapture(pointerId);
+                }
+                firePointerId = null;
+                virtualInput.firing = false;
+                if (fireButton) {
+                    fireButton.classList.remove('active');
+                }
+            }
+
+            function resetVirtualControls() {
+                resetJoystick();
+                resetFiring();
+            }
+
+            function updateJoystickFromPointer(event) {
+                if (!joystickZone) return;
+                const rect = joystickZone.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                let dx = event.clientX - centerX;
+                let dy = event.clientY - centerY;
+                const maxDistance = rect.width * 0.5;
+                const distance = Math.hypot(dx, dy);
+                if (distance > maxDistance && distance > 0) {
+                    const scale = maxDistance / distance;
+                    dx *= scale;
+                    dy *= scale;
+                }
+
+                setJoystickThumbPosition(dx, dy);
+
+                const normalizedX = clamp(dx / maxDistance, -1, 1);
+                const normalizedY = clamp(dy / maxDistance, -1, 1);
+                const deadZone = 0.14;
+                virtualInput.moveX = Math.abs(normalizedX) < deadZone ? 0 : normalizedX;
+                virtualInput.moveY = Math.abs(normalizedY) < deadZone ? 0 : normalizedY;
+            }
+
+            function endJoystickControl() {
+                resetJoystick();
+            }
+
+            function handleJoystickPointerEnd(event) {
+                if (joystickState.pointerId !== event.pointerId) {
+                    return;
+                }
+                if (joystickZone?.hasPointerCapture?.(event.pointerId)) {
+                    joystickZone.releasePointerCapture(event.pointerId);
+                }
+                endJoystickControl();
+            }
+
+            function engageFireControl(event) {
+                firePointerId = event.pointerId;
+                virtualInput.firing = true;
+                if (fireButton) {
+                    fireButton.classList.add('active');
+                    fireButton.setPointerCapture?.(event.pointerId);
+                }
+            }
+
+            function handleFirePointerEnd(event) {
+                if (firePointerId !== event.pointerId) {
+                    return;
+                }
+                if (fireButton?.hasPointerCapture?.(event.pointerId)) {
+                    fireButton.releasePointerCapture(event.pointerId);
+                }
+                resetFiring();
+            }
+
+            function focusGameCanvas() {
+                if (!canvas) return;
+                try {
+                    canvas.focus({ preventScroll: true });
+                } catch {
+                    canvas.focus();
+                }
+            }
+
+            function startGame() {
+                resetGame();
+                state.gameState = 'running';
+                lastTime = null;
+                hideOverlay();
+                focusGameCanvas();
+            }
+
+            overlayButton.addEventListener('click', () => {
+                if (state.gameState === 'ready' || state.gameState === 'gameover') {
+                    startGame();
+                }
+            });
+
+            if (canvas) {
+                canvas.addEventListener('pointerdown', () => {
+                    focusGameCanvas();
+                });
+            }
+
+            if (joystickZone) {
+                joystickZone.addEventListener('pointerdown', (event) => {
+                    joystickState.pointerId = event.pointerId;
+                    focusGameCanvas();
+                    event.preventDefault();
+                    joystickZone.setPointerCapture?.(event.pointerId);
+                    updateJoystickFromPointer(event);
+                });
+
+                joystickZone.addEventListener('pointermove', (event) => {
+                    if (joystickState.pointerId !== event.pointerId) return;
+                    updateJoystickFromPointer(event);
+                });
+
+                joystickZone.addEventListener('pointerup', (event) => {
+                    handleJoystickPointerEnd(event);
+                });
+
+                joystickZone.addEventListener('pointercancel', (event) => {
+                    handleJoystickPointerEnd(event);
+                });
+
+                joystickZone.addEventListener('lostpointercapture', (event) => {
+                    if (joystickState.pointerId === event.pointerId) {
+                        endJoystickControl();
+                    }
+                });
+            }
+
+            if (fireButton) {
+                fireButton.addEventListener('pointerdown', (event) => {
+                    focusGameCanvas();
+                    event.preventDefault();
+                    engageFireControl(event);
+                });
+
+                fireButton.addEventListener('pointerup', (event) => {
+                    handleFirePointerEnd(event);
+                });
+
+                fireButton.addEventListener('pointercancel', (event) => {
+                    handleFirePointerEnd(event);
+                });
+
+                fireButton.addEventListener('lostpointercapture', (event) => {
+                    if (firePointerId === event.pointerId) {
+                        resetFiring();
+                    }
+                });
+            }
+
+            window.addEventListener('keydown', (event) => {
+                if (event.repeat) return;
+                keys.add(event.code);
+                if (event.code === 'Space') {
+                    event.preventDefault();
+                }
+                if (event.code === 'Enter' && state.gameState === 'gameover') {
+                    startGame();
+                }
+            });
+
+            window.addEventListener('keyup', (event) => {
+                keys.delete(event.code);
+            });
+
+            window.addEventListener('blur', () => {
+                keys.clear();
+                resetVirtualControls();
+            });
+
+            function isPowerUpActive(type) {
+                return state.powerUpTimers[type] > 0;
+            }
+
+            function attemptShoot(delta) {
+                state.timeSinceLastShot += delta;
+                const cooldown = config.projectileCooldown;
+                if ((keys.has('Space') || virtualInput.firing) && state.timeSinceLastShot >= cooldown) {
+                    spawnProjectiles();
+                    state.timeSinceLastShot = 0;
+                }
+            }
+
+            function spawnProjectiles() {
+                const originX = player.x + player.width - 12;
+                const originY = player.y + player.height * 0.5 - 6;
+                const createProjectile = (angle, type = 'standard') => {
+                    const speed = config.projectileSpeed * (type === 'missile' ? 0.85 : 1);
+                    const vx = Math.cos(angle) * speed;
+                    const vy = Math.sin(angle) * speed;
+                    projectiles.push({
+                        x: originX,
+                        y: originY,
+                        width: 24,
+                        height: 12,
+                        vx,
+                        vy,
+                        life: type === 'missile' ? 2800 : 2000,
+                        type
+                    });
+                };
+
+                if (isPowerUpActive('missiles')) {
+                    createProjectile(0, 'missile');
+                    createProjectile(0.1, 'missile');
+                } else if (isPowerUpActive('bulletSpread')) {
+                    const spread = 0.22;
+                    createProjectile(-spread, 'spread');
+                    createProjectile(0, 'spread');
+                    createProjectile(spread, 'spread');
+                } else {
+                    createProjectile(0, 'standard');
+                }
+            }
+
+            function updateTailLength(delta) {
+                const deltaSeconds = delta / 1000;
+                if (state.tailLength < state.tailTarget) {
+                    state.tailLength = Math.min(
+                        state.tailTarget,
+                        state.tailLength + config.tailSmoothing.growth * deltaSeconds
+                    );
+                } else if (state.tailLength > state.tailTarget) {
+                    state.tailLength = Math.max(
+                        state.tailTarget,
+                        state.tailLength - config.tailSmoothing.shrink * deltaSeconds
+                    );
+                }
+            }
+
+            function updatePlayer(delta) {
+                const deltaSeconds = delta / 1000;
+                const keyboardX = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
+                const keyboardY = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
+                const inputX = clamp(keyboardX + virtualInput.moveX, -1, 1);
+                const inputY = clamp(keyboardY + virtualInput.moveY, -1, 1);
+
+                const accel = config.player.acceleration;
+                const drag = config.player.drag;
+                const maxSpeed = config.player.maxSpeed;
+
+                player.vx += (inputX * accel - player.vx * drag) * deltaSeconds;
+                player.vy += (inputY * accel - player.vy * drag) * deltaSeconds;
+
+                player.vx = clamp(player.vx, -maxSpeed, maxSpeed);
+                player.vy = clamp(player.vy, -maxSpeed, maxSpeed);
+
+                player.x += player.vx * deltaSeconds;
+                player.y += player.vy * deltaSeconds;
+
+                player.x = clamp(player.x, 0, canvas.width - player.width);
+                const verticalBleed = canvas.height * config.player.verticalBleed;
+                player.y = clamp(player.y, -verticalBleed, canvas.height - player.height + verticalBleed);
+
+                attemptShoot(delta);
+
+                updateTailLength(delta);
+                updateTrail();
+            }
+
+            function updateTrail() {
+                const centerX = player.x + player.width * 0.45;
+                const centerY = player.y + player.height * 0.55;
+                const lastPoint = trail[trail.length - 1];
+                if (!lastPoint || Math.hypot(centerX - lastPoint.x, centerY - lastPoint.y) > config.trailSpacing) {
+                    trail.push({
+                        x: centerX,
+                        y: centerY
+                    });
+                    if (trail.length > state.tailLength) {
+                        trail.shift();
+                    }
+                }
+            }
+
+            function findNearestObstacle(projectile) {
+                let closest = null;
+                let closestDistSq = Infinity;
+                const projCenterX = projectile.x + projectile.width * 0.5;
+                const projCenterY = projectile.y + projectile.height * 0.5;
+                for (const obstacle of obstacles) {
+                    const centerX = obstacle.x + obstacle.width * 0.5;
+                    const centerY = obstacle.y + obstacle.height * 0.5;
+                    const dx = centerX - projCenterX;
+                    const dy = centerY - projCenterY;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < closestDistSq) {
+                        closest = { obstacle, dx, dy, distSq };
+                        closestDistSq = distSq;
+                    }
+                }
+                return closest?.obstacle ?? null;
+            }
+
+            function updateProjectiles(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    const projectile = projectiles[i];
+
+                    if (projectile.type === 'missile') {
+                        const target = findNearestObstacle(projectile);
+                        if (target) {
+                            const centerX = projectile.x + projectile.width * 0.5;
+                            const centerY = projectile.y + projectile.height * 0.5;
+                            const targetX = target.x + target.width * 0.5;
+                            const targetY = target.y + target.height * 0.5;
+                            const angle = Math.atan2(targetY - centerY, targetX - centerX);
+                            const desiredSpeed = config.projectileSpeed * 1.05;
+                            const desiredVx = Math.cos(angle) * desiredSpeed;
+                            const desiredVy = Math.sin(angle) * desiredSpeed;
+                            const turnStrength = Math.min(1, deltaSeconds * 3.5);
+                            projectile.vx += (desiredVx - projectile.vx) * turnStrength;
+                            projectile.vy += (desiredVy - projectile.vy) * turnStrength;
+                        }
+                    }
+
+                    projectile.x += projectile.vx * deltaSeconds;
+                    projectile.y += projectile.vy * deltaSeconds;
+                    projectile.life -= delta;
+
+                    if (
+                        projectile.x > canvas.width + 80 ||
+                        projectile.x + projectile.width < -80 ||
+                        projectile.y < -120 ||
+                        projectile.y > canvas.height + 120 ||
+                        projectile.life <= 0
+                    ) {
+                        projectiles.splice(i, 1);
+                    }
+                }
+            }
+
+            function getVillainHealth(size, villainType) {
+                const range = villainType.size.max - villainType.size.min;
+                const normalized = range > 0 ? (size - villainType.size.min) / range : 0;
+                const base = villainType.baseHealth + normalized * villainType.healthGrowth;
+                const scaled = base * getHealthRampMultiplier();
+                return Math.max(1, Math.round(scaled));
+            }
+
+            function createVillainBehaviorState(villainType, size) {
+                const behavior = villainType.behavior ?? { type: 'none' };
+                const state = { type: behavior.type };
+
+                switch (behavior.type) {
+                    case 'sine': {
+                        const amplitude = behavior.amplitude ?? 40;
+                        const available = Math.max(0, canvas.height - size - amplitude * 2);
+                        const baseY = available > 0 ? Math.random() * available + amplitude : Math.random() * (canvas.height - size);
+                        const phase = Math.random() * Math.PI * 2;
+                        const initialY = clamp(baseY + Math.sin(phase) * amplitude, 0, canvas.height - size);
+                        Object.assign(state, {
+                            amplitude,
+                            speed: behavior.speed ?? 3,
+                            phase,
+                            baseY,
+                            initialY
+                        });
+                        break;
+                    }
+                    case 'drift': {
+                        const initialY = Math.random() * (canvas.height - size);
+                        const maxVertical = behavior.verticalSpeed ?? 120;
+                        Object.assign(state, {
+                            vy: randomBetween(-maxVertical, maxVertical),
+                            verticalSpeed: maxVertical,
+                            initialY
+                        });
+                        break;
+                    }
+                    case 'tracker': {
+                        const initialY = Math.random() * (canvas.height - size);
+                        Object.assign(state, {
+                            vy: 0,
+                            acceleration: behavior.acceleration ?? 120,
+                            maxSpeed: behavior.maxSpeed ?? 180,
+                            initialY
+                        });
+                        break;
+                    }
+                    default: {
+                        state.initialY = Math.random() * (canvas.height - size);
+                        break;
+                    }
+                }
+
+                return state;
+            }
+
+            function spawnObstacle() {
+                const villainType = selectVillainType();
+                const size = randomBetween(villainType.size.min, villainType.size.max);
+                const health = getVillainHealth(size, villainType);
+                const behaviorState = createVillainBehaviorState(villainType, size);
+                const spawnY = behaviorState.initialY ?? Math.random() * (canvas.height - size);
+                delete behaviorState.initialY;
+                const rotationSpeed = randomBetween(villainType.rotation.min, villainType.rotation.max);
+                obstacles.push({
+                    x: canvas.width + size,
+                    y: spawnY,
+                    width: size,
+                    height: size,
+                    speed: state.gameSpeed + randomBetween(villainType.speedOffset.min, villainType.speedOffset.max),
+                    rotation: Math.random() * Math.PI * 2,
+                    rotationSpeed,
+                    health,
+                    maxHealth: health,
+                    hitFlash: 0,
+                    villainType,
+                    behaviorState,
+                    image: villainImages[villainType.key]
+                });
+                state.lastVillainKey = villainType.key;
+                state.recentVillains.push(villainType.key);
+                if (state.recentVillains.length > 6) {
+                    state.recentVillains.shift();
+                }
+                if (behaviorState.baseY === undefined) {
+                    behaviorState.baseY = spawnY;
+                }
+            }
+
+            function spawnCollectible() {
+                const size = 26;
+                collectibles.push({
+                    x: canvas.width + size,
+                    y: Math.random() * (canvas.height - size) + size * 0.5,
+                    width: size,
+                    height: size,
+                    speed: state.gameSpeed + (Math.random() * (config.collectible.maxSpeed - config.collectible.minSpeed) + config.collectible.minSpeed),
+                    wobbleTime: Math.random() * Math.PI * 2
+                });
+            }
+
+            function spawnPowerUp() {
+                const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+                const size = config.powerUp.size;
+                powerUps.push({
+                    x: canvas.width + size,
+                    y: Math.random() * (canvas.height - size * 2) + size,
+                    width: size,
+                    height: size,
+                    speed: state.gameSpeed + (Math.random() * (config.powerUp.maxSpeed - config.powerUp.minSpeed) + config.powerUp.minSpeed),
+                    wobbleTime: Math.random() * Math.PI * 2,
+                    type
+                });
+            }
+
+            function applyVillainBehavior(obstacle, deltaSeconds) {
+                const behaviorState = obstacle.behaviorState;
+                const villainBehavior = obstacle.villainType?.behavior;
+                if (!behaviorState || !villainBehavior) {
+                    return;
+                }
+
+                switch (villainBehavior.type) {
+                    case 'sine': {
+                        behaviorState.phase += deltaSeconds * (behaviorState.speed ?? villainBehavior.speed ?? 3);
+                        const amplitude = behaviorState.amplitude ?? villainBehavior.amplitude ?? 40;
+                        const targetY = behaviorState.baseY + Math.sin(behaviorState.phase) * amplitude;
+                        obstacle.y = clamp(targetY, 0, canvas.height - obstacle.height);
+                        break;
+                    }
+                    case 'drift': {
+                        obstacle.y += behaviorState.vy * deltaSeconds;
+                        if (obstacle.y < 24) {
+                            obstacle.y = 24;
+                            behaviorState.vy = Math.abs(behaviorState.vy);
+                        } else if (obstacle.y + obstacle.height > canvas.height - 24) {
+                            obstacle.y = canvas.height - 24 - obstacle.height;
+                            behaviorState.vy = -Math.abs(behaviorState.vy);
+                        }
+                        break;
+                    }
+                    case 'tracker': {
+                        const targetY = player.y + player.height * 0.5 - obstacle.height * 0.5;
+                        const direction = targetY - obstacle.y;
+                        const accel = Math.sign(direction) * (behaviorState.acceleration ?? villainBehavior.acceleration ?? 120);
+                        behaviorState.vy += accel * deltaSeconds;
+                        const maxSpeed = behaviorState.maxSpeed ?? villainBehavior.maxSpeed ?? 180;
+                        behaviorState.vy = clamp(behaviorState.vy, -maxSpeed, maxSpeed);
+                        obstacle.y += behaviorState.vy * deltaSeconds;
+                        obstacle.y = clamp(obstacle.y, 16, canvas.height - obstacle.height - 16);
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+
+            function updateObstacles(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = obstacles[i];
+                    obstacle.x -= obstacle.speed * deltaSeconds;
+                    obstacle.rotation += obstacle.rotationSpeed * deltaSeconds;
+                    if (obstacle.hitFlash > 0) {
+                        obstacle.hitFlash = Math.max(0, obstacle.hitFlash - delta);
+                    }
+
+                    applyVillainBehavior(obstacle, deltaSeconds);
+
+                    if (obstacle.x + obstacle.width < 0) {
+                        obstacles.splice(i, 1);
+                        awardDodge();
+                        continue;
+                    }
+
+                    if (rectOverlap(player, obstacle)) {
+                        return triggerGameOver('Your rainbow ship took a direct hit!');
+                    }
+
+                    for (let j = trail.length - 1; j >= 0; j--) {
+                        const t = trail[j];
+                        if (circleRectOverlap({ x: t.x, y: t.y, radius: 10 }, obstacle)) {
+                            return triggerGameOver('Your tail tangled with space junk!');
+                        }
+                    }
+                }
+            }
+
+            function updateCollectibles(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = collectibles.length - 1; i >= 0; i--) {
+                    const collectible = collectibles[i];
+                    collectible.x -= collectible.speed * deltaSeconds;
+                    collectible.wobbleTime += deltaSeconds * 4;
+                    collectible.y += Math.sin(collectible.wobbleTime) * 18 * deltaSeconds;
+                    collectible.y = clamp(collectible.y, 24, canvas.height - 48);
+
+                    if (collectible.x + collectible.width < 0) {
+                        collectibles.splice(i, 1);
+                        resetStreak();
+                        continue;
+                    }
+
+                    if (rectOverlap(player, collectible)) {
+                        collectibles.splice(i, 1);
+                        awardCollect();
+                        createParticles({
+                            x: collectible.x + collectible.width * 0.5,
+                            y: collectible.y + collectible.height * 0.5,
+                            color: { r: 255, g: 215, b: 0 }
+                        });
+                    }
+                }
+            }
+
+            function triggerPowerBombPulse() {
+                const centerX = player.x + player.width * 0.5;
+                const centerY = player.y + player.height * 0.5;
+                const burst = {
+                    x: centerX,
+                    y: centerY,
+                    radius: 0,
+                    maxRadius: 360,
+                    speed: 760,
+                    life: 650,
+                    hitSet: new WeakSet()
+                };
+                areaBursts.push(burst);
+                createParticles({
+                    x: centerX,
+                    y: centerY,
+                    color: { r: 255, g: 196, b: 128 }
+                });
+            }
+
+            function activatePowerUp(type) {
+                const duration = config.powerUp.duration[type];
+                if (duration) {
+                    state.powerUpTimers[type] = duration;
+                }
+                if (type === 'powerBomb') {
+                    triggerPowerBombPulse();
+                    state.powerBombPulseTimer = 900;
+                }
+            }
+
+            function updatePowerUps(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = powerUps.length - 1; i >= 0; i--) {
+                    const powerUp = powerUps[i];
+                    powerUp.x -= powerUp.speed * deltaSeconds;
+                    powerUp.wobbleTime += deltaSeconds * config.powerUp.wobbleSpeed;
+                    powerUp.y += Math.sin(powerUp.wobbleTime) * config.powerUp.wobbleAmplitude * deltaSeconds;
+                    powerUp.y = clamp(powerUp.y, 32, canvas.height - 32 - powerUp.height);
+
+                    if (powerUp.x + powerUp.width < 0) {
+                        powerUps.splice(i, 1);
+                        continue;
+                    }
+
+                    if (rectOverlap(player, powerUp)) {
+                        powerUps.splice(i, 1);
+                        activatePowerUp(powerUp.type);
+                        const color = powerUpColors[powerUp.type] ?? { r: 200, g: 200, b: 255 };
+                        createParticles({
+                            x: powerUp.x + powerUp.width * 0.5,
+                            y: powerUp.y + powerUp.height * 0.5,
+                            color
+                        });
+                    }
+                }
+            }
+
+            function updatePowerUpTimers(delta) {
+                for (const type of powerUpTypes) {
+                    if (state.powerUpTimers[type] > 0) {
+                        state.powerUpTimers[type] = Math.max(0, state.powerUpTimers[type] - delta);
+                        if (type === 'powerBomb' && state.powerUpTimers[type] === 0) {
+                            state.powerBombPulseTimer = 0;
+                        }
+                    }
+                }
+            }
+
+            function updatePowerBomb(delta) {
+                if (!isPowerUpActive('powerBomb')) return;
+                state.powerBombPulseTimer -= delta;
+                if (state.powerBombPulseTimer <= 0) {
+                    triggerPowerBombPulse();
+                    state.powerBombPulseTimer = 900;
+                }
+            }
+
+            function updateAreaBursts(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = areaBursts.length - 1; i >= 0; i--) {
+                    const burst = areaBursts[i];
+                    burst.radius = Math.min(burst.maxRadius, burst.radius + burst.speed * deltaSeconds);
+                    burst.life -= delta;
+
+                    for (let j = obstacles.length - 1; j >= 0; j--) {
+                        const obstacle = obstacles[j];
+                        if (burst.hitSet.has(obstacle)) continue;
+                        const centerX = obstacle.x + obstacle.width * 0.5;
+                        const centerY = obstacle.y + obstacle.height * 0.5;
+                        const distance = Math.hypot(centerX - burst.x, centerY - burst.y);
+                        const hitRadius = burst.radius + obstacle.width * 0.5;
+                        if (distance <= hitRadius) {
+                            burst.hitSet.add(obstacle);
+                            obstacles.splice(j, 1);
+                            awardDestroy(obstacle);
+                            createVillainExplosion(obstacle);
+                        }
+                    }
+
+                    if (burst.life <= 0) {
+                        areaBursts.splice(i, 1);
+                    }
+                }
+            }
+
+            function updateVillainExplosions(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = villainExplosions.length - 1; i >= 0; i--) {
+                    const explosion = villainExplosions[i];
+                    explosion.radius = Math.min(explosion.maxRadius, explosion.radius + explosion.expansionSpeed * deltaSeconds);
+                    explosion.ringRadius = Math.min(explosion.maxRingRadius, explosion.ringRadius + explosion.ringGrowth * deltaSeconds);
+                    explosion.life -= delta;
+                    if (explosion.life <= 0) {
+                        villainExplosions.splice(i, 1);
+                    }
+                }
+            }
+
+            function updateStars(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = stars.length - 1; i >= 0; i--) {
+                    const star = stars[i];
+                    star.x -= star.speed * deltaSeconds * (0.4 + state.gameSpeed / 600);
+                    if (star.x < -star.size) {
+                        star.x = canvas.width + star.size;
+                        star.y = Math.random() * canvas.height;
+                        star.speed = (Math.random() * 0.8 + 0.4) * config.star.baseSpeed;
+                    }
+                }
+            }
+
+            function updateParticles(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const particle = particles[i];
+                    particle.life -= delta;
+                    if (particle.life <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                    particle.x += particle.vx * deltaSeconds;
+                    particle.y += particle.vy * deltaSeconds;
+                    particle.vx *= 0.96;
+                    particle.vy *= 0.96;
+                }
+            }
+
+            function updateSpawns(delta) {
+                spawnTimers.obstacle += delta;
+                spawnTimers.collectible += delta;
+                spawnTimers.powerUp += delta;
+
+                const obstacleInterval = config.obstacleSpawnInterval / (1 + state.gameSpeed * 0.005 * getSpawnIntensity('obstacle'));
+                const collectibleInterval = config.collectibleSpawnInterval / (1 + state.gameSpeed * 0.004 * getSpawnIntensity('collectible'));
+                const powerUpInterval = config.powerUpSpawnInterval / (1 + state.gameSpeed * 0.003 * getSpawnIntensity('powerUp'));
+
+                if (spawnTimers.obstacle >= obstacleInterval) {
+                    spawnTimers.obstacle = 0;
+                    spawnObstacle();
+                }
+
+                if (spawnTimers.collectible >= collectibleInterval) {
+                    spawnTimers.collectible = 0;
+                    spawnCollectible();
+                }
+
+                if (spawnTimers.powerUp >= powerUpInterval) {
+                    spawnTimers.powerUp = -Math.random() * 2000;
+                    spawnPowerUp();
+                }
+            }
+
+            function getProjectileDamage(projectile) {
+                switch (projectile.type) {
+                    case 'missile':
+                        return 2;
+                    case 'spread':
+                        return 1;
+                    default:
+                        return 1;
+                }
+            }
+
+            function updateProjectilesCollisions() {
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    const projectile = projectiles[i];
+                    for (let j = obstacles.length - 1; j >= 0; j--) {
+                        const obstacle = obstacles[j];
+                        if (!rectOverlap(projectile, obstacle)) continue;
+
+                        const damage = getProjectileDamage(projectile);
+                        obstacle.health -= damage;
+                        obstacle.hitFlash = 160;
+
+                        projectiles.splice(i, 1);
+
+                        if (obstacle.health <= 0) {
+                            obstacles.splice(j, 1);
+                            awardDestroy(obstacle);
+                            createVillainExplosion(obstacle);
+                        } else {
+                            createHitSpark({
+                                x: obstacle.x + obstacle.width * 0.5,
+                                y: obstacle.y + obstacle.height * 0.5,
+                                color: { r: 159, g: 168, b: 218 }
+                            });
+                        }
+                        break;
+                    }
+                }
+            }
+
+            function rectOverlap(a, b) {
+                return a.x < b.x + b.width &&
+                    a.x + a.width > b.x &&
+                    a.y < b.y + b.height &&
+                    a.y + a.height > b.y;
+            }
+
+            function circleRectOverlap(circle, rect) {
+                const closestX = clamp(circle.x, rect.x, rect.x + rect.width);
+                const closestY = clamp(circle.y, rect.y, rect.y + rect.height);
+                const distanceX = circle.x - closestX;
+                const distanceY = circle.y - closestY;
+                return (distanceX * distanceX + distanceY * distanceY) < (circle.radius * circle.radius);
+            }
+
+            function createHitSpark({ x, y, color }) {
+                for (let i = 0; i < 8; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 180 + 80;
+                    particles.push({
+                        x,
+                        y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 300 + Math.random() * 200,
+                        color,
+                        size: Math.random() * 2 + 0.8
+                    });
+                }
+            }
+
+            function createParticles({ x, y, color, count = 18, speedRange = [60, 340], sizeRange = [1.4, 4.4], lifeRange = [500, 900] }) {
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = randomBetween(speedRange[0], speedRange[1]);
+                    particles.push({
+                        x,
+                        y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: randomBetween(lifeRange[0], lifeRange[1]),
+                        color,
+                        size: randomBetween(sizeRange[0], sizeRange[1])
+                    });
+                }
+            }
+
+            function createVillainExplosion(obstacle) {
+                const centerX = obstacle.x + obstacle.width * 0.5;
+                const centerY = obstacle.y + obstacle.height * 0.5;
+                const palette = villainExplosionPalettes[obstacle.villainType?.key] ?? villainExplosionPalettes.villain1;
+                const sizeFactor = obstacle.width;
+                villainExplosions.push({
+                    x: centerX,
+                    y: centerY,
+                    radius: sizeFactor * 0.45,
+                    maxRadius: sizeFactor * 1.85,
+                    expansionSpeed: 320 + sizeFactor * 2.1,
+                    ringRadius: sizeFactor * 0.7,
+                    maxRingRadius: sizeFactor * 2.4,
+                    ringGrowth: 480 + sizeFactor * 2.6,
+                    ringThickness: Math.max(4, sizeFactor * 0.12),
+                    life: 520,
+                    maxLife: 520,
+                    palette
+                });
+
+                createParticles({
+                    x: centerX,
+                    y: centerY,
+                    color: palette.core,
+                    count: 28,
+                    speedRange: [160, 420],
+                    sizeRange: [1.1, 3.4],
+                    lifeRange: [360, 620]
+                });
+
+                createParticles({
+                    x: centerX,
+                    y: centerY,
+                    color: palette.spark,
+                    count: 18,
+                    speedRange: [220, 520],
+                    sizeRange: [0.6, 1.6],
+                    lifeRange: [260, 480]
+                });
+            }
+
+            function awardCollect() {
+                state.nyan += 1;
+                awardScore(config.score.collect);
+            }
+
+            function awardDestroy(obstacle) {
+                const sizeBonus = Math.floor(obstacle.width * 0.6);
+                const durabilityBonus = (obstacle.maxHealth ? obstacle.maxHealth - 1 : 0) * 90;
+                awardScore(config.score.destroy + sizeBonus + durabilityBonus);
+            }
+
+            function awardDodge() {
+                state.score += config.score.dodge;
+                state.comboTimer = Math.max(0, state.comboTimer - 400);
+            }
+
+            function awardScore(basePoints) {
+                state.comboTimer = 0;
+                state.streak += 1;
+                if (state.streak > state.bestStreak) {
+                    state.bestStreak = state.streak;
+                }
+                state.tailTarget = config.baseTrailLength + state.streak * config.trailGrowthPerStreak;
+                const multiplier = 1 + state.streak * config.comboMultiplierStep;
+                state.score += Math.floor(basePoints * multiplier);
+            }
+
+            function resetStreak() {
+                state.streak = 0;
+                state.tailTarget = config.baseTrailLength;
+            }
+
+            function triggerGameOver(message) {
+                if (state.gameState !== 'running') return;
+                state.gameState = 'gameover';
+                const finalTimeMs = state.elapsedTime;
+                recordHighScore(finalTimeMs, state.score);
+                updateHighScorePanel();
+                updateTimerDisplay();
+                const formattedTime = formatTime(finalTimeMs);
+                showOverlay(
+                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — NYAN collected: ${state.nyan}`,
+                    'Run It Back',
+                    { title: '' }
+                );
+            }
+
+            function updateCombo(delta) {
+                state.comboTimer += delta;
+                if (state.comboTimer >= config.comboDecayWindow && state.streak > 0) {
+                    resetStreak();
+                }
+                const ratio = clamp(1 - state.comboTimer / config.comboDecayWindow, 0, 1);
+                comboFillEl.style.width = `${ratio * 100}%`;
+            }
+
+            function updateHUD() {
+                scoreEl.textContent = state.score.toLocaleString();
+                nyanEl.textContent = state.nyan;
+                const comboMultiplier = 1 + state.streak * config.comboMultiplierStep;
+                streakEl.textContent = `x${comboMultiplier.toFixed(2)}`;
+                const bestTailLength = Math.round(config.baseTrailLength + state.bestStreak * config.trailGrowthPerStreak);
+                bestStreakEl.textContent = `${bestTailLength}`;
+                const marketCap = 6.6 + state.score / 1400;
+                const volume = 2.8 + state.nyan * 0.6 + state.streak * 0.3;
+                mcapEl.textContent = `${marketCap.toFixed(1)}K`;
+                volEl.textContent = `${volume.toFixed(1)}K`;
+                const activeBoosts = powerUpTypes
+                    .filter((type) => isPowerUpActive(type))
+                    .map((type) => `${powerUpLabels[type]} ${(state.powerUpTimers[type] / 1000).toFixed(1)}s`);
+                powerUpsEl.textContent = activeBoosts.length ? activeBoosts.join(' | ') : 'None';
+            }
+
+            function drawBackground() {
+                ctx.fillStyle = '#05091f';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, 'rgba(26, 35, 126, 0.85)');
+                gradient.addColorStop(0.5, 'rgba(21, 11, 45, 0.85)');
+                gradient.addColorStop(1, 'rgba(0, 2, 12, 0.95)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            function drawStars(time) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                for (const star of stars) {
+                    const twinkle = (Math.sin(time * 0.002 + star.twinkleOffset) + 1) * 0.5;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + twinkle * 0.7})`;
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            function drawTrail() {
+                if (trail.length < 2) return;
+                for (let i = 0; i < trail.length; i++) {
+                    const t = trail[i];
+                    const alpha = i / trail.length;
+                    const hue = (alpha * 300 + performance.now() * 0.05) % 360;
+                    ctx.fillStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
+                    ctx.fillRect(t.x - 36, t.y - 6, 72, 12);
+                }
+            }
+
+            function drawPlayer() {
+                const bob = Math.sin(performance.now() * 0.005) * 4;
+                const drawX = player.x;
+                const drawY = player.y + bob;
+                if (playerImage.complete && playerImage.naturalWidth !== 0) {
+                    ctx.drawImage(playerImage, drawX, drawY, player.width, player.height);
+                } else {
+                    const gradient = ctx.createLinearGradient(drawX, drawY, drawX + player.width, drawY + player.height);
+                    gradient.addColorStop(0, '#ff9a9e');
+                    gradient.addColorStop(0.5, '#fad0c4');
+                    gradient.addColorStop(1, '#fad0c4');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(drawX, drawY, player.width, player.height);
+                }
+            }
+
+            function drawObstacles() {
+                for (const obstacle of obstacles) {
+                    ctx.save();
+                    ctx.translate(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2);
+                    ctx.rotate(obstacle.rotation);
+
+                    if (obstacle.image && obstacle.image.complete && obstacle.image.naturalWidth > 0) {
+                        ctx.drawImage(
+                            obstacle.image,
+                            -obstacle.width / 2,
+                            -obstacle.height / 2,
+                            obstacle.width,
+                            obstacle.height
+                        );
+                    } else {
+                        const radius = obstacle.width / 2;
+                        ctx.beginPath();
+                        ctx.moveTo(radius, 0);
+                        for (let i = 1; i < 6; i++) {
+                            const angle = i * (Math.PI * 2 / 6);
+                            ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+                        }
+                        ctx.closePath();
+                        ctx.fillStyle = '#4f46e5';
+                        ctx.fill();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+
+                    if (obstacle.hitFlash > 0) {
+                        const flashAlpha = clamp(obstacle.hitFlash / 160, 0, 1);
+                        ctx.fillStyle = `rgba(255, 255, 255, ${0.35 * flashAlpha})`;
+                        ctx.fillRect(-obstacle.width / 2, -obstacle.height / 2, obstacle.width, obstacle.height);
+                    }
+
+                    ctx.restore();
+
+                    if (obstacle.maxHealth > 1) {
+                        const ratio = clamp(obstacle.health / obstacle.maxHealth, 0, 1);
+                        const barWidth = obstacle.width;
+                        const barHeight = 6;
+                        const barX = obstacle.x;
+                        const barY = obstacle.y - 10;
+                        ctx.fillStyle = 'rgba(79,70,229,0.35)';
+                        ctx.fillRect(barX, barY, barWidth, barHeight);
+                        ctx.fillStyle = '#a5b4fc';
+                        ctx.fillRect(barX, barY, barWidth * ratio, barHeight);
+                    }
+                }
+            }
+
+            function drawCollectibles(time) {
+                for (const collectible of collectibles) {
+                    ctx.save();
+                    ctx.translate(collectible.x + collectible.width / 2, collectible.y + collectible.height / 2);
+                    ctx.rotate(Math.sin(time * 0.004 + collectible.wobbleTime) * 0.2);
+                    const gradient = ctx.createRadialGradient(0, 0, 4, 0, 0, collectible.width * 0.6);
+                    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                    gradient.addColorStop(0.4, '#fff59d');
+                    gradient.addColorStop(1, 'rgba(255, 215, 0, 0.75)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, collectible.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#1a237e';
+                    ctx.font = `700 12px ${primaryFontStack}`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('NYAN', 0, 0);
+                    ctx.restore();
+                }
+            }
+
+            function drawPowerUps(time) {
+                for (const powerUp of powerUps) {
+                    ctx.save();
+                    ctx.translate(powerUp.x + powerUp.width / 2, powerUp.y + powerUp.height / 2);
+                    const pulse = 0.15 * Math.sin(time * 0.006 + powerUp.wobbleTime);
+                    const radius = powerUp.width * (0.36 + pulse);
+                    const color = powerUpColors[powerUp.type] ?? { r: 220, g: 220, b: 255 };
+                    const gradient = ctx.createRadialGradient(0, 0, radius * 0.25, 0, 0, radius);
+                    gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.95)`);
+                    gradient.addColorStop(0.65, `rgba(${color.r}, ${color.g}, ${color.b}, 0.6)`);
+                    gradient.addColorStop(1, 'rgba(255,255,255,0.1)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    const sprite = powerUpImages[powerUp.type];
+                    const isSpriteReady = sprite?.complete && sprite.naturalWidth !== 0;
+                    if (isSpriteReady) {
+                        const drawSize = powerUp.width;
+                        ctx.drawImage(sprite, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+                    } else {
+                        ctx.fillStyle = '#060b28';
+                        ctx.font = `700 12px ${primaryFontStack}`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        const label = powerUpLabels[powerUp.type] ?? 'BOOST';
+                        ctx.fillText(label.split(' ')[0], 0, -6);
+                        if (label.includes(' ')) {
+                            ctx.fillText(label.split(' ')[1], 0, 8);
+                        }
+                    }
+                    ctx.restore();
+                }
+            }
+
+            function drawAreaBursts() {
+                if (!areaBursts.length) return;
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                for (const burst of areaBursts) {
+                    const opacity = clamp(burst.life / 650, 0, 1);
+                    const gradient = ctx.createRadialGradient(burst.x, burst.y, burst.radius * 0.4, burst.x, burst.y, burst.radius);
+                    gradient.addColorStop(0, `rgba(255, 185, 130, ${0.35 * opacity})`);
+                    gradient.addColorStop(1, 'rgba(255, 120, 80, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(burst.x, burst.y, burst.radius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = `rgba(255, 200, 150, ${0.5 * opacity})`;
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.arc(burst.x, burst.y, burst.radius * 0.85, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            function drawVillainExplosions() {
+                if (!villainExplosions.length) return;
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                for (const explosion of villainExplosions) {
+                    const palette = explosion.palette ?? villainExplosionPalettes.villain1;
+                    const alpha = clamp(explosion.life / explosion.maxLife, 0, 1);
+                    const gradient = ctx.createRadialGradient(
+                        explosion.x,
+                        explosion.y,
+                        Math.max(6, explosion.radius * 0.2),
+                        explosion.x,
+                        explosion.y,
+                        Math.max(explosion.radius, 1)
+                    );
+                    gradient.addColorStop(0, `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.55 * alpha})`);
+                    gradient.addColorStop(1, `rgba(${palette.halo.r}, ${palette.halo.g}, ${palette.halo.b}, 0)`);
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = `rgba(${palette.core.r}, ${palette.core.g}, ${palette.core.b}, ${0.35 * alpha})`;
+                    ctx.lineWidth = explosion.ringThickness;
+                    ctx.beginPath();
+                    ctx.arc(explosion.x, explosion.y, explosion.ringRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            function drawProjectiles() {
+                for (const projectile of projectiles) {
+                    if (projectile.type === 'missile') {
+                        ctx.save();
+                        ctx.translate(projectile.x + projectile.width * 0.5, projectile.y + projectile.height * 0.5);
+                        const angle = Math.atan2(projectile.vy, projectile.vx);
+                        ctx.rotate(angle);
+                        ctx.fillStyle = '#ffb74d';
+                        ctx.fillRect(-projectile.width * 0.5, -projectile.height * 0.35, projectile.width, projectile.height * 0.7);
+                        ctx.fillStyle = '#ff7043';
+                        ctx.beginPath();
+                        ctx.moveTo(-projectile.width * 0.6, -projectile.height * 0.5);
+                        ctx.lineTo(-projectile.width * 0.2, 0);
+                        ctx.lineTo(-projectile.width * 0.6, projectile.height * 0.5);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.fillStyle = '#263238';
+                        ctx.fillRect(projectile.width * 0.1, -projectile.height * 0.2, projectile.width * 0.5, projectile.height * 0.4);
+                        ctx.restore();
+                    } else {
+                        const gradient = ctx.createLinearGradient(projectile.x, projectile.y, projectile.x + projectile.width, projectile.y + projectile.height);
+                        if (projectile.type === 'spread') {
+                            gradient.addColorStop(0, '#b39ddb');
+                            gradient.addColorStop(1, '#7e57c2');
+                        } else {
+                            gradient.addColorStop(0, '#00e5ff');
+                            gradient.addColorStop(1, '#6a5acd');
+                        }
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.moveTo(projectile.x, projectile.y);
+                        ctx.lineTo(projectile.x + projectile.width, projectile.y + projectile.height * 0.5);
+                        ctx.lineTo(projectile.x, projectile.y + projectile.height);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                }
+            }
+
+            function drawParticles() {
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                for (const particle of particles) {
+                    const alpha = clamp(particle.life / 500, 0, 1);
+                    ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha.toFixed(2)})`;
+                    ctx.beginPath();
+                    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            let lastTime = null;
+            function gameLoop(timestamp = performance.now()) {
+                requestAnimationFrame(gameLoop);
+
+                if (state.gameState === 'ready') {
+                    updateStars(16);
+                    drawBackground();
+                    drawStars(timestamp);
+                    drawPlayer();
+                    return;
+                }
+
+                if (lastTime === null) {
+                    lastTime = timestamp;
+                }
+                let delta = timestamp - lastTime;
+                if (delta > 50) delta = 50;
+                lastTime = timestamp;
+
+                if (state.gameState === 'running') {
+                    state.elapsedTime += delta;
+                    state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (delta / 1000);
+
+                    updatePlayer(delta);
+                    updateProjectiles(delta);
+                    updateObstacles(delta);
+                    updateCollectibles(delta);
+                    updatePowerUps(delta);
+                    updateProjectilesCollisions();
+                    updateStars(delta);
+                    updateParticles(delta);
+                    updateSpawns(delta);
+                    updatePowerUpTimers(delta);
+                    updatePowerBomb(delta);
+                    updateAreaBursts(delta);
+                    updateVillainExplosions(delta);
+                    updateCombo(delta);
+                } else {
+                    updateStars(delta);
+                    updateParticles(delta);
+                    updateAreaBursts(delta);
+                    updateVillainExplosions(delta);
+                }
+
+                drawBackground();
+                drawStars(timestamp);
+                drawTrail();
+                drawCollectibles(timestamp);
+                drawPowerUps(timestamp);
+                drawAreaBursts();
+                drawVillainExplosions();
+                drawObstacles();
+                drawProjectiles();
+                drawParticles();
+                drawPlayer();
+
+                updateHUD();
+                updateTimerDisplay();
+            }
+
+            runCyborgLoadingSequence();
+            createInitialStars();
+            requestAnimationFrame(gameLoop);
+        });
+    </script>
+</body>
+</html>
