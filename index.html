@@ -1255,7 +1255,14 @@
                     baseSpeed: 120
                 },
                 asteroid: {
-                    count: 9,
+                    initialCount: 4,
+                    maxCount: 6,
+                    spawnInterval: 2600,
+                    clusterRadius: 160,
+                    minSpacing: 14,
+                    scale: 0.4,
+                    bounceRestitution: 0.88,
+                    collisionRadiusMultiplier: 0.88,
                     sizeRange: [90, 210],
                     speedRange: [40, 140],
                     rotationSpeedRange: [-0.6, 0.6],
@@ -1266,6 +1273,7 @@
                 score: {
                     collect: baseCollectScore,
                     destroy: 120,
+                    asteroid: 60,
                     dodge: 18
                 }
             };
@@ -1361,6 +1369,7 @@
             const powerUps = [];
             const stars = [];
             const asteroids = [];
+            let asteroidSpawnTimer = 0;
             const particles = [];
             const villainExplosions = [];
             const trail = [];
@@ -1574,70 +1583,282 @@
             }
 
             function createAsteroid(initial = false) {
-                const depth = randomBetween(config.asteroid.depthRange[0], config.asteroid.depthRange[1]);
+                const settings = config.asteroid;
+                const scale = settings?.scale ?? 1;
+                const depth = randomBetween(settings.depthRange[0], settings.depthRange[1]);
+                const baseSize = lerp(settings.sizeRange[0], settings.sizeRange[1], depth);
+                const size = baseSize * scale;
                 const asteroid = {
                     depth,
-                    size: lerp(config.asteroid.sizeRange[0], config.asteroid.sizeRange[1], depth),
-                    speed: lerp(config.asteroid.speedRange[0], config.asteroid.speedRange[1], depth),
+                    baseSize,
+                    size,
+                    radius: size * 0.5,
+                    mass: Math.max(1, size * size * 0.0004),
+                    speed: lerp(settings.speedRange[0], settings.speedRange[1], depth),
                     rotation: Math.random() * Math.PI * 2,
                     rotationSpeed:
-                        randomBetween(config.asteroid.rotationSpeedRange[0], config.asteroid.rotationSpeedRange[1]) *
+                        randomBetween(settings.rotationSpeedRange[0], settings.rotationSpeedRange[1]) *
                         (0.4 + depth),
                     drift:
-                        randomBetween(config.asteroid.driftRange[0], config.asteroid.driftRange[1]) *
+                        randomBetween(settings.driftRange[0], settings.driftRange[1]) *
                         Math.max(0.12, 1 - depth * 0.6),
-                    x: initial ? Math.random() * canvas.width : canvas.width + Math.random() * canvas.width * 0.6,
-                    y: Math.random() * canvas.height,
+                    vx: 0,
+                    vy: 0,
+                    x: 0,
+                    y: 0,
                     image: asteroidImages[Math.floor(Math.random() * asteroidImages.length)] ?? null,
-                    bobOffset: Math.random() * Math.PI * 2
+                    bobOffset: Math.random() * Math.PI * 2,
+                    health: Math.max(1, Math.round(size / 32)),
+                    hitFlash: 0
                 };
+                placeAsteroid(asteroid, initial);
+                asteroid.vx = -asteroid.speed * (0.6 + asteroid.depth * 0.8);
+                asteroid.vy = asteroid.drift;
                 return asteroid;
+            }
+
+            function placeAsteroid(asteroid, initial = false) {
+                const settings = config.asteroid ?? {};
+                const clusterRadius = settings.clusterRadius ?? 160;
+                const minSpacing = settings.minSpacing ?? 12;
+                const spawnOffset = settings.spawnOffset ?? 140;
+                const attempts = settings.placementAttempts ?? 24;
+
+                for (let attempt = 0; attempt < attempts; attempt++) {
+                    let anchor = null;
+                    if (asteroids.length && (initial || Math.random() < 0.85)) {
+                        anchor = asteroids[Math.floor(Math.random() * asteroids.length)];
+                    }
+
+                    let candidateX;
+                    let candidateY;
+
+                    if (anchor) {
+                        candidateX = anchor.x + randomBetween(-clusterRadius, clusterRadius);
+                        if (!initial) {
+                            candidateX = Math.max(candidateX, canvas.width - clusterRadius * 0.8);
+                        }
+                        candidateY = anchor.y + randomBetween(-clusterRadius * 0.6, clusterRadius * 0.6);
+                    } else if (initial) {
+                        candidateX = Math.random() * canvas.width;
+                        candidateY = Math.random() * canvas.height;
+                    } else {
+                        candidateX = canvas.width + spawnOffset + Math.random() * clusterRadius;
+                        candidateY = Math.random() * canvas.height;
+                    }
+
+                    candidateX = clamp(candidateX, asteroid.radius + minSpacing, canvas.width + clusterRadius);
+                    candidateY = clamp(
+                        candidateY,
+                        asteroid.radius + minSpacing,
+                        canvas.height - asteroid.radius - minSpacing
+                    );
+
+                    let overlaps = false;
+                    for (const other of asteroids) {
+                        const dx = other.x - candidateX;
+                        const dy = other.y - candidateY;
+                        const minDist = asteroid.radius + other.radius + minSpacing;
+                        if (dx * dx + dy * dy < minDist * minDist) {
+                            overlaps = true;
+                            break;
+                        }
+                    }
+
+                    if (!overlaps) {
+                        asteroid.x = candidateX;
+                        asteroid.y = candidateY;
+                        return;
+                    }
+                }
+
+                asteroid.x = initial ? Math.random() * canvas.width : canvas.width + asteroid.size;
+                asteroid.y = clamp(Math.random() * canvas.height, asteroid.radius, canvas.height - asteroid.radius);
+            }
+
+            function resolveAsteroidCollisions() {
+                if (asteroids.length < 2) return;
+                const settings = config.asteroid ?? {};
+                const minSpacing = settings.minSpacing ?? 12;
+                const restitution = settings.bounceRestitution ?? 0.9;
+
+                for (let i = 0; i < asteroids.length - 1; i++) {
+                    const a = asteroids[i];
+                    for (let j = i + 1; j < asteroids.length; j++) {
+                        const b = asteroids[j];
+                        const dx = b.x - a.x;
+                        const dy = b.y - a.y;
+                        const minDistance = a.radius + b.radius + minSpacing;
+                        const distanceSq = dx * dx + dy * dy;
+                        if (distanceSq === 0 || distanceSq >= minDistance * minDistance) {
+                            continue;
+                        }
+
+                        const distance = Math.sqrt(distanceSq);
+                        const nx = dx / distance;
+                        const ny = dy / distance;
+                        const overlap = minDistance - distance;
+                        const massA = a.mass ?? 1;
+                        const massB = b.mass ?? 1;
+                        const totalMass = massA + massB;
+
+                        const moveA = overlap * (massB / totalMass);
+                        const moveB = overlap * (massA / totalMass);
+
+                        a.x -= nx * moveA;
+                        a.y -= ny * moveA;
+                        b.x += nx * moveB;
+                        b.y += ny * moveB;
+
+                        const relativeVelocity = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
+                        if (relativeVelocity > 0) {
+                            continue;
+                        }
+
+                        const impulse = -(1 + restitution) * relativeVelocity;
+                        const impulsePerMassA = impulse * (massB / totalMass);
+                        const impulsePerMassB = impulse * (massA / totalMass);
+
+                        a.vx += nx * impulsePerMassA;
+                        a.vy += ny * impulsePerMassA;
+                        b.vx -= nx * impulsePerMassB;
+                        b.vy -= ny * impulsePerMassB;
+                    }
+                }
             }
 
             function createInitialAsteroids() {
                 asteroids.length = 0;
-                const count = config.asteroid?.count ?? 0;
+                asteroidSpawnTimer = 0;
+                const settings = config.asteroid ?? {};
+                const count = settings.initialCount ?? settings.maxCount ?? 0;
                 for (let i = 0; i < count; i++) {
                     asteroids.push(createAsteroid(true));
                 }
-            }
-
-            function recycleAsteroid(asteroid) {
-                const depth = randomBetween(config.asteroid.depthRange[0], config.asteroid.depthRange[1]);
-                asteroid.depth = depth;
-                asteroid.size = lerp(config.asteroid.sizeRange[0], config.asteroid.sizeRange[1], depth);
-                asteroid.speed = lerp(config.asteroid.speedRange[0], config.asteroid.speedRange[1], depth);
-                asteroid.rotation = Math.random() * Math.PI * 2;
-                asteroid.rotationSpeed =
-                    randomBetween(config.asteroid.rotationSpeedRange[0], config.asteroid.rotationSpeedRange[1]) *
-                    (0.4 + depth);
-                asteroid.drift =
-                    randomBetween(config.asteroid.driftRange[0], config.asteroid.driftRange[1]) *
-                    Math.max(0.12, 1 - depth * 0.6);
-                asteroid.x = canvas.width + Math.random() * canvas.width * 0.6;
-                asteroid.y = Math.random() * canvas.height;
-                asteroid.image = asteroidImages[Math.floor(Math.random() * asteroidImages.length)] ?? null;
-                asteroid.bobOffset = Math.random() * Math.PI * 2;
+                resolveAsteroidCollisions();
             }
 
             function updateAsteroids(delta) {
+                const settings = config.asteroid ?? {};
+                const spawnInterval = settings.spawnInterval ?? 0;
+                asteroidSpawnTimer += delta;
+
+                let spawned = false;
+                if (settings.maxCount > 0 && spawnInterval > 0) {
+                    while (asteroidSpawnTimer >= spawnInterval && asteroids.length < settings.maxCount) {
+                        asteroidSpawnTimer -= spawnInterval;
+                        asteroids.push(createAsteroid(false));
+                        spawned = true;
+                    }
+
+                    if (asteroids.length >= settings.maxCount) {
+                        asteroidSpawnTimer = Math.min(asteroidSpawnTimer, spawnInterval);
+                    }
+                }
+
+                if (spawned) {
+                    resolveAsteroidCollisions();
+                }
+
                 if (!asteroids.length) return;
+
                 const deltaSeconds = delta / 1000;
                 const parallaxFactor = 0.4 + state.gameSpeed / 900;
-                for (const asteroid of asteroids) {
-                    asteroid.x -= asteroid.speed * deltaSeconds * parallaxFactor * (0.6 + asteroid.depth * 0.8);
-                    asteroid.y += asteroid.drift * deltaSeconds;
+                const flowLerp = settings.flowLerp ?? 0.08;
+
+                for (let i = asteroids.length - 1; i >= 0; i--) {
+                    const asteroid = asteroids[i];
+                    const targetVx = -asteroid.speed * parallaxFactor * (0.6 + asteroid.depth * 0.8);
+                    asteroid.vx += (targetVx - asteroid.vx) * flowLerp;
+                    const targetVy = asteroid.drift;
+                    asteroid.vy += (targetVy - asteroid.vy) * flowLerp;
+
+                    asteroid.x += asteroid.vx * deltaSeconds;
+                    asteroid.y += asteroid.vy * deltaSeconds;
                     asteroid.rotation += asteroid.rotationSpeed * deltaSeconds;
 
-                    if (asteroid.y < -asteroid.size * 0.5) {
-                        asteroid.y = canvas.height + asteroid.size * 0.5;
-                    } else if (asteroid.y > canvas.height + asteroid.size * 0.5) {
-                        asteroid.y = -asteroid.size * 0.5;
+                    if (asteroid.hitFlash > 0) {
+                        asteroid.hitFlash = Math.max(0, asteroid.hitFlash - delta);
+                    }
+
+                    if (asteroid.y < asteroid.radius) {
+                        asteroid.y = asteroid.radius;
+                        asteroid.vy = Math.abs(asteroid.vy || targetVy);
+                    } else if (asteroid.y > canvas.height - asteroid.radius) {
+                        asteroid.y = canvas.height - asteroid.radius;
+                        asteroid.vy = -Math.abs(asteroid.vy || targetVy);
                     }
 
                     if (asteroid.x < -asteroid.size) {
-                        recycleAsteroid(asteroid);
+                        asteroids.splice(i, 1);
+                        asteroidSpawnTimer = 0;
+                        continue;
                     }
+
+                    if (state.gameState === 'running') {
+                        const collisionRadius = asteroid.radius * (settings.collisionRadiusMultiplier ?? 1);
+                        if (circleRectOverlap({ x: asteroid.x, y: asteroid.y, radius: collisionRadius }, player)) {
+                            triggerGameOver('An asteroid shattered your shields!');
+                            return;
+                        }
+
+                        for (let j = trail.length - 1; j >= 0; j--) {
+                            const t = trail[j];
+                            if (Math.hypot(asteroid.x - t.x, asteroid.y - t.y) <= collisionRadius + 10) {
+                                triggerGameOver('Your tail clipped an asteroid!');
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                resolveAsteroidCollisions();
+
+                const maxX = canvas.width + (settings.clusterRadius ?? 160);
+                for (const asteroid of asteroids) {
+                    asteroid.y = clamp(asteroid.y, asteroid.radius, canvas.height - asteroid.radius);
+                    asteroid.x = Math.min(asteroid.x, maxX);
+                }
+            }
+
+            function getAsteroidScoreValue(asteroid) {
+                const base = config.score?.asteroid ?? 0;
+                return base + Math.round((asteroid.size ?? 0) * 0.4);
+            }
+
+            function createAsteroidDebris(asteroid) {
+                createParticles({
+                    x: asteroid.x,
+                    y: asteroid.y,
+                    color: { r: 196, g: 206, b: 220 },
+                    count: Math.round(12 + asteroid.radius * 0.6),
+                    speedRange: [80, 360],
+                    sizeRange: [0.7, 2.4],
+                    lifeRange: [380, 760]
+                });
+            }
+
+            function destroyAsteroid(index, options = {}) {
+                const asteroid = asteroids[index];
+                if (!asteroid) return;
+                createAsteroidDebris(asteroid);
+                if (options.createSpark !== false) {
+                    createHitSpark({ x: asteroid.x, y: asteroid.y, color: { r: 186, g: 198, b: 214 } });
+                }
+                if (state.gameState === 'running' && options.awardScore !== false) {
+                    awardScore(getAsteroidScoreValue(asteroid));
+                }
+                asteroids.splice(index, 1);
+                asteroidSpawnTimer = 0;
+            }
+
+            function damageAsteroid(asteroid, damage, index) {
+                asteroid.health -= damage;
+                asteroid.hitFlash = 220;
+                if (asteroid.health <= 0) {
+                    destroyAsteroid(index);
+                } else {
+                    createHitSpark({ x: asteroid.x, y: asteroid.y, color: { r: 172, g: 184, b: 204 } });
                 }
             }
 
@@ -1653,6 +1874,10 @@
                     ctx.rotate(asteroid.rotation);
                     ctx.globalAlpha = alpha;
                     const image = asteroid.image;
+                    const flashStrength = clamp((asteroid.hitFlash ?? 0) / 220, 0, 1);
+                    if (flashStrength > 0) {
+                        ctx.filter = `brightness(${1 + flashStrength * 0.6}) saturate(${1 + flashStrength * 0.3})`;
+                    }
                     if (image && image.complete && image.naturalWidth > 0) {
                         ctx.drawImage(image, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
                     } else {
@@ -1660,6 +1885,9 @@
                         ctx.beginPath();
                         ctx.arc(0, 0, drawSize / 2, 0, Math.PI * 2);
                         ctx.fill();
+                    }
+                    if (flashStrength > 0) {
+                        ctx.filter = 'none';
                     }
                     ctx.restore();
                 }
@@ -2430,6 +2658,17 @@
                         }
                     }
 
+                    for (let j = asteroids.length - 1; j >= 0; j--) {
+                        const asteroid = asteroids[j];
+                        if (burst.hitSet.has(asteroid)) continue;
+                        const distance = Math.hypot(asteroid.x - burst.x, asteroid.y - burst.y);
+                        const hitRadius = burst.radius + asteroid.radius;
+                        if (distance <= hitRadius) {
+                            burst.hitSet.add(asteroid);
+                            destroyAsteroid(j);
+                        }
+                    }
+
                     if (burst.life <= 0) {
                         areaBursts.splice(i, 1);
                     }
@@ -2602,6 +2841,7 @@
             function updateProjectilesCollisions() {
                 for (let i = projectiles.length - 1; i >= 0; i--) {
                     const projectile = projectiles[i];
+                    let projectileRemoved = false;
                     for (let j = obstacles.length - 1; j >= 0; j--) {
                         const obstacle = obstacles[j];
                         if (!rectOverlap(projectile, obstacle)) continue;
@@ -2611,6 +2851,7 @@
                         obstacle.hitFlash = 160;
 
                         projectiles.splice(i, 1);
+                        projectileRemoved = true;
 
                         if (obstacle.health <= 0) {
                             obstacles.splice(j, 1);
@@ -2623,6 +2864,22 @@
                                 color: { r: 159, g: 168, b: 218 }
                             });
                         }
+                        break;
+                    }
+
+                    if (projectileRemoved) {
+                        continue;
+                    }
+
+                    for (let j = asteroids.length - 1; j >= 0; j--) {
+                        const asteroid = asteroids[j];
+                        const radius = asteroid.radius * (config.asteroid?.collisionRadiusMultiplier ?? 1);
+                        if (!circleRectOverlap({ x: asteroid.x, y: asteroid.y, radius }, projectile)) continue;
+
+                        const damage = getProjectileDamage(projectile);
+                        projectiles.splice(i, 1);
+                        damageAsteroid(asteroid, damage, j);
+                        projectileRemoved = true;
                         break;
                     }
                 }
