@@ -256,10 +256,120 @@
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
 
+            function createSvgDataUri(svg) {
+                return `data:image/svg+xml;utf8,${encodeURIComponent(svg.trim())}`;
+            }
+
+            function gradientLayer(x, y, color, radius) {
+                return `radial-gradient(circle at ${x}% ${y}%, ${color} 0%, rgba(0, 0, 0, 0) ${radius}%)`;
+            }
+
+            function createGradientBackground(layers) {
+                return [
+                    ...layers,
+                    'linear-gradient(180deg, rgba(8, 11, 40, 0.95) 0%, rgba(4, 7, 28, 0.97) 46%, rgba(1, 2, 12, 1) 100%)'
+                ].join(', ');
+            }
+
+            function isGradientSource(src) {
+                return src.startsWith('linear-gradient') || src.startsWith('radial-gradient') || src.startsWith('conic-gradient');
+            }
+
+            const svgAssets = {
+                player: createSvgDataUri(`
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+                        <rect x="12" y="32" width="96" height="56" rx="28" fill="#202867" stroke="#8ec5ff" stroke-width="4"/>
+                        <ellipse cx="60" cy="70" rx="46" ry="26" fill="#ff87d0" opacity="0.85"/>
+                        <ellipse cx="60" cy="58" rx="40" ry="22" fill="#ffc4e4" opacity="0.9"/>
+                        <circle cx="44" cy="56" r="8" fill="#ffffff"/>
+                        <circle cx="76" cy="56" r="8" fill="#ffffff"/>
+                        <circle cx="44" cy="56" r="4" fill="#1a237e"/>
+                        <circle cx="76" cy="56" r="4" fill="#1a237e"/>
+                        <path d="M36 80 Q60 102 84 80" fill="none" stroke="#ffe0f5" stroke-width="6" stroke-linecap="round"/>
+                        <path d="M16 60 L8 72 L16 84" fill="#9ad7ff" stroke="#62aefc" stroke-width="3" stroke-linejoin="round"/>
+                        <path d="M104 60 L112 72 L104 84" fill="#9ad7ff" stroke="#62aefc" stroke-width="3" stroke-linejoin="round"/>
+                    </svg>
+                `),
+                powerBomb: createSvgDataUri(`
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+                        <defs>
+                            <radialGradient id="nova" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="#fff5e6"/>
+                                <stop offset="45%" stop-color="#ffb482"/>
+                                <stop offset="100%" stop-color="rgba(255, 106, 0, 0)"/>
+                            </radialGradient>
+                        </defs>
+                        <circle cx="40" cy="40" r="30" fill="#ff8c5a" opacity="0.65"/>
+                        <circle cx="40" cy="40" r="26" fill="url(#nova)"/>
+                        <path d="M18 40 L28 34 L32 40 L28 46 Z" fill="#ffdbb5"/>
+                        <path d="M62 40 L52 34 L48 40 L52 46 Z" fill="#ffdbb5"/>
+                        <circle cx="40" cy="40" r="10" fill="#fff0d9" stroke="#ff7a45" stroke-width="2"/>
+                    </svg>
+                `),
+                bulletSpread: createSvgDataUri(`
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+                        <rect x="18" y="22" width="44" height="28" rx="12" fill="#ffc175" stroke="#ff9b3d" stroke-width="4"/>
+                        <rect x="14" y="38" width="52" height="20" rx="10" fill="#5d3b15"/>
+                        <circle cx="28" cy="48" r="4" fill="#ffd27f"/>
+                        <circle cx="40" cy="48" r="4" fill="#ffd27f"/>
+                        <circle cx="52" cy="48" r="4" fill="#ffd27f"/>
+                    </svg>
+                `),
+                missiles: createSvgDataUri(`
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+                        <path d="M22 62 L40 18 L58 62 Z" fill="#ffdf8a" stroke="#f57c00" stroke-width="4" stroke-linejoin="round"/>
+                        <rect x="32" y="36" width="16" height="18" fill="#37474f"/>
+                        <path d="M22 62 Q40 74 58 62" fill="#ff7043" opacity="0.8"/>
+                        <circle cx="40" cy="28" r="6" fill="#ffe082"/>
+                    </svg>
+                `),
+                villain1: createSvgDataUri(`
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+                        <rect x="12" y="20" width="72" height="56" rx="18" fill="#431a6d" stroke="#a783ff" stroke-width="4"/>
+                        <path d="M20 32 H76 L68 68 H28 Z" fill="#612d9b"/>
+                        <circle cx="36" cy="50" r="8" fill="#ffd740"/>
+                        <circle cx="60" cy="50" r="8" fill="#ffd740"/>
+                        <path d="M34 60 Q48 70 62 60" stroke="#ff9d40" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    </svg>
+                `),
+                villain2: createSvgDataUri(`
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+                        <ellipse cx="60" cy="60" rx="46" ry="34" fill="#123f6b" stroke="#61dafb" stroke-width="6"/>
+                        <path d="M24 60 Q60 18 96 60" fill="#0a2544"/>
+                        <rect x="30" y="52" width="20" height="16" rx="4" fill="#3cf2ff"/>
+                        <rect x="70" y="52" width="20" height="16" rx="4" fill="#3cf2ff"/>
+                        <path d="M40 78 Q60 90 80 78" stroke="#7ef9ff" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    </svg>
+                `),
+                villain3: createSvgDataUri(`
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140">
+                        <path d="M24 110 L24 58 Q70 12 116 58 L116 110 Z" fill="#280b2c" stroke="#ff5f9e" stroke-width="6" stroke-linejoin="round"/>
+                        <ellipse cx="70" cy="74" rx="30" ry="22" fill="#ff8abf" opacity="0.85"/>
+                        <circle cx="54" cy="72" r="8" fill="#1b0d2b"/>
+                        <circle cx="86" cy="72" r="8" fill="#1b0d2b"/>
+                        <path d="M48 92 Q70 106 92 92" stroke="#ffd1e8" stroke-width="5" fill="none" stroke-linecap="round"/>
+                        <path d="M24 86 L8 92 L18 112" fill="#ff5f9e" opacity="0.7"/>
+                        <path d="M116 86 L132 92 L122 112" fill="#ff5f9e" opacity="0.7"/>
+                    </svg>
+                `)
+            };
+
             const backgroundImages = [
-                'assets/background1.png',
-                'assets/background2.png',
-                'assets/background3.png'
+                createGradientBackground([
+                    gradientLayer(22, 26, 'rgba(255, 119, 248, 0.45)', 60),
+                    gradientLayer(78, 28, 'rgba(78, 203, 255, 0.4)', 58),
+                    gradientLayer(40, 82, 'rgba(142, 197, 252, 0.32)', 68)
+                ]),
+                createGradientBackground([
+                    gradientLayer(18, 32, 'rgba(255, 176, 107, 0.42)', 56),
+                    gradientLayer(64, 20, 'rgba(144, 202, 249, 0.35)', 54),
+                    gradientLayer(82, 72, 'rgba(186, 104, 255, 0.38)', 70)
+                ]),
+                createGradientBackground([
+                    gradientLayer(28, 24, 'rgba(255, 138, 201, 0.48)', 58),
+                    gradientLayer(70, 30, 'rgba(96, 209, 255, 0.42)', 62),
+                    gradientLayer(58, 78, 'rgba(120, 255, 214, 0.36)', 64)
+                ])
             ];
             const backgroundLayers = [
                 document.getElementById('backgroundLayerA'),
@@ -341,7 +451,11 @@
             }
 
             function preloadImages(sources) {
-                return Promise.all(sources.map((src) => new Promise((resolve) => {
+                const loadableSources = sources.filter((src) => !isGradientSource(src));
+                if (!loadableSources.length) {
+                    return Promise.resolve();
+                }
+                return Promise.all(loadableSources.map((src) => new Promise((resolve) => {
                     const img = new Image();
                     img.onload = resolve;
                     img.onerror = resolve;
@@ -351,7 +465,7 @@
 
             function setLayerBackground(layer, src) {
                 if (layer) {
-                    layer.style.backgroundImage = `url('${src}')`;
+                    layer.style.backgroundImage = isGradientSource(src) ? src : `url('${src}')`;
                 }
             }
 
@@ -396,12 +510,12 @@
             });
 
             const playerImage = new Image();
-            playerImage.src = 'assets/player.png';
+            playerImage.src = svgAssets.player;
 
             const powerUpImageSources = {
-                powerBomb: 'assets/powerbomb.png',
-                bulletSpread: 'assets/powerburger.png',
-                missiles: 'assets/powerpizza.png'
+                powerBomb: svgAssets.powerBomb,
+                bulletSpread: svgAssets.bulletSpread,
+                missiles: svgAssets.missiles
             };
 
             const powerUpImages = {};
@@ -530,7 +644,7 @@
                 {
                     key: 'villain1',
                     name: 'Void Raider',
-                    imageSrc: 'assets/villain1.png',
+                    imageSrc: svgAssets.villain1,
                     size: { min: 44, max: 58 },
                     speedOffset: { min: 12, max: 32 },
                     rotation: { min: -1.8, max: 1.8 },
@@ -541,7 +655,7 @@
                 {
                     key: 'villain2',
                     name: 'Nebula Marauder',
-                    imageSrc: 'assets/villain2.png',
+                    imageSrc: svgAssets.villain2,
                     size: { min: 70, max: 96 },
                     speedOffset: { min: 6, max: 32 },
                     rotation: { min: -1.4, max: 1.4 },
@@ -552,7 +666,7 @@
                 {
                     key: 'villain3',
                     name: 'Abyss Overlord',
-                    imageSrc: 'assets/villain3.png',
+                    imageSrc: svgAssets.villain3,
                     size: { min: 102, max: 138 },
                     speedOffset: { min: -4, max: 36 },
                     rotation: { min: -1, max: 1 },
