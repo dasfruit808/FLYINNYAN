@@ -1168,6 +1168,18 @@
             const intelContent = document.getElementById('intelContent');
             const intelMessageEl = document.getElementById('intelMessage');
 
+            const hudCache = {
+                score: '',
+                nyan: '',
+                comboMultiplier: '',
+                bestTailLength: '',
+                marketCap: '',
+                volume: '',
+                powerUps: ''
+            };
+            let lastComboPercent = -1;
+            let lastFormattedTimer = '';
+
             if (!(canvas instanceof HTMLCanvasElement) || !ctx) {
                 console.error('Unable to initialize the Nyan Escape flight deck: canvas support is unavailable.');
 
@@ -1608,7 +1620,11 @@
 
             function updateTimerDisplay() {
                 if (!timerValueEl) return;
-                timerValueEl.textContent = formatTime(state.elapsedTime);
+                const formatted = formatTime(state.elapsedTime);
+                if (formatted !== lastFormattedTimer) {
+                    lastFormattedTimer = formatted;
+                    timerValueEl.textContent = formatted;
+                }
             }
 
             function recordHighScore(durationMs, score) {
@@ -2373,6 +2389,8 @@
                 if (comboMeterEl) {
                     comboMeterEl.setAttribute('aria-valuenow', '100');
                 }
+                lastComboPercent = 100;
+                lastFormattedTimer = '';
                 updateHUD();
                 updateTimerDisplay();
                 resetVirtualControls();
@@ -4596,28 +4614,63 @@
                 }
                 const ratio = clamp(1 - state.comboTimer / config.comboDecayWindow, 0, 1);
                 const percentage = Math.round(ratio * 100);
-                comboFillEl.style.width = `${percentage}%`;
-                if (comboMeterEl) {
-                    comboMeterEl.setAttribute('aria-valuenow', String(percentage));
+                if (percentage !== lastComboPercent) {
+                    comboFillEl.style.width = `${percentage}%`;
+                    if (comboMeterEl) {
+                        comboMeterEl.setAttribute('aria-valuenow', String(percentage));
+                    }
+                    lastComboPercent = percentage;
                 }
             }
 
             function updateHUD() {
-                scoreEl.textContent = state.score.toLocaleString();
-                nyanEl.textContent = state.nyan.toLocaleString();
-                const comboMultiplier = 1 + state.streak * config.comboMultiplierStep;
-                streakEl.textContent = `x${comboMultiplier.toFixed(2)}`;
-                const bestTailLength = Math.round(config.baseTrailLength + state.bestStreak * config.trailGrowthPerStreak);
-                bestStreakEl.textContent = `${bestTailLength}`;
-                const marketCap = 6.6 + state.score / 1400;
+                const formattedScore = state.score.toLocaleString();
+                if (formattedScore !== hudCache.score) {
+                    hudCache.score = formattedScore;
+                    scoreEl.textContent = formattedScore;
+                }
+
+                const formattedNyan = state.nyan.toLocaleString();
+                if (formattedNyan !== hudCache.nyan) {
+                    hudCache.nyan = formattedNyan;
+                    nyanEl.textContent = formattedNyan;
+                }
+
+                const comboMultiplierText = `x${(1 + state.streak * config.comboMultiplierStep).toFixed(2)}`;
+                if (comboMultiplierText !== hudCache.comboMultiplier) {
+                    hudCache.comboMultiplier = comboMultiplierText;
+                    streakEl.textContent = comboMultiplierText;
+                }
+
+                const bestTailLengthText = `${Math.round(
+                    config.baseTrailLength + state.bestStreak * config.trailGrowthPerStreak
+                )}`;
+                if (bestTailLengthText !== hudCache.bestTailLength) {
+                    hudCache.bestTailLength = bestTailLengthText;
+                    bestStreakEl.textContent = bestTailLengthText;
+                }
+
+                const marketCapText = `${(6.6 + state.score / 1400).toFixed(1)}K`;
+                if (marketCapText !== hudCache.marketCap) {
+                    hudCache.marketCap = marketCapText;
+                    mcapEl.textContent = marketCapText;
+                }
+
                 const normalizedCollects = state.nyan / baseCollectScore;
-                const volume = 2.8 + normalizedCollects * 0.6 + state.streak * 0.3;
-                mcapEl.textContent = `${marketCap.toFixed(1)}K`;
-                volEl.textContent = `${volume.toFixed(1)}K`;
+                const volumeText = `${(2.8 + normalizedCollects * 0.6 + state.streak * 0.3).toFixed(1)}K`;
+                if (volumeText !== hudCache.volume) {
+                    hudCache.volume = volumeText;
+                    volEl.textContent = volumeText;
+                }
+
                 const activeBoosts = powerUpTypes
                     .filter((type) => isPowerUpActive(type))
                     .map((type) => `${powerUpLabels[type]} ${(state.powerUpTimers[type] / 1000).toFixed(1)}s`);
-                powerUpsEl.textContent = activeBoosts.length ? activeBoosts.join(' | ') : 'None';
+                const powerUpText = activeBoosts.length ? activeBoosts.join(' | ') : 'None';
+                if (powerUpText !== hudCache.powerUps) {
+                    hudCache.powerUps = powerUpText;
+                    powerUpsEl.textContent = powerUpText;
+                }
             }
 
             function drawBackground() {
