@@ -745,6 +745,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
+            const supportsPointerEvents = typeof window !== 'undefined' && 'PointerEvent' in window;
 
             const audioManager = (() => {
                 const isSupported = typeof window !== 'undefined' && typeof Audio === 'function';
@@ -1077,6 +1078,9 @@
 
             window.addEventListener('pointerdown', audioManager.unlock, { once: true });
             window.addEventListener('keydown', audioManager.unlock, { once: true });
+            if (typeof window !== 'undefined' && 'ontouchstart' in window) {
+                window.addEventListener('touchstart', audioManager.unlock, { once: true });
+            }
 
             const assetOverrides =
                 typeof window !== 'undefined' && window.NYAN_ASSET_OVERRIDES && typeof window.NYAN_ASSET_OVERRIDES === 'object'
@@ -2074,9 +2078,11 @@
                 firing: false
             };
             const joystickState = {
-                pointerId: null
+                pointerId: null,
+                touchId: null
             };
             let firePointerId = null;
+            let fireTouchId = null;
             const projectiles = [];
             const obstacles = [];
             const collectibles = [];
@@ -2854,6 +2860,7 @@
                     joystickZone.releasePointerCapture(pointerId);
                 }
                 joystickState.pointerId = null;
+                joystickState.touchId = null;
                 virtualInput.moveX = 0;
                 virtualInput.moveY = 0;
                 setJoystickThumbPosition('0px', '0px');
@@ -2865,6 +2872,7 @@
                     fireButton.releasePointerCapture(pointerId);
                 }
                 firePointerId = null;
+                fireTouchId = null;
                 virtualInput.firing = false;
                 if (fireButton) {
                     fireButton.classList.remove('active');
@@ -2914,12 +2922,45 @@
                 endJoystickControl();
             }
 
+            function getTouchById(touchList, identifier) {
+                if (!touchList || identifier == null) {
+                    return null;
+                }
+                for (let i = 0; i < touchList.length; i++) {
+                    const touch = touchList.item ? touchList.item(i) : touchList[i];
+                    if (touch?.identifier === identifier) {
+                        return touch;
+                    }
+                }
+                return null;
+            }
+
+            function handleJoystickTouchEnd(identifier) {
+                if (joystickState.touchId !== identifier) {
+                    return;
+                }
+                endJoystickControl();
+            }
+
             function engageFireControl(event) {
-                firePointerId = event.pointerId;
+                const pointerId = event?.pointerId ?? null;
+                firePointerId = pointerId;
+                fireTouchId = null;
                 virtualInput.firing = true;
                 if (fireButton) {
                     fireButton.classList.add('active');
-                    fireButton.setPointerCapture?.(event.pointerId);
+                    if (pointerId !== null) {
+                        fireButton.setPointerCapture?.(pointerId);
+                    }
+                }
+            }
+
+            function engageFireTouchControl(identifier) {
+                firePointerId = null;
+                fireTouchId = identifier;
+                virtualInput.firing = true;
+                if (fireButton) {
+                    fireButton.classList.add('active');
                 }
             }
 
@@ -2929,6 +2970,13 @@
                 }
                 if (fireButton?.hasPointerCapture?.(event.pointerId)) {
                     fireButton.releasePointerCapture(event.pointerId);
+                }
+                resetFiring();
+            }
+
+            function handleFireTouchEnd(identifier) {
+                if (fireTouchId !== identifier) {
+                    return;
                 }
                 resetFiring();
             }
@@ -2957,61 +3005,142 @@
                 }
             });
 
+            if (!supportsPointerEvents && overlayButton) {
+                overlayButton.addEventListener('touchstart', (event) => {
+                    if (state.gameState === 'ready' || state.gameState === 'gameover') {
+                        event.preventDefault();
+                        startGame();
+                    }
+                }, { passive: false });
+            }
+
             if (canvas) {
                 canvas.addEventListener('pointerdown', () => {
                     focusGameCanvas();
                 });
+                if (!supportsPointerEvents) {
+                    canvas.addEventListener('touchstart', () => {
+                        focusGameCanvas();
+                    }, { passive: true });
+                }
             }
 
             if (joystickZone) {
-                joystickZone.addEventListener('pointerdown', (event) => {
-                    joystickState.pointerId = event.pointerId;
-                    focusGameCanvas();
-                    event.preventDefault();
-                    joystickZone.setPointerCapture?.(event.pointerId);
-                    updateJoystickFromPointer(event);
-                });
+                if (supportsPointerEvents) {
+                    joystickZone.addEventListener('pointerdown', (event) => {
+                        joystickState.pointerId = event.pointerId;
+                        joystickState.touchId = null;
+                        focusGameCanvas();
+                        event.preventDefault();
+                        joystickZone.setPointerCapture?.(event.pointerId);
+                        updateJoystickFromPointer(event);
+                    });
 
-                joystickZone.addEventListener('pointermove', (event) => {
-                    if (joystickState.pointerId !== event.pointerId) return;
-                    updateJoystickFromPointer(event);
-                });
+                    joystickZone.addEventListener('pointermove', (event) => {
+                        if (joystickState.pointerId !== event.pointerId) return;
+                        updateJoystickFromPointer(event);
+                    });
 
-                joystickZone.addEventListener('pointerup', (event) => {
-                    handleJoystickPointerEnd(event);
-                });
+                    joystickZone.addEventListener('pointerup', (event) => {
+                        handleJoystickPointerEnd(event);
+                    });
 
-                joystickZone.addEventListener('pointercancel', (event) => {
-                    handleJoystickPointerEnd(event);
-                });
+                    joystickZone.addEventListener('pointercancel', (event) => {
+                        handleJoystickPointerEnd(event);
+                    });
 
-                joystickZone.addEventListener('lostpointercapture', (event) => {
-                    if (joystickState.pointerId === event.pointerId) {
-                        endJoystickControl();
-                    }
-                });
+                    joystickZone.addEventListener('lostpointercapture', (event) => {
+                        if (joystickState.pointerId === event.pointerId) {
+                            endJoystickControl();
+                        }
+                    });
+                } else {
+                    const handleTouchMove = (event) => {
+                        const touch = getTouchById(event.changedTouches, joystickState.touchId);
+                        if (!touch) {
+                            return;
+                        }
+                        event.preventDefault();
+                        updateJoystickFromPointer(touch);
+                    };
+
+                    const handleTouchEnd = (event) => {
+                        const touch = getTouchById(event.changedTouches, joystickState.touchId);
+                        if (!touch) {
+                            return;
+                        }
+                        event.preventDefault();
+                        handleJoystickTouchEnd(touch.identifier);
+                    };
+
+                    joystickZone.addEventListener('touchstart', (event) => {
+                        if (joystickState.touchId !== null) {
+                            return;
+                        }
+                        const touch = event.changedTouches.item(0);
+                        if (!touch) {
+                            return;
+                        }
+                        joystickState.touchId = touch.identifier;
+                        joystickState.pointerId = null;
+                        focusGameCanvas();
+                        event.preventDefault();
+                        updateJoystickFromPointer(touch);
+                    }, { passive: false });
+
+                    joystickZone.addEventListener('touchmove', handleTouchMove, { passive: false });
+                    joystickZone.addEventListener('touchend', handleTouchEnd, { passive: false });
+                    joystickZone.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+                }
             }
 
             if (fireButton) {
-                fireButton.addEventListener('pointerdown', (event) => {
-                    focusGameCanvas();
-                    event.preventDefault();
-                    engageFireControl(event);
-                });
+                if (supportsPointerEvents) {
+                    fireButton.addEventListener('pointerdown', (event) => {
+                        focusGameCanvas();
+                        event.preventDefault();
+                        engageFireControl(event);
+                    });
 
-                fireButton.addEventListener('pointerup', (event) => {
-                    handleFirePointerEnd(event);
-                });
+                    fireButton.addEventListener('pointerup', (event) => {
+                        handleFirePointerEnd(event);
+                    });
 
-                fireButton.addEventListener('pointercancel', (event) => {
-                    handleFirePointerEnd(event);
-                });
+                    fireButton.addEventListener('pointercancel', (event) => {
+                        handleFirePointerEnd(event);
+                    });
 
-                fireButton.addEventListener('lostpointercapture', (event) => {
-                    if (firePointerId === event.pointerId) {
-                        resetFiring();
-                    }
-                });
+                    fireButton.addEventListener('lostpointercapture', (event) => {
+                        if (firePointerId === event.pointerId) {
+                            resetFiring();
+                        }
+                    });
+                } else {
+                    const handleTouchEnd = (event) => {
+                        const touch = getTouchById(event.changedTouches, fireTouchId);
+                        if (!touch) {
+                            return;
+                        }
+                        event.preventDefault();
+                        handleFireTouchEnd(touch.identifier);
+                    };
+
+                    fireButton.addEventListener('touchstart', (event) => {
+                        if (fireTouchId !== null) {
+                            return;
+                        }
+                        const touch = event.changedTouches.item(0);
+                        if (!touch) {
+                            return;
+                        }
+                        focusGameCanvas();
+                        event.preventDefault();
+                        engageFireTouchControl(touch.identifier);
+                    }, { passive: false });
+
+                    fireButton.addEventListener('touchend', handleTouchEnd, { passive: false });
+                    fireButton.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+                }
             }
 
             window.addEventListener('keydown', (event) => {
