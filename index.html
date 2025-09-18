@@ -2066,11 +2066,62 @@
 
             const keys = new Set();
             const dashTapTracker = new Map();
+            const keyAliasMap = {
+                ArrowUp: 'ArrowUp',
+                Up: 'ArrowUp',
+                Numpad8: 'ArrowUp',
+                ArrowDown: 'ArrowDown',
+                Down: 'ArrowDown',
+                Numpad2: 'ArrowDown',
+                ArrowLeft: 'ArrowLeft',
+                Left: 'ArrowLeft',
+                Numpad4: 'ArrowLeft',
+                ArrowRight: 'ArrowRight',
+                Right: 'ArrowRight',
+                Numpad6: 'ArrowRight',
+                Space: 'Space',
+                Spacebar: 'Space',
+                ' ': 'Space'
+            };
+            const preventDefaultKeys = new Set([
+                'ArrowUp',
+                'ArrowDown',
+                'ArrowLeft',
+                'ArrowRight',
+                'KeyW',
+                'KeyA',
+                'KeyS',
+                'KeyD',
+                'Space'
+            ]);
+            function normalizeKey(event) {
+                const { code, key } = event;
+                if (code && keyAliasMap[code]) {
+                    return keyAliasMap[code];
+                }
+                if (code) {
+                    return code;
+                }
+                if (key && keyAliasMap[key]) {
+                    return keyAliasMap[key];
+                }
+                if (key && key.length === 1) {
+                    const upper = key.toUpperCase();
+                    if (upper >= 'A' && upper <= 'Z') {
+                        return `Key${upper}`;
+                    }
+                }
+                return key ?? code;
+            }
             const dashDirections = {
                 ArrowUp: { x: 0, y: -1 },
+                KeyW: { x: 0, y: -1 },
                 ArrowDown: { x: 0, y: 1 },
+                KeyS: { x: 0, y: 1 },
                 ArrowLeft: { x: -1, y: 0 },
-                ArrowRight: { x: 1, y: 0 }
+                KeyA: { x: -1, y: 0 },
+                ArrowRight: { x: 1, y: 0 },
+                KeyD: { x: 1, y: 0 }
             };
             const virtualInput = {
                 moveX: 0,
@@ -3144,29 +3195,38 @@
             }
 
             window.addEventListener('keydown', (event) => {
-                if (event.repeat) return;
-                keys.add(event.code);
-                if (event.code === 'Space') {
+                const normalizedKey = normalizeKey(event);
+                if (!normalizedKey) {
+                    return;
+                }
+                if (preventDefaultKeys.has(normalizedKey)) {
                     event.preventDefault();
                 }
-                const dashDirection = dashDirections[event.code];
-                if (dashDirection) {
-                    const now = performance.now();
-                    const lastTap = dashTapTracker.get(event.code);
-                    if (lastTap && now - lastTap <= config.player.dash.doubleTapWindow) {
-                        dashTapTracker.delete(event.code);
-                        triggerDash(dashDirection);
-                    } else {
-                        dashTapTracker.set(event.code, now);
+                keys.add(normalizedKey);
+                if (!event.repeat) {
+                    const dashDirection = dashDirections[normalizedKey];
+                    if (dashDirection) {
+                        const now = performance.now();
+                        const lastTap = dashTapTracker.get(normalizedKey);
+                        if (lastTap && now - lastTap <= config.player.dash.doubleTapWindow) {
+                            dashTapTracker.delete(normalizedKey);
+                            triggerDash(dashDirection);
+                        } else {
+                            dashTapTracker.set(normalizedKey, now);
+                        }
                     }
                 }
-                if (event.code === 'Enter' && state.gameState === 'gameover') {
+                if (normalizedKey === 'Enter' && state.gameState === 'gameover') {
                     startGame();
                 }
             });
 
             window.addEventListener('keyup', (event) => {
-                keys.delete(event.code);
+                const normalizedKey = normalizeKey(event);
+                if (!normalizedKey) {
+                    return;
+                }
+                keys.delete(normalizedKey);
             });
 
             window.addEventListener('blur', () => {
