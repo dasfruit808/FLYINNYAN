@@ -2466,9 +2466,6 @@
 
             window.addEventListener('keyup', (event) => {
                 keys.delete(event.code);
-                if (dashDirections[event.code]) {
-                    dashTapTracker.delete(event.code);
-                }
             });
 
             window.addEventListener('blur', () => {
