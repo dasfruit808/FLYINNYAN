@@ -709,6 +709,7 @@
                     <li>Slip between asteroids and hostile fire to stay in the fight.</li>
                     <li>Secure booster cores for temporary firepower and agility.</li>
                     <li>Snag the Radiant Shield to ricochet villains and asteroids away.</li>
+                    <li>Channel Hyper Beam cores to carve safe corridors when the lane is crowded.</li>
                     <li>Keep the combo meter charged to amplify every point.</li>
                 </ul>
             </div>
@@ -972,6 +973,7 @@
 
             const intelTips = [
                 "Nova Pulses clear the field when charged—time them with debris clusters to stretch your lead.",
+                "Hyper Beam slices through villain armor—align your strafing run to tunnel past blockades.",
                 "Power cores boost both fire rate and agility—snag them when the sky is most crowded.",
                 "Keep the combo meter glowing by chaining pickups and takedowns without breaking stride.",
                 "Diagonal drifts slip past enemy fire—small corrections keep your streak intact.",
@@ -1352,7 +1354,8 @@
             const powerUpImageSources = {
                 powerBomb: 'assets/powerbomb.png',
                 bulletSpread: 'assets/powerburger.png',
-                missiles: 'assets/powerpizza.png'
+                missiles: 'assets/powerpizza.png',
+                hyperBeam: 'assets/powerbeam.svg'
             };
 
             const powerUpImages = {};
@@ -1426,8 +1429,21 @@
                         powerBomb: 5200,
                         bulletSpread: 6200,
                         missiles: 5600,
+                        hyperBeam: 5600,
                         radiantShield: 7200
                     }
+                },
+                hyperBeam: {
+                    beamHeight: 190,
+                    extraLength: 60,
+                    rampUp: 280,
+                    fadeOut: 220,
+                    damagePerSecond: 24,
+                    asteroidDamagePerSecond: 30,
+                    sparkInterval: 140,
+                    hitSparkRate: 7,
+                    jitterAmplitude: 18,
+                    waveSpeed: 0.006
                 },
                 defensePower: {
                     clearance: 18,
@@ -1541,6 +1557,7 @@
                     powerBomb: 0,
                     bulletSpread: 0,
                     missiles: 0,
+                    hyperBeam: 0,
                     radiantShield: 0
                 },
                 powerBombPulseTimer: 0,
@@ -1582,24 +1599,33 @@
             const villainExplosions = [];
             const trail = [];
             const areaBursts = [];
+            const hyperBeamState = {
+                intensity: 0,
+                wave: 0,
+                sparkTimer: 0,
+                bounds: null
+            };
             const spawnTimers = {
                 obstacle: 0,
                 collectible: 0,
                 powerUp: 0
             };
 
+            const HYPER_BEAM_POWER = 'hyperBeam';
             const SHIELD_POWER = 'radiantShield';
-            const powerUpTypes = ['powerBomb', 'bulletSpread', 'missiles', SHIELD_POWER];
+            const powerUpTypes = ['powerBomb', 'bulletSpread', 'missiles', HYPER_BEAM_POWER, SHIELD_POWER];
             const powerUpLabels = {
                 powerBomb: 'Nova Pulse',
                 bulletSpread: 'Starlight Spread',
                 missiles: 'Comet Missiles',
+                [HYPER_BEAM_POWER]: 'Hyper Beam',
                 [SHIELD_POWER]: 'Radiant Shield'
             };
             const powerUpColors = {
                 powerBomb: { r: 255, g: 168, b: 112 },
                 bulletSpread: { r: 255, g: 128, b: 255 },
                 missiles: { r: 255, g: 182, b: 92 },
+                [HYPER_BEAM_POWER]: { r: 147, g: 197, b: 253 },
                 [SHIELD_POWER]: { r: 148, g: 210, b: 255 }
             };
 
@@ -3101,6 +3127,9 @@
                     state.shieldHitPulse = Math.max(state.shieldHitPulse, 0.6);
                     const { x, y } = getPlayerCenter();
                     triggerShieldImpact(x, y);
+                } else if (type === HYPER_BEAM_POWER) {
+                    hyperBeamState.sparkTimer = 0;
+                    hyperBeamState.intensity = Math.max(hyperBeamState.intensity, 0.25);
                 }
             }
 
@@ -3141,6 +3170,9 @@
                         if (type === SHIELD_POWER && state.powerUpTimers[type] === 0) {
                             state.shieldHitPulse = 0;
                         }
+                        if (type === HYPER_BEAM_POWER && state.powerUpTimers[type] === 0) {
+                            hyperBeamState.sparkTimer = 0;
+                        }
                     }
                 }
             }
@@ -3151,6 +3183,129 @@
                 if (state.powerBombPulseTimer <= 0) {
                     triggerPowerBombPulse();
                     state.powerBombPulseTimer = 900;
+                }
+            }
+
+            function computeHyperBeamBounds(hyperConfig) {
+                const startX = player.x + player.width * 0.55;
+                const width = Math.max(0, canvas.width - startX + (hyperConfig.extraLength ?? 40));
+                if (width <= 0) {
+                    return null;
+                }
+                const { y: centerY } = getPlayerCenter();
+                const height = Math.min(hyperConfig.beamHeight ?? 180, canvas.height);
+                let top = centerY - height / 2;
+                if (top < 0) {
+                    top = 0;
+                } else if (top + height > canvas.height) {
+                    top = Math.max(0, canvas.height - height);
+                }
+                return { x: startX, y: top, width, height };
+            }
+
+            function applyHyperBeamDamage(bounds, delta, hyperConfig) {
+                if (!bounds) return;
+                const intensity = hyperBeamState.intensity;
+                if (intensity <= 0) return;
+
+                const deltaSeconds = delta / 1000;
+                const sparkColor = powerUpColors[HYPER_BEAM_POWER] ?? { r: 147, g: 197, b: 253 };
+                const hitSparkRate = hyperConfig.hitSparkRate ?? 7;
+                const damage = (hyperConfig.damagePerSecond ?? 20) * deltaSeconds * intensity;
+                const asteroidDamage = (hyperConfig.asteroidDamagePerSecond ?? damage) * deltaSeconds * intensity;
+
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = obstacles[i];
+                    if (!rectOverlap(bounds, obstacle)) continue;
+
+                    obstacle.health -= damage;
+                    obstacle.hitFlash = Math.max(obstacle.hitFlash ?? 0, 180 * intensity);
+
+                    if (obstacle.health <= 0) {
+                        obstacles.splice(i, 1);
+                        awardDestroy(obstacle);
+                        createVillainExplosion(obstacle);
+                        continue;
+                    }
+
+                    if (Math.random() < deltaSeconds * hitSparkRate * intensity) {
+                        createHitSpark({
+                            x: obstacle.x + obstacle.width * randomBetween(0.4, 0.9),
+                            y: obstacle.y + obstacle.height * randomBetween(0.2, 0.8),
+                            color: sparkColor
+                        });
+                    }
+                }
+
+                for (let i = asteroids.length - 1; i >= 0; i--) {
+                    const asteroid = asteroids[i];
+                    const radius = asteroid.radius * (config.asteroid?.collisionRadiusMultiplier ?? 1);
+                    if (!circleRectOverlap({ x: asteroid.x, y: asteroid.y, radius }, bounds)) continue;
+                    damageAsteroid(asteroid, asteroidDamage, i);
+                }
+            }
+
+            function spawnHyperBeamParticles(bounds, delta, hyperConfig) {
+                if (!bounds) return;
+                const intensity = hyperBeamState.intensity;
+                if (intensity <= 0) return;
+
+                hyperBeamState.sparkTimer -= delta;
+                if (hyperBeamState.sparkTimer > 0) {
+                    return;
+                }
+
+                const baseInterval = hyperConfig.sparkInterval ?? 140;
+                const scaledInterval = baseInterval / Math.max(0.45, intensity);
+                hyperBeamState.sparkTimer = randomBetween(scaledInterval * 0.6, scaledInterval * 1.4);
+
+                const color = powerUpColors[HYPER_BEAM_POWER] ?? { r: 147, g: 197, b: 253 };
+                const count = Math.max(1, Math.round(1 + intensity * 2));
+                for (let i = 0; i < count; i++) {
+                    const spawnX = randomBetween(bounds.x + bounds.width * 0.2, bounds.x + bounds.width * 0.9);
+                    const spawnY = randomBetween(bounds.y, bounds.y + bounds.height);
+                    particles.push({
+                        x: spawnX,
+                        y: spawnY,
+                        vx: randomBetween(120, 240),
+                        vy: randomBetween(-140, 140),
+                        life: randomBetween(240, 420),
+                        color,
+                        size: randomBetween(1.2, 2.6)
+                    });
+                }
+            }
+
+            function updateHyperBeam(delta) {
+                const hyperConfig = config.hyperBeam ?? {};
+                const isActive = isPowerUpActive(HYPER_BEAM_POWER);
+                const rampUp = Math.max(1, hyperConfig.rampUp ?? 240);
+                const fadeOut = Math.max(1, hyperConfig.fadeOut ?? 240);
+
+                if (isActive) {
+                    hyperBeamState.intensity = Math.min(1, hyperBeamState.intensity + (delta / rampUp));
+                } else {
+                    hyperBeamState.intensity = Math.max(0, hyperBeamState.intensity - (delta / fadeOut));
+                }
+
+                if (hyperBeamState.intensity <= 0) {
+                    hyperBeamState.sparkTimer = 0;
+                    hyperBeamState.bounds = null;
+                    hyperBeamState.wave = 0;
+                    return;
+                }
+
+                const bounds = computeHyperBeamBounds(hyperConfig);
+                hyperBeamState.bounds = bounds;
+                hyperBeamState.wave = (hyperBeamState.wave + delta * (hyperConfig.waveSpeed ?? 0.006)) % (Math.PI * 2);
+
+                if (!bounds) {
+                    return;
+                }
+
+                if (state.gameState === 'running' && isActive) {
+                    applyHyperBeamDamage(bounds, delta, hyperConfig);
+                    spawnHyperBeamParticles(bounds, delta, hyperConfig);
                 }
             }
 
@@ -4240,6 +4395,53 @@
                 ctx.restore();
             }
 
+            function drawHyperBeam(time) {
+                const bounds = hyperBeamState.bounds;
+                const intensity = hyperBeamState.intensity;
+                if (!bounds || intensity <= 0) {
+                    return;
+                }
+
+                const hyperConfig = config.hyperBeam ?? {};
+                const color = powerUpColors[HYPER_BEAM_POWER] ?? { r: 147, g: 197, b: 253 };
+                const verticalJitter = Math.sin(time * 0.008 + hyperBeamState.wave) * (hyperConfig.jitterAmplitude ?? 18) * intensity;
+                const top = clamp(bounds.y + verticalJitter * -0.5, 0, Math.max(0, canvas.height - bounds.height));
+                const height = Math.min(bounds.height, canvas.height - top);
+                if (height <= 0) {
+                    return;
+                }
+                const midY = clamp(top + height / 2 + verticalJitter * 0.3, top, top + height);
+
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+
+                const outerGradient = ctx.createLinearGradient(bounds.x, top, bounds.x + bounds.width, top);
+                const outerAlpha = Math.min(1, 0.32 + intensity * 0.28);
+                const midAlpha = Math.min(1, 0.5 + intensity * 0.3);
+                outerGradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${outerAlpha})`);
+                outerGradient.addColorStop(0.45, `rgba(${color.r}, ${color.g}, ${color.b}, ${midAlpha})`);
+                outerGradient.addColorStop(1, 'rgba(17, 24, 39, 0)');
+                ctx.fillStyle = outerGradient;
+                ctx.fillRect(bounds.x, top, bounds.width, height);
+
+                const coreHeight = Math.max(18, height * 0.36);
+                const coreTop = clamp(midY - coreHeight / 2, top, top + height - coreHeight);
+                const coreGradient = ctx.createLinearGradient(bounds.x, coreTop, bounds.x + bounds.width * 0.9, coreTop);
+                coreGradient.addColorStop(0, `rgba(236, 254, 255, ${Math.min(1, 0.85 * intensity)})`);
+                coreGradient.addColorStop(1, 'rgba(148, 210, 255, 0)');
+                ctx.fillStyle = coreGradient;
+                ctx.fillRect(bounds.x, coreTop, bounds.width * 0.9, coreHeight);
+
+                ctx.strokeStyle = `rgba(236, 254, 255, ${Math.min(1, 0.55 * intensity)})`;
+                ctx.lineWidth = Math.max(2, height * 0.12 * intensity);
+                ctx.beginPath();
+                ctx.moveTo(bounds.x, midY + Math.sin(time * 0.014 + hyperBeamState.wave) * height * 0.08);
+                ctx.lineTo(bounds.x + bounds.width, midY + Math.sin(time * 0.017 + hyperBeamState.wave) * height * 0.05);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
             function drawProjectiles() {
                 for (const projectile of projectiles) {
                     if (projectile.type === 'missile') {
@@ -4322,6 +4524,7 @@
                     updateObstacles(delta);
                     updateCollectibles(delta);
                     updatePowerUps(delta);
+                    updateHyperBeam(delta);
                     updateProjectilesCollisions();
                     updateStars(delta);
                     updateAsteroids(delta);
@@ -4340,6 +4543,7 @@
                     updateAreaBursts(delta);
                     updateVillainExplosions(delta);
                     updateShieldEffects(delta);
+                    updateHyperBeam(delta);
                 }
 
                 drawBackground();
@@ -4351,6 +4555,7 @@
                 drawAreaBursts();
                 drawVillainExplosions();
                 drawObstacles();
+                drawHyperBeam(timestamp);
                 drawProjectiles();
                 drawParticles();
                 drawPlayer();
