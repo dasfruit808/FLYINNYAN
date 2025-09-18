@@ -708,6 +708,7 @@
                     <li>Collect Points to fuel the escape and grow your score.</li>
                     <li>Slip between asteroids and hostile fire to stay in the fight.</li>
                     <li>Secure booster cores for temporary firepower and agility.</li>
+                    <li>Snag the Radiant Shield to ricochet villains and asteroids away.</li>
                     <li>Keep the combo meter charged to amplify every point.</li>
                 </ul>
             </div>
@@ -1424,8 +1425,21 @@
                     duration: {
                         powerBomb: 5200,
                         bulletSpread: 6200,
-                        missiles: 5600
+                        missiles: 5600,
+                        radiantShield: 7200
                     }
+                },
+                defensePower: {
+                    clearance: 18,
+                    obstacleBounceDuration: 620,
+                    obstacleKnockback: 520,
+                    obstacleSpeedMultiplier: 1.15,
+                    asteroidKnockback: 460,
+                    hitCooldown: 520,
+                    particleColor: { r: 148, g: 210, b: 255 },
+                    auraColor: { r: 150, g: 214, b: 255 },
+                    auraPulse: 0.18,
+                    bounceDrag: 3.6
                 },
                 star: {
                     count: 120,
@@ -1526,14 +1540,16 @@
                 powerUpTimers: {
                     powerBomb: 0,
                     bulletSpread: 0,
-                    missiles: 0
+                    missiles: 0,
+                    radiantShield: 0
                 },
                 powerBombPulseTimer: 0,
                 lastVillainKey: null,
                 recentVillains: [],
                 meteorShowerTimer: 0,
                 nextMeteorShower: 0,
-                dashTimer: 0
+                dashTimer: 0,
+                shieldHitPulse: 0
             };
 
             updateTimerDisplay();
@@ -1572,16 +1588,19 @@
                 powerUp: 0
             };
 
-            const powerUpTypes = ['powerBomb', 'bulletSpread', 'missiles'];
+            const SHIELD_POWER = 'radiantShield';
+            const powerUpTypes = ['powerBomb', 'bulletSpread', 'missiles', SHIELD_POWER];
             const powerUpLabels = {
                 powerBomb: 'Nova Pulse',
                 bulletSpread: 'Starlight Spread',
-                missiles: 'Comet Missiles'
+                missiles: 'Comet Missiles',
+                [SHIELD_POWER]: 'Radiant Shield'
             };
             const powerUpColors = {
                 powerBomb: { r: 255, g: 168, b: 112 },
                 bulletSpread: { r: 255, g: 128, b: 255 },
-                missiles: { r: 255, g: 182, b: 92 }
+                missiles: { r: 255, g: 182, b: 92 },
+                [SHIELD_POWER]: { r: 148, g: 210, b: 255 }
             };
 
             const villainExplosionPalettes = {
@@ -1732,7 +1751,9 @@
                 state.powerUpTimers.powerBomb = 0;
                 state.powerUpTimers.bulletSpread = 0;
                 state.powerUpTimers.missiles = 0;
+                state.powerUpTimers.radiantShield = 0;
                 state.powerBombPulseTimer = 0;
+                state.shieldHitPulse = 0;
                 state.lastVillainKey = null;
                 state.recentVillains.length = 0;
                 state.dashTimer = 0;
@@ -1804,7 +1825,8 @@
                     image: asteroidImages[Math.floor(Math.random() * asteroidImages.length)] ?? null,
                     bobOffset: Math.random() * Math.PI * 2,
                     health: Math.max(1, Math.round(size / 32)),
-                    hitFlash: 0
+                    hitFlash: 0,
+                    shieldCooldown: 0
                 };
                 placeAsteroid(asteroid, initial);
                 asteroid.vx = -asteroid.speed * (0.6 + asteroid.depth * 0.8);
@@ -2098,6 +2120,10 @@
                         asteroid.hitFlash = Math.max(0, asteroid.hitFlash - delta);
                     }
 
+                    if (asteroid.shieldCooldown > 0) {
+                        asteroid.shieldCooldown = Math.max(0, asteroid.shieldCooldown - delta);
+                    }
+
                     if (asteroid.y < asteroid.radius) {
                         asteroid.y = asteroid.radius;
                         asteroid.vy = Math.abs(asteroid.vy || targetVy);
@@ -2115,6 +2141,10 @@
                     if (state.gameState === 'running') {
                         const collisionRadius = asteroid.radius * (settings.collisionRadiusMultiplier ?? 1);
                         if (circleRectOverlap({ x: asteroid.x, y: asteroid.y, radius: collisionRadius }, player)) {
+                            if (isShieldActive() && asteroid.shieldCooldown <= 0) {
+                                repelAsteroidFromPlayer(asteroid);
+                                continue;
+                            }
                             triggerGameOver('An asteroid shattered your shields!');
                             return;
                         }
@@ -2489,6 +2519,91 @@
                 return state.powerUpTimers[type] > 0;
             }
 
+            function isShieldActive() {
+                return isPowerUpActive(SHIELD_POWER);
+            }
+
+            function getPlayerCenter() {
+                return {
+                    x: player.x + player.width * 0.5,
+                    y: player.y + player.height * 0.5
+                };
+            }
+
+            function triggerShieldImpact(x, y, normalX = 0, normalY = 0) {
+                const shieldConfig = config.defensePower ?? {};
+                const color = shieldConfig.particleColor ?? { r: 148, g: 210, b: 255 };
+                const offsetX = x + normalX * 12;
+                const offsetY = y + normalY * 12;
+                createParticles({
+                    x: offsetX,
+                    y: offsetY,
+                    color,
+                    count: 16,
+                    speedRange: [160, 420],
+                    sizeRange: [1.2, 3.2],
+                    lifeRange: [320, 640]
+                });
+                state.shieldHitPulse = Math.min(1.2, (state.shieldHitPulse ?? 0) + 0.5);
+            }
+
+            function repelObstacleFromPlayer(obstacle) {
+                const shieldConfig = config.defensePower ?? {};
+                const { x: playerCenterX, y: playerCenterY } = getPlayerCenter();
+                const obstacleCenterX = obstacle.x + obstacle.width * 0.5;
+                const obstacleCenterY = obstacle.y + obstacle.height * 0.5;
+                const dx = obstacleCenterX - playerCenterX;
+                const dy = obstacleCenterY - playerCenterY;
+                const distance = Math.max(Math.hypot(dx, dy), 1);
+                const normalX = dx / distance;
+                const normalY = dy / distance;
+                const clearance = shieldConfig.clearance ?? 12;
+                const playerHalfWidth = player.width * 0.5;
+                const playerHalfHeight = player.height * 0.5;
+                const obstacleHalfWidth = obstacle.width * 0.5;
+                const obstacleHalfHeight = obstacle.height * 0.5;
+                const targetCenterX = playerCenterX + normalX * (playerHalfWidth + obstacleHalfWidth + clearance);
+                const targetCenterY = playerCenterY + normalY * (playerHalfHeight + obstacleHalfHeight + clearance);
+
+                obstacle.x = targetCenterX - obstacleHalfWidth;
+                obstacle.y = clamp(targetCenterY - obstacleHalfHeight, 16, canvas.height - obstacle.height - 16);
+
+                const knockback = shieldConfig.obstacleKnockback ?? 520;
+                obstacle.vx = normalX * knockback;
+                obstacle.vy = normalY * (knockback * 0.7);
+                obstacle.bounceTimer = shieldConfig.obstacleBounceDuration ?? 520;
+                const speedMultiplier = shieldConfig.obstacleSpeedMultiplier ?? 1.1;
+                obstacle.speed = -Math.max(Math.abs(obstacle.speed), state.gameSpeed) * speedMultiplier;
+                obstacle.shieldCooldown = shieldConfig.hitCooldown ?? 400;
+                obstacle.hitFlash = 160;
+
+                triggerShieldImpact(targetCenterX, targetCenterY, normalX, normalY);
+            }
+
+            function repelAsteroidFromPlayer(asteroid) {
+                const shieldConfig = config.defensePower ?? {};
+                const { x: playerCenterX, y: playerCenterY } = getPlayerCenter();
+                const dx = asteroid.x - playerCenterX;
+                const dy = asteroid.y - playerCenterY;
+                const distance = Math.max(Math.hypot(dx, dy), 1);
+                const normalX = dx / distance;
+                const normalY = dy / distance;
+                const clearance = shieldConfig.clearance ?? 12;
+                const playerRadius = Math.max(player.width, player.height) * 0.5;
+                const targetDistance = playerRadius + asteroid.radius + clearance;
+                asteroid.x = playerCenterX + normalX * targetDistance;
+                asteroid.y = clamp(playerCenterY + normalY * targetDistance, asteroid.radius, canvas.height - asteroid.radius);
+
+                const knockback = shieldConfig.asteroidKnockback ?? 420;
+                asteroid.vx = normalX * knockback;
+                asteroid.vy = normalY * (knockback * 0.75);
+                asteroid.shieldCooldown = shieldConfig.hitCooldown ?? 400;
+                asteroid.hitFlash = 180;
+
+                triggerShieldImpact(asteroid.x, asteroid.y, normalX, normalY);
+            }
+
+
             function attemptShoot(delta) {
                 state.timeSinceLastShot += delta;
                 const cooldown = config.projectileCooldown;
@@ -2736,6 +2851,10 @@
                     health,
                     maxHealth: health,
                     hitFlash: 0,
+                    vx: 0,
+                    vy: 0,
+                    bounceTimer: 0,
+                    shieldCooldown: 0,
                     villainType,
                     behaviorState,
                     image: villainImages[villainType.key]
@@ -2864,6 +2983,24 @@
                         obstacle.hitFlash = Math.max(0, obstacle.hitFlash - delta);
                     }
 
+                    if (obstacle.shieldCooldown > 0) {
+                        obstacle.shieldCooldown = Math.max(0, obstacle.shieldCooldown - delta);
+                    }
+
+                    if (obstacle.bounceTimer > 0) {
+                        obstacle.bounceTimer = Math.max(0, obstacle.bounceTimer - delta);
+                        const damping = Math.exp(-(config.defensePower?.bounceDrag ?? 3.4) * deltaSeconds);
+                        obstacle.x += obstacle.vx * deltaSeconds;
+                        obstacle.y += obstacle.vy * deltaSeconds;
+                        obstacle.vx *= damping;
+                        obstacle.vy *= damping;
+                        if (obstacle.bounceTimer === 0) {
+                            obstacle.speed = Math.abs(obstacle.speed);
+                            obstacle.vx = 0;
+                            obstacle.vy = 0;
+                        }
+                    }
+
                     applyVillainBehavior(obstacle, deltaSeconds);
 
                     if (obstacle.x + obstacle.width < 0) {
@@ -2872,7 +3009,13 @@
                         continue;
                     }
 
+                    obstacle.y = clamp(obstacle.y, 16, canvas.height - obstacle.height - 16);
+
                     if (rectOverlap(player, obstacle)) {
+                        if (isShieldActive() && obstacle.shieldCooldown <= 0) {
+                            repelObstacleFromPlayer(obstacle);
+                            continue;
+                        }
                         return triggerGameOver('Your rainbow ship took a direct hit!');
                     }
 
@@ -2942,6 +3085,10 @@
                 if (type === 'powerBomb') {
                     triggerPowerBombPulse();
                     state.powerBombPulseTimer = 900;
+                } else if (type === SHIELD_POWER) {
+                    state.shieldHitPulse = Math.max(state.shieldHitPulse, 0.6);
+                    const { x, y } = getPlayerCenter();
+                    triggerShieldImpact(x, y);
                 }
             }
 
@@ -2979,6 +3126,9 @@
                         if (type === 'powerBomb' && state.powerUpTimers[type] === 0) {
                             state.powerBombPulseTimer = 0;
                         }
+                        if (type === SHIELD_POWER && state.powerUpTimers[type] === 0) {
+                            state.shieldHitPulse = 0;
+                        }
                     }
                 }
             }
@@ -2989,6 +3139,12 @@
                 if (state.powerBombPulseTimer <= 0) {
                     triggerPowerBombPulse();
                     state.powerBombPulseTimer = 900;
+                }
+            }
+
+            function updateShieldEffects(delta) {
+                if (state.shieldHitPulse > 0) {
+                    state.shieldHitPulse = Math.max(0, state.shieldHitPulse - delta / 900);
                 }
             }
 
@@ -3629,10 +3785,64 @@
                 }
             }
 
+            function drawShieldAura(drawX, drawY, time = performance.now()) {
+                if (!isShieldActive()) return;
+                const shieldConfig = config.defensePower ?? {};
+                const auraColor = shieldConfig.auraColor ?? { r: 150, g: 214, b: 255 };
+                const duration = config.powerUp.duration[SHIELD_POWER] ?? 1;
+                const remaining = clamp(state.powerUpTimers[SHIELD_POWER] / duration, 0, 1);
+                const pulseStrength = Math.sin(time * 0.007) * (shieldConfig.auraPulse ?? 0.18);
+                const hitPulse = state.shieldHitPulse ?? 0;
+                const baseRadius = Math.max(player.width, player.height) * (0.65 + pulseStrength + hitPulse * 0.18);
+                const centerX = drawX + player.width * 0.5;
+                const centerY = drawY + player.height * 0.5;
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.globalCompositeOperation = 'lighter';
+
+                const gradient = ctx.createRadialGradient(0, 0, baseRadius * 0.35, 0, 0, baseRadius);
+                gradient.addColorStop(0, `rgba(${auraColor.r}, ${auraColor.g}, ${auraColor.b}, ${0.55 + hitPulse * 0.25})`);
+                gradient.addColorStop(0.58, `rgba(${auraColor.r}, ${auraColor.g}, ${auraColor.b}, ${0.28 + remaining * 0.35})`);
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(0, 0, baseRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                const ringRadius = baseRadius * (0.88 + 0.06 * Math.sin(time * 0.012 + hitPulse));
+                ctx.strokeStyle = `rgba(${auraColor.r}, ${auraColor.g}, ${auraColor.b}, ${0.35 + remaining * 0.4})`;
+                ctx.lineWidth = 4.2 + hitPulse * 2.6;
+                ctx.beginPath();
+                ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                const sparkCount = 7;
+                for (let i = 0; i < sparkCount; i++) {
+                    const angle = time * 0.0035 + i * (Math.PI * 2 / sparkCount);
+                    const sparkRadius = ringRadius * (0.92 + 0.08 * Math.sin(time * 0.01 + i));
+                    const px = Math.cos(angle) * sparkRadius;
+                    const py = Math.sin(angle) * sparkRadius;
+                    const sparkAlpha = 0.55 + 0.35 * Math.sin(time * 0.02 + i * 1.3 + hitPulse * 0.6);
+                    ctx.save();
+                    ctx.translate(px, py);
+                    ctx.rotate(angle);
+                    ctx.fillStyle = `rgba(${auraColor.r}, ${auraColor.g}, ${auraColor.b}, ${sparkAlpha})`;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 7 + hitPulse * 3, 2.4 + hitPulse * 1.2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                ctx.restore();
+            }
+
             function drawPlayer() {
-                const bob = Math.sin(performance.now() * 0.005) * 4;
+                const now = performance.now();
+                const bob = Math.sin(now * 0.005) * 4;
                 const drawX = player.x;
                 const drawY = player.y + bob;
+                drawShieldAura(drawX, drawY, now);
                 if (playerImage.complete && playerImage.naturalWidth !== 0) {
                     ctx.drawImage(playerImage, drawX, drawY, player.width, player.height);
                 } else {
@@ -3642,6 +3852,10 @@
                     gradient.addColorStop(1, '#fad0c4');
                     ctx.fillStyle = gradient;
                     ctx.fillRect(drawX, drawY, player.width, player.height);
+                }
+
+                if (isShieldActive()) {
+                    drawShieldAura(drawX, drawY, now + 40);
                 }
             }
 
@@ -4103,6 +4317,7 @@
                     updateSpawns(delta);
                     updatePowerUpTimers(delta);
                     updatePowerBomb(delta);
+                    updateShieldEffects(delta);
                     updateAreaBursts(delta);
                     updateVillainExplosions(delta);
                     updateCombo(delta);
@@ -4112,6 +4327,7 @@
                     updateParticles(delta);
                     updateAreaBursts(delta);
                     updateVillainExplosions(delta);
+                    updateShieldEffects(delta);
                 }
 
                 drawBackground();
