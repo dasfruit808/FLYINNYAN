@@ -542,6 +542,16 @@
             transform: translateY(0);
         }
 
+        #overlay button[disabled] {
+            cursor: not-allowed;
+            opacity: 0.6;
+            box-shadow: none;
+        }
+
+        #overlay.unsupported #highScorePanel {
+            display: none;
+        }
+
         #comboMeter {
             width: 160px;
             height: 8px;
@@ -734,7 +744,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
 
             const audioManager = (() => {
                 const isSupported = typeof window !== 'undefined' && typeof Audio === 'function';
@@ -1141,7 +1151,7 @@
             const overlay = document.getElementById('overlay');
             const overlayMessage = document.getElementById('overlayMessage');
             const overlayButton = document.getElementById('overlayButton');
-            const overlayTitle = overlay.querySelector('h1');
+            const overlayTitle = overlay?.querySelector('h1') ?? null;
             const overlayDefaultTitle = overlayTitle?.textContent ?? '';
             const loadingScreen = document.getElementById('loadingScreen');
             const loadingStatus = document.getElementById('loadingStatus');
@@ -1153,6 +1163,34 @@
             const intelCard = document.getElementById('intelCard');
             const intelContent = document.getElementById('intelContent');
             const intelMessageEl = document.getElementById('intelMessage');
+
+            if (!(canvas instanceof HTMLCanvasElement) || !ctx) {
+                console.error('Unable to initialize the Nyan Escape flight deck: canvas support is unavailable.');
+
+                loadingScreen?.classList.add('hidden');
+                if (overlay) {
+                    overlay.classList.add('unsupported');
+                }
+                if (overlayTitle) {
+                    overlayTitle.textContent = 'Flight Deck Unsupported';
+                }
+                if (overlayMessage) {
+                    overlayMessage.textContent =
+                        'Your current browser is missing HTML canvas support, so Nyan Escape cannot launch. ' +
+                        'Try again with a modern browser to enter the cosmic corridor.';
+                }
+                if (overlayButton) {
+                    overlayButton.textContent = 'Unavailable';
+                    overlayButton.setAttribute('aria-disabled', 'true');
+                    overlayButton.disabled = true;
+                }
+                if (intelMessageEl) {
+                    intelMessageEl.textContent =
+                        'Canvas rendering is disabled. Upgrade your browser to restore full mission control visuals.';
+                }
+
+                return;
+            }
 
             if (loadingImageEl) {
                 const defaultLogo = loadingImageEl.getAttribute('src') || 'assets/logo.png';
