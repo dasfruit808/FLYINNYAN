@@ -2152,6 +2152,12 @@
                         for (let j = trail.length - 1; j >= 0; j--) {
                             const t = trail[j];
                             if (Math.hypot(asteroid.x - t.x, asteroid.y - t.y) <= collisionRadius + 10) {
+                                if (isShieldActive()) {
+                                    if (asteroid.shieldCooldown <= 0) {
+                                        repelAsteroidFromPlayer(asteroid);
+                                    }
+                                    break;
+                                }
                                 triggerGameOver('Your tail clipped an asteroid!');
                                 return;
                             }
@@ -3022,6 +3028,12 @@
                     for (let j = trail.length - 1; j >= 0; j--) {
                         const t = trail[j];
                         if (circleRectOverlap({ x: t.x, y: t.y, radius: 10 }, obstacle)) {
+                            if (isShieldActive()) {
+                                if (obstacle.shieldCooldown <= 0) {
+                                    repelObstacleFromPlayer(obstacle);
+                                }
+                                break;
+                            }
                             return triggerGameOver('Your tail tangled with space junk!');
                         }
                     }
