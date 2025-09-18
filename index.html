@@ -1066,11 +1066,50 @@
                     ? window.NYAN_ASSET_OVERRIDES
                     : {};
 
-            const backgroundImages = [
-                'assets/background1.png',
-                'assets/background2.png',
-                'assets/background3.png'
-            ];
+            function resolveAssetConfig(override, defaultSrc) {
+                if (override == null) {
+                    return defaultSrc;
+                }
+
+                if (typeof override === 'string') {
+                    return override.trim() || defaultSrc;
+                }
+
+                if (typeof override === 'object') {
+                    const config = { ...override };
+                    if ((!config.src || typeof config.src !== 'string' || !config.src.trim()) && defaultSrc) {
+                        config.src = defaultSrc;
+                    }
+                    if (typeof config.src === 'string') {
+                        config.src = config.src.trim();
+                        if (!config.src) {
+                            delete config.src;
+                        }
+                    }
+                    if (typeof config.fallback === 'string') {
+                        config.fallback = config.fallback.trim();
+                        if (!config.fallback) {
+                            delete config.fallback;
+                        }
+                    }
+                    return config;
+                }
+
+                return defaultSrc;
+            }
+
+            const defaultBackgrounds = ['assets/background1.png', 'assets/background2.png', 'assets/background3.png'];
+            const backgroundOverrideEntries =
+                Array.isArray(assetOverrides.backgrounds) && assetOverrides.backgrounds.length
+                    ? assetOverrides.backgrounds
+                    : defaultBackgrounds;
+            let backgroundImages = backgroundOverrideEntries
+                .map((entry, index) => resolveAssetConfig(entry, defaultBackgrounds[index % defaultBackgrounds.length]))
+                .map((config) => (typeof config === 'string' ? config : config?.src))
+                .filter((src) => typeof src === 'string' && src.length);
+            if (backgroundImages.length === 0) {
+                backgroundImages = [...defaultBackgrounds];
+            }
             const backgroundLayers = [
                 document.getElementById('backgroundLayerA'),
                 document.getElementById('backgroundLayerB')
@@ -1099,6 +1138,7 @@
             const overlayDefaultTitle = overlayTitle?.textContent ?? '';
             const loadingScreen = document.getElementById('loadingScreen');
             const loadingStatus = document.getElementById('loadingStatus');
+            const loadingImageEl = document.getElementById('loadingImage');
             const timerValueEl = document.getElementById('timerValue');
             const highScoreListEl = document.getElementById('highScoreList');
             const highScoreTitleEl = document.getElementById('highScoreTitle');
@@ -1106,6 +1146,23 @@
             const intelCard = document.getElementById('intelCard');
             const intelContent = document.getElementById('intelContent');
             const intelMessageEl = document.getElementById('intelMessage');
+
+            if (loadingImageEl) {
+                const defaultLogo = loadingImageEl.getAttribute('src') || 'assets/logo.png';
+                const loadingLogoConfig = resolveAssetConfig(assetOverrides.loadingLogo, defaultLogo);
+                if (typeof loadingLogoConfig === 'string') {
+                    loadingImageEl.src = loadingLogoConfig;
+                } else if (loadingLogoConfig && typeof loadingLogoConfig === 'object') {
+                    if (loadingLogoConfig.crossOrigin === true) {
+                        loadingImageEl.crossOrigin = 'anonymous';
+                    } else if (typeof loadingLogoConfig.crossOrigin === 'string' && loadingLogoConfig.crossOrigin) {
+                        loadingImageEl.crossOrigin = loadingLogoConfig.crossOrigin;
+                    }
+                    if (typeof loadingLogoConfig.src === 'string' && loadingLogoConfig.src) {
+                        loadingImageEl.src = loadingLogoConfig.src;
+                    }
+                }
+            }
 
             function createCanvasTexture(width, height, draw) {
                 const canvas = document.createElement('canvas');
@@ -1119,10 +1176,34 @@
                 return canvas.toDataURL('image/png');
             }
 
-            function loadImageWithFallback(src, fallbackFactory) {
+            function loadImageWithFallback(config, fallbackFactory) {
                 const image = new Image();
                 image.decoding = 'async';
-                const fallbackSrc = typeof fallbackFactory === 'function' ? fallbackFactory() : null;
+
+                let src = null;
+                let fallbackSrc = null;
+
+                if (typeof config === 'string') {
+                    src = config;
+                } else if (config && typeof config === 'object') {
+                    if (config.crossOrigin === true) {
+                        image.crossOrigin = 'anonymous';
+                    } else if (typeof config.crossOrigin === 'string' && config.crossOrigin) {
+                        image.crossOrigin = config.crossOrigin;
+                    }
+
+                    if (typeof config.src === 'string' && config.src) {
+                        src = config.src;
+                    }
+
+                    if (typeof config.fallback === 'string' && config.fallback) {
+                        fallbackSrc = config.fallback;
+                    }
+                }
+
+                if (!fallbackSrc && typeof fallbackFactory === 'function') {
+                    fallbackSrc = fallbackFactory() ?? null;
+                }
 
                 const assignFallback = () => {
                     if (fallbackSrc) {
@@ -1137,20 +1218,10 @@
                         image.removeEventListener('error', handleError);
                         assignFallback();
                     };
-                    image.addEventListener('error', handleError);
+                    image.addEventListener('error', handleError, { once: true });
                 }
 
-                if (src && typeof fetch === 'function' && !src.startsWith('data:')) {
-                    fetch(src, { method: 'HEAD' })
-                        .then((response) => {
-                            if (response.ok) {
-                                image.src = src;
-                            } else {
-                                assignFallback();
-                            }
-                        })
-                        .catch(assignFallback);
-                } else if (src) {
+                if (src) {
                     image.src = src;
                 } else {
                     assignFallback();
@@ -1631,7 +1702,14 @@
             }
 
             function preloadImages(sources) {
-                return Promise.all(sources.map((src) => new Promise((resolve) => {
+                if (!Array.isArray(sources) || sources.length === 0) {
+                    return Promise.resolve([]);
+                }
+                const validSources = sources.filter((src) => typeof src === 'string' && src.length);
+                if (validSources.length === 0) {
+                    return Promise.resolve([]);
+                }
+                return Promise.all(validSources.map((src) => new Promise((resolve) => {
                     const img = new Image();
                     img.onload = resolve;
                     img.onerror = resolve;
@@ -1685,18 +1763,21 @@
                 }
             });
 
-            const playerImage = loadImageWithFallback('assets/player.png', createPlayerFallbackDataUrl);
+            const playerImage = loadImageWithFallback(
+                resolveAssetConfig(assetOverrides.player, 'assets/player.png'),
+                createPlayerFallbackDataUrl
+            );
 
             const asteroidImageSources =
                 Array.isArray(assetOverrides.asteroids) && assetOverrides.asteroids.length
                     ? assetOverrides.asteroids
                     : Array.from({ length: 3 }, () => null);
-            const asteroidImages = asteroidImageSources.map((src, index) => {
-                const fallbackSrc = createAsteroidFallbackDataUrl(index);
-                const preferredSrc = src ?? fallbackSrc;
-                return loadImageWithFallback(preferredSrc, () => fallbackSrc ?? preferredSrc);
-            });
+            const asteroidImages = asteroidImageSources.map((entry, index) =>
+                loadImageWithFallback(resolveAssetConfig(entry, null), () => createAsteroidFallbackDataUrl(index))
+            );
 
+            const powerUpOverrides =
+                assetOverrides.powerUps && typeof assetOverrides.powerUps === 'object' ? assetOverrides.powerUps : {};
             const powerUpImageSources = {
                 powerBomb: 'assets/powerbomb.png',
                 bulletSpread: 'assets/powerburger.png',
@@ -1705,10 +1786,11 @@
             };
 
             const powerUpImages = {};
-            for (const [type, src] of Object.entries(powerUpImageSources)) {
-                const image = new Image();
-                image.src = src;
-                powerUpImages[type] = image;
+            for (const [type, defaultSrc] of Object.entries(powerUpImageSources)) {
+                powerUpImages[type] = loadImageWithFallback(
+                    resolveAssetConfig(powerUpOverrides[type], defaultSrc),
+                    () => defaultSrc
+                );
             }
 
             const baseCollectScore = 80;
@@ -1878,13 +1960,26 @@
                 }
             ];
 
+            const collectibleOverrides =
+                assetOverrides.collectibles && typeof assetOverrides.collectibles === 'object'
+                    ? assetOverrides.collectibles
+                    : {};
+            for (const tier of collectibleTiers) {
+                tier.asset = resolveAssetConfig(collectibleOverrides[tier.key], tier.src ?? null);
+                if (typeof tier.asset === 'string') {
+                    tier.src = tier.asset;
+                } else if (tier.asset && typeof tier.asset === 'object' && typeof tier.asset.src === 'string') {
+                    tier.src = tier.asset.src;
+                }
+            }
+
             const collectibleImages = {};
             for (const tier of collectibleTiers) {
                 const fallbackSrc = createCollectibleFallbackDataUrl(tier);
-                const preferredSrc = tier.src ?? fallbackSrc;
+                const assetConfig = tier.asset ?? tier.src ?? null;
                 collectibleImages[tier.key] = loadImageWithFallback(
-                    preferredSrc,
-                    () => fallbackSrc ?? preferredSrc
+                    assetConfig ?? fallbackSrc,
+                    () => fallbackSrc ?? tier.src ?? null
                 );
             }
 
@@ -2032,6 +2127,19 @@
                 }
             ];
 
+            const villainOverrides =
+                assetOverrides.villains && typeof assetOverrides.villains === 'object'
+                    ? assetOverrides.villains
+                    : {};
+            for (const villain of villainTypes) {
+                villain.asset = resolveAssetConfig(villainOverrides[villain.key], villain.imageSrc);
+                if (typeof villain.asset === 'string') {
+                    villain.imageSrc = villain.asset;
+                } else if (villain.asset && typeof villain.asset === 'object' && typeof villain.asset.src === 'string') {
+                    villain.imageSrc = villain.asset.src;
+                }
+            }
+
             function getVillainWeights() {
                 const progress = getDifficultyProgress();
                 const eased = easeInOutQuad(progress);
@@ -2098,7 +2206,7 @@
             const villainImages = {};
             for (const [index, villain] of villainTypes.entries()) {
                 const image = loadImageWithFallback(
-                    villain.imageSrc,
+                    villain.asset ?? villain.imageSrc,
                     () => createVillainFallbackDataUrl(index) ?? villain.imageSrc
                 );
                 villainImages[villain.key] = image;
