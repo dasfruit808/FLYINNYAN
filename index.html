@@ -777,8 +777,11 @@
 
                 const pools = new Map();
                 const musicDefinition = { src: 'assets/audio/gameplay.mp3', volume: 0.52 };
+                const hyperBeamDefinition = { src: 'assets/audio/hyperbeam.mp3', volume: 0.62 };
                 let gameplayMusic = null;
                 let shouldResumeGameplayMusic = false;
+                let hyperBeamAudio = null;
+                let shouldResumeHyperBeam = false;
 
                 if (isSupported) {
                     try {
@@ -793,6 +796,21 @@
                         });
                     } catch {
                         gameplayMusic = null;
+                    }
+
+                    try {
+                        hyperBeamAudio = new Audio(hyperBeamDefinition.src);
+                        hyperBeamAudio.preload = 'auto';
+                        hyperBeamAudio.crossOrigin = 'anonymous';
+                        hyperBeamAudio.loop = true;
+                        hyperBeamAudio.volume = clamp01((hyperBeamDefinition.volume ?? 1) * state.masterVolume);
+                        hyperBeamAudio.addEventListener('error', () => {
+                            hyperBeamAudio = null;
+                            shouldResumeHyperBeam = false;
+                        });
+                    } catch {
+                        hyperBeamAudio = null;
+                        shouldResumeHyperBeam = false;
                     }
                 }
 
@@ -863,10 +881,24 @@
                     gameplayMusic.volume = clamp01((musicDefinition.volume ?? 1) * state.masterVolume);
                 }
 
+                function updateHyperBeamVolume() {
+                    if (!hyperBeamAudio) return;
+                    hyperBeamAudio.volume = clamp01((hyperBeamDefinition.volume ?? 1) * state.masterVolume);
+                }
+
                 function attemptPlayGameplayMusic() {
                     if (!gameplayMusic || !state.unlocked || state.muted) return;
                     updateGameplayMusicVolume();
                     const playPromise = gameplayMusic.play();
+                    if (playPromise?.catch) {
+                        playPromise.catch(() => undefined);
+                    }
+                }
+
+                function attemptPlayHyperBeam() {
+                    if (!hyperBeamAudio || !state.unlocked || state.muted) return;
+                    updateHyperBeamVolume();
+                    const playPromise = hyperBeamAudio.play();
                     if (playPromise?.catch) {
                         playPromise.catch(() => undefined);
                     }
@@ -903,11 +935,45 @@
                     }
                 }
 
+                function playHyperBeam() {
+                    if (!isSupported || !hyperBeamAudio) {
+                        shouldResumeHyperBeam = false;
+                        return;
+                    }
+                    shouldResumeHyperBeam = true;
+                    try {
+                        hyperBeamAudio.currentTime = 0;
+                    } catch {
+                        // Ignore if resetting currentTime fails (e.g., not yet loaded)
+                    }
+                    attemptPlayHyperBeam();
+                }
+
+                function stopHyperBeam({ reset = true } = {}) {
+                    shouldResumeHyperBeam = false;
+                    if (!hyperBeamAudio) {
+                        return;
+                    }
+                    if (!hyperBeamAudio.paused) {
+                        hyperBeamAudio.pause();
+                    }
+                    if (reset) {
+                        try {
+                            hyperBeamAudio.currentTime = 0;
+                        } catch {
+                            // Ignore if resetting currentTime fails (e.g., not yet loaded)
+                        }
+                    }
+                }
+
                 function unlock() {
                     if (state.unlocked) return;
                     state.unlocked = true;
                     if (shouldResumeGameplayMusic) {
                         attemptPlayGameplayMusic();
+                    }
+                    if (shouldResumeHyperBeam) {
+                        attemptPlayHyperBeam();
                     }
                 }
 
@@ -923,6 +989,8 @@
                     },
                     playGameplayMusic,
                     stopGameplayMusic,
+                    playHyperBeam,
+                    stopHyperBeam,
                     unlock
                 };
             })();
@@ -1778,11 +1846,16 @@
                 state.powerUpTimers.bulletSpread = 0;
                 state.powerUpTimers.missiles = 0;
                 state.powerUpTimers.radiantShield = 0;
+                state.powerUpTimers[HYPER_BEAM_POWER] = 0;
                 state.powerBombPulseTimer = 0;
                 state.shieldHitPulse = 0;
                 state.lastVillainKey = null;
                 state.recentVillains.length = 0;
                 state.dashTimer = 0;
+                hyperBeamState.intensity = 0;
+                hyperBeamState.wave = 0;
+                hyperBeamState.sparkTimer = 0;
+                hyperBeamState.bounds = null;
                 player.x = canvas.width * 0.18;
                 player.y = canvas.height * 0.5;
                 player.vx = 0;
@@ -1800,6 +1873,7 @@
                 spawnTimers.powerUp = 0;
                 state.meteorShowerTimer = 0;
                 state.nextMeteorShower = 0;
+                audioManager.stopHyperBeam();
                 createInitialStars();
                 scheduleNextMeteorShower();
                 comboFillEl.style.width = '100%';
@@ -3130,6 +3204,7 @@
                 } else if (type === HYPER_BEAM_POWER) {
                     hyperBeamState.sparkTimer = 0;
                     hyperBeamState.intensity = Math.max(hyperBeamState.intensity, 0.25);
+                    audioManager.playHyperBeam();
                 }
             }
 
@@ -3172,6 +3247,7 @@
                         }
                         if (type === HYPER_BEAM_POWER && state.powerUpTimers[type] === 0) {
                             hyperBeamState.sparkTimer = 0;
+                            audioManager.stopHyperBeam();
                         }
                     }
                 }
@@ -3292,6 +3368,7 @@
                     hyperBeamState.sparkTimer = 0;
                     hyperBeamState.bounds = null;
                     hyperBeamState.wave = 0;
+                    audioManager.stopHyperBeam();
                     return;
                 }
 
@@ -3874,6 +3951,7 @@
                 if (state.gameState !== 'running') return;
                 state.gameState = 'gameover';
                 audioManager.stopGameplayMusic();
+                audioManager.stopHyperBeam();
                 const finalTimeMs = state.elapsedTime;
                 recordHighScore(finalTimeMs, state.score);
                 updateHighScorePanel();
