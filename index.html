@@ -7,6 +7,13 @@
     <style>
         :root {
             color-scheme: dark;
+            --primary-font-stack: "Flight Time", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        @font-face {
+            font-family: "Flight Time";
+            src: url("assets/FlightTime.ttf") format("truetype");
+            font-display: swap;
         }
 
         * {
@@ -20,7 +27,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-family: var(--primary-font-stack);
             color: #fff;
             overflow: hidden;
             position: relative;
@@ -1476,7 +1483,7 @@
             requestAnimationFrame(updateAllCardHeights);
 
             const fallbackFontStack = '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
-            const customFontFamily = null;
+            const customFontFamily = 'Flight Time';
             const primaryFontStack = customFontFamily
                 ? `"${customFontFamily}", ${fallbackFontStack}`
                 : fallbackFontStack;
