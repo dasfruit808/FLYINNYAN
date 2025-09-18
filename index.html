@@ -1771,7 +1771,7 @@
             const asteroidImageSources =
                 Array.isArray(assetOverrides.asteroids) && assetOverrides.asteroids.length
                     ? assetOverrides.asteroids
-                    : Array.from({ length: 3 }, () => null);
+                    : ['assets/asteroid1.png', 'assets/asteroid2.png', 'assets/asteroid3.png'];
             const asteroidImages = asteroidImageSources.map((entry, index) =>
                 loadImageWithFallback(resolveAssetConfig(entry, null), () => createAsteroidFallbackDataUrl(index))
             );
@@ -1935,7 +1935,7 @@
                 {
                     key: 'point2',
                     label: 'POINT+',
-                    src: null,
+                    src: 'assets/point2.png',
                     points: Math.round(baseCollectScore * 1.75),
                     weight: 0.26,
                     sizeMultiplier: 1.08,
@@ -1948,7 +1948,7 @@
                 {
                     key: 'point3',
                     label: 'POINT++',
-                    src: null,
+                    src: 'assets/point3.png',
                     points: Math.round(baseCollectScore * 2.5),
                     weight: 0.12,
                     sizeMultiplier: 1.16,
