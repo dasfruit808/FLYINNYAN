@@ -662,6 +662,10 @@
                     <span class="stat-label">Boosts</span>
                     <span class="value" id="powerUps">None</span>
                 </div>
+                <div class="stat-row">
+                    <span class="stat-label">Hyper Beam</span>
+                    <span class="value" id="hyperBeamStatus">Charging</span>
+                </div>
             </div>
             <div id="comboMeter" role="progressbar" aria-label="Combo charge" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                 <div id="comboFill"></div>
@@ -687,7 +691,7 @@
                         <div class="control-keys" aria-label="Fire control">
                             <span class="keycap wide" aria-hidden="true">Space</span>
                         </div>
-                        <div class="control-action">Launch precision plasma bolts.</div>
+                        <div class="control-action">Launch precision plasma bolts. Hold to charge the Hyper Beam, then double tap to unleash it.</div>
                     </div>
                     <div class="control-row" role="listitem">
                         <div class="control-keys" aria-label="Touch controls">
@@ -709,6 +713,7 @@
                     <li>Slip between asteroids and hostile fire to stay in the fight.</li>
                     <li>Secure booster cores for temporary firepower and agility.</li>
                     <li>Keep the combo meter charged to amplify every point.</li>
+                    <li>Charge the Hyper Beam and double tap Space to vaporize threats when things get dire.</li>
                 </ul>
             </div>
         </div>
@@ -948,6 +953,7 @@
             const mcapEl = document.getElementById('mcap');
             const volEl = document.getElementById('vol');
             const powerUpsEl = document.getElementById('powerUps');
+            const hyperBeamStatusEl = document.getElementById('hyperBeamStatus');
             const comboFillEl = document.getElementById('comboFill');
             const comboMeterEl = document.getElementById('comboMeter');
             const joystickZone = document.getElementById('joystickZone');
@@ -1427,6 +1433,12 @@
                         missiles: 5600
                     }
                 },
+                hyperBeam: {
+                    chargeTime: 2500,
+                    cooldown: 6900,
+                    activeDuration: 2000,
+                    doubleTapWindow: 320
+                },
                 star: {
                     count: 120,
                     baseSpeed: 120
@@ -1533,7 +1545,12 @@
                 recentVillains: [],
                 meteorShowerTimer: 0,
                 nextMeteorShower: 0,
-                dashTimer: 0
+                dashTimer: 0,
+                hyperBeamCharge: 0,
+                hyperBeamCharged: false,
+                hyperBeamCooldown: 0,
+                hyperBeamActive: 0,
+                hyperBeamLastTap: 0
             };
 
             updateTimerDisplay();
@@ -1736,6 +1753,11 @@
                 state.lastVillainKey = null;
                 state.recentVillains.length = 0;
                 state.dashTimer = 0;
+                state.hyperBeamCharge = 0;
+                state.hyperBeamCharged = false;
+                state.hyperBeamCooldown = 0;
+                state.hyperBeamActive = 0;
+                state.hyperBeamLastTap = 0;
                 player.x = canvas.width * 0.18;
                 player.y = canvas.height * 0.5;
                 player.vx = 0;
@@ -2345,6 +2367,7 @@
             function engageFireControl(event) {
                 firePointerId = event.pointerId;
                 virtualInput.firing = true;
+                registerHyperBeamTap();
                 if (fireButton) {
                     fireButton.classList.add('active');
                     fireButton.setPointerCapture?.(event.pointerId);
@@ -2442,11 +2465,34 @@
                 });
             }
 
+            function canActivateHyperBeam() {
+                return (
+                    state.hyperBeamCharged &&
+                    state.hyperBeamCooldown <= 0 &&
+                    state.hyperBeamActive <= 0
+                );
+            }
+
+            function registerHyperBeamTap(now = performance.now()) {
+                if (!canActivateHyperBeam()) {
+                    state.hyperBeamLastTap = 0;
+                    return;
+                }
+
+                if (now - state.hyperBeamLastTap <= config.hyperBeam.doubleTapWindow) {
+                    activateHyperBeam();
+                    state.hyperBeamLastTap = 0;
+                } else {
+                    state.hyperBeamLastTap = now;
+                }
+            }
+
             window.addEventListener('keydown', (event) => {
                 if (event.repeat) return;
                 keys.add(event.code);
                 if (event.code === 'Space') {
                     event.preventDefault();
+                    registerHyperBeamTap();
                 }
                 const dashDirection = dashDirections[event.code];
                 if (dashDirection) {
@@ -2495,6 +2541,91 @@
                 if ((keys.has('Space') || virtualInput.firing) && state.timeSinceLastShot >= cooldown) {
                     spawnProjectiles();
                     state.timeSinceLastShot = 0;
+                }
+            }
+
+            function activateHyperBeam() {
+                if (state.hyperBeamActive > 0) return;
+                state.hyperBeamCharged = false;
+                state.hyperBeamCharge = 0;
+                state.hyperBeamCooldown = config.hyperBeam.cooldown;
+                state.hyperBeamActive = config.hyperBeam.activeDuration;
+                state.hyperBeamLastTap = 0;
+                audioManager.playExplosion('powerbomb');
+                createParticles({
+                    x: canvas.width * 0.5,
+                    y: canvas.height * 0.5,
+                    color: { r: 255, g: 255, b: 255 },
+                    count: 42,
+                    speedRange: [260, 520],
+                    sizeRange: [1.4, 3.4],
+                    lifeRange: [420, 720]
+                });
+                applyHyperBeamSweep();
+                const event = new CustomEvent('hyperbeam:activated', {
+                    detail: { time: performance.now() }
+                });
+                window.dispatchEvent(event);
+            }
+
+            function applyHyperBeamSweep() {
+                if (state.hyperBeamActive <= 0) return;
+
+                for (let i = collectibles.length - 1; i >= 0; i--) {
+                    const collectible = collectibles[i];
+                    collectibles.splice(i, 1);
+                    awardCollect(collectible);
+                }
+
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = obstacles[i];
+                    obstacles.splice(i, 1);
+                    awardDestroy(obstacle);
+                    createVillainExplosion(obstacle);
+                }
+
+                for (let i = asteroids.length - 1; i >= 0; i--) {
+                    destroyAsteroid(i);
+                }
+            }
+
+            function updateHyperBeam(delta) {
+                if (state.hyperBeamCooldown > 0) {
+                    state.hyperBeamCooldown = Math.max(0, state.hyperBeamCooldown - delta);
+                }
+
+                if (state.hyperBeamActive > 0) {
+                    state.hyperBeamActive = Math.max(0, state.hyperBeamActive - delta);
+                    applyHyperBeamSweep();
+                }
+
+                if (state.gameState !== 'running') {
+                    return;
+                }
+
+                const chargingInput = keys.has('Space') || virtualInput.firing;
+
+                if (state.hyperBeamCharged) {
+                    state.hyperBeamCharge = config.hyperBeam.chargeTime;
+                    return;
+                }
+
+                if (state.hyperBeamCooldown > 0) {
+                    state.hyperBeamCharge = 0;
+                    return;
+                }
+
+                if (chargingInput) {
+                    state.hyperBeamCharge = Math.min(
+                        config.hyperBeam.chargeTime,
+                        state.hyperBeamCharge + delta
+                    );
+                    if (state.hyperBeamCharge >= config.hyperBeam.chargeTime) {
+                        state.hyperBeamCharged = true;
+                        state.hyperBeamCharge = config.hyperBeam.chargeTime;
+                    }
+                } else if (state.hyperBeamCharge > 0) {
+                    state.hyperBeamCharge = Math.max(0, state.hyperBeamCharge - delta * 1.2);
                 }
             }
 
@@ -3550,6 +3681,11 @@
             function triggerGameOver(message) {
                 if (state.gameState !== 'running') return;
                 state.gameState = 'gameover';
+                state.hyperBeamCharged = false;
+                state.hyperBeamCharge = 0;
+                state.hyperBeamActive = 0;
+                state.hyperBeamCooldown = 0;
+                state.hyperBeamLastTap = 0;
                 audioManager.stopGameplayMusic();
                 const finalTimeMs = state.elapsedTime;
                 recordHighScore(finalTimeMs, state.score);
@@ -3592,6 +3728,21 @@
                     .filter((type) => isPowerUpActive(type))
                     .map((type) => `${powerUpLabels[type]} ${(state.powerUpTimers[type] / 1000).toFixed(1)}s`);
                 powerUpsEl.textContent = activeBoosts.length ? activeBoosts.join(' | ') : 'None';
+                if (hyperBeamStatusEl) {
+                    let statusText = 'Charging';
+                    if (state.hyperBeamActive > 0) {
+                        statusText = `Firing ${(state.hyperBeamActive / 1000).toFixed(1)}s`;
+                    } else if (state.hyperBeamCooldown > 0) {
+                        statusText = `Cooling ${(state.hyperBeamCooldown / 1000).toFixed(1)}s`;
+                    } else if (state.hyperBeamCharged) {
+                        statusText = 'Ready';
+                    } else {
+                        const chargeTime = config.hyperBeam.chargeTime || 1;
+                        const progress = clamp(Math.round((state.hyperBeamCharge / chargeTime) * 100), 0, 100);
+                        statusText = `Charging ${progress}%`;
+                    }
+                    hyperBeamStatusEl.textContent = statusText;
+                }
             }
 
             function drawBackground() {
@@ -4014,6 +4165,31 @@
                 ctx.restore();
             }
 
+            function drawHyperBeamOverlay(time) {
+                if (state.hyperBeamActive <= 0) return;
+                const duration = config.hyperBeam.activeDuration || 1;
+                const remainingRatio = clamp(state.hyperBeamActive / duration, 0, 1);
+                const pulse = (Math.sin(time * 0.02) + 1) * 0.5;
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                ctx.globalAlpha = 0.35 + 0.25 * pulse;
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, '#fff9d6');
+                gradient.addColorStop(0.5, '#ffe4ff');
+                gradient.addColorStop(1, '#d6f7ff');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.globalAlpha = Math.max(0.12, (1 - remainingRatio) * 0.45);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                const bandHeight = canvas.height * 0.28;
+                for (let i = -1; i <= 1; i++) {
+                    const offset = ((time * 0.4 + i * bandHeight * 0.6) % canvas.height) - bandHeight;
+                    ctx.fillRect(0, offset, canvas.width, bandHeight);
+                }
+                ctx.restore();
+            }
+
             function drawProjectiles() {
                 for (const projectile of projectiles) {
                     if (projectile.type === 'missile') {
@@ -4087,6 +4263,8 @@
                 if (delta > 50) delta = 50;
                 lastTime = timestamp;
 
+                updateHyperBeam(delta);
+
                 if (state.gameState === 'running') {
                     state.elapsedTime += delta;
                     state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (delta / 1000);
@@ -4126,6 +4304,7 @@
                 drawProjectiles();
                 drawParticles();
                 drawPlayer();
+                drawHyperBeamOverlay(timestamp);
 
                 updateHUD();
                 updateTimerDisplay();
