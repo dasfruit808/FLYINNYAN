@@ -4,24 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nyan Escape</title>
-    <link rel="preload" href="assets/FlightTime.ttf" as="font" type="font/ttf" crossorigin>
     <style>
-        @font-face {
-            font-family: "FlightTime";
-            src: url('assets/FlightTime.ttf') format('truetype');
-            font-style: normal;
-            font-weight: 400;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: "FlightTime";
-            src: url('assets/FlightTime.ttf') format('truetype');
-            font-style: normal;
-            font-weight: 700;
-            font-display: swap;
-        }
-
         :root {
             color-scheme: dark;
         }
@@ -37,7 +20,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-family: "FlightTime", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             color: #fff;
             overflow: hidden;
             position: relative;
@@ -749,23 +732,93 @@
             const audioManager = (() => {
                 const isSupported = typeof window !== 'undefined' && typeof Audio === 'function';
                 const clamp01 = (value) => Math.max(0, Math.min(1, value));
+                const audioCapabilityProbe = isSupported ? document.createElement('audio') : null;
+
+                const normalizeSources = (definition) => {
+                    if (!definition) {
+                        return [];
+                    }
+
+                    if (Array.isArray(definition)) {
+                        return definition;
+                    }
+
+                    if (typeof definition === 'string') {
+                        return [definition];
+                    }
+
+                    if (Array.isArray(definition.sources)) {
+                        return definition.sources;
+                    }
+
+                    if (typeof definition.src === 'string') {
+                        return [definition.src];
+                    }
+
+                    return [];
+                };
+
+                const resolveAudioSource = (definition) => {
+                    const sources = normalizeSources(definition);
+
+                    if (!sources.length) {
+                        return '';
+                    }
+
+                    if (!audioCapabilityProbe) {
+                        return sources[0];
+                    }
+
+                    const mimeForExtension = (ext) => {
+                        switch (ext) {
+                            case 'mp3':
+                                return 'audio/mpeg';
+                            case 'ogg':
+                                return 'audio/ogg';
+                            case 'wav':
+                                return 'audio/wav';
+                            case 'aac':
+                                return 'audio/aac';
+                            default:
+                                return '';
+                        }
+                    };
+
+                    for (const candidate of sources) {
+                        const extension = candidate.split('?')[0].split('#')[0].split('.').pop()?.toLowerCase();
+                        if (!extension) {
+                            continue;
+                        }
+
+                        const mimeType = mimeForExtension(extension);
+                        if (!mimeType) {
+                            continue;
+                        }
+
+                        if (audioCapabilityProbe.canPlayType(mimeType) !== '') {
+                            return candidate;
+                        }
+                    }
+
+                    return sources[0];
+                };
 
                 const soundDefinitions = {
                     projectile: {
-                        standard: { src: 'assets/audio/projectile-standard.mp3', voices: 6, volume: 0.55 },
-                        spread: { src: 'assets/audio/projectile-spread.mp3', voices: 6, volume: 0.52 },
-                        missile: { src: 'assets/audio/projectile-missile.mp3', voices: 4, volume: 0.6 }
+                        standard: { sources: ['assets/audio/projectile-standard.mp3', 'assets/audio/projectile-standard.wav'], voices: 6, volume: 0.55 },
+                        spread: { sources: ['assets/audio/projectile-spread.mp3', 'assets/audio/projectile-spread.wav'], voices: 6, volume: 0.52 },
+                        missile: { sources: ['assets/audio/projectile-missile.mp3', 'assets/audio/projectile-missile.wav'], voices: 4, volume: 0.6 }
                     },
                     collect: {
-                        point: { src: 'assets/audio/point.mp3', voices: 4, volume: 0.6 }
+                        point: { sources: ['assets/audio/point.mp3', 'assets/audio/point.wav'], voices: 4, volume: 0.6 }
                     },
                     explosion: {
-                        villain1: { src: 'assets/audio/explosion-villain1.mp3', voices: 3, volume: 0.7 },
-                        villain2: { src: 'assets/audio/explosion-villain2.mp3', voices: 3, volume: 0.7 },
-                        villain3: { src: 'assets/audio/explosion-villain3.mp3', voices: 3, volume: 0.75 },
-                        asteroid: { src: 'assets/audio/explosion-asteroid.mp3', voices: 3, volume: 0.68 },
-                        powerbomb: { src: 'assets/audio/explosion-powerbomb.mp3', voices: 2, volume: 0.76 },
-                        generic: { src: 'assets/audio/explosion-generic.mp3', voices: 3, volume: 0.66 }
+                        villain1: { sources: ['assets/audio/explosion-villain1.mp3', 'assets/audio/explosion-villain1.wav'], voices: 3, volume: 0.7 },
+                        villain2: { sources: ['assets/audio/explosion-villain2.mp3', 'assets/audio/explosion-villain2.wav'], voices: 3, volume: 0.7 },
+                        villain3: { sources: ['assets/audio/explosion-villain3.mp3', 'assets/audio/explosion-villain3.wav'], voices: 3, volume: 0.75 },
+                        asteroid: { sources: ['assets/audio/explosion-asteroid.mp3', 'assets/audio/explosion-asteroid.wav'], voices: 3, volume: 0.68 },
+                        powerbomb: { sources: ['assets/audio/explosion-powerbomb.mp3', 'assets/audio/explosion-powerbomb.wav'], voices: 2, volume: 0.76 },
+                        generic: { sources: ['assets/audio/explosion-generic.mp3', 'assets/audio/explosion-generic.wav'], voices: 3, volume: 0.66 }
                     }
                 };
 
@@ -776,8 +829,8 @@
                 };
 
                 const pools = new Map();
-                const musicDefinition = { src: 'assets/audio/gameplay.mp3', volume: 0.52 };
-                const hyperBeamDefinition = { src: 'assets/audio/hyperbeam.mp3', volume: 0.62 };
+                const musicDefinition = { sources: ['assets/audio/gameplay.mp3', 'assets/audio/gameplay.wav'], volume: 0.52 };
+                const hyperBeamDefinition = { sources: ['assets/audio/hyperbeam.mp3', 'assets/audio/hyperbeam.wav'], volume: 0.62 };
                 let gameplayMusic = null;
                 let shouldResumeGameplayMusic = false;
                 let hyperBeamAudio = null;
@@ -785,29 +838,35 @@
 
                 if (isSupported) {
                     try {
-                        gameplayMusic = new Audio(musicDefinition.src);
-                        gameplayMusic.preload = 'auto';
-                        gameplayMusic.crossOrigin = 'anonymous';
-                        gameplayMusic.loop = true;
-                        gameplayMusic.volume = clamp01((musicDefinition.volume ?? 1) * state.masterVolume);
-                        gameplayMusic.addEventListener('error', () => {
-                            gameplayMusic = null;
-                            shouldResumeGameplayMusic = false;
-                        });
+                        const musicSrc = resolveAudioSource(musicDefinition);
+                        if (musicSrc) {
+                            gameplayMusic = new Audio(musicSrc);
+                            gameplayMusic.preload = 'auto';
+                            gameplayMusic.crossOrigin = 'anonymous';
+                            gameplayMusic.loop = true;
+                            gameplayMusic.volume = clamp01((musicDefinition.volume ?? 1) * state.masterVolume);
+                            gameplayMusic.addEventListener('error', () => {
+                                gameplayMusic = null;
+                                shouldResumeGameplayMusic = false;
+                            });
+                        }
                     } catch {
                         gameplayMusic = null;
                     }
 
                     try {
-                        hyperBeamAudio = new Audio(hyperBeamDefinition.src);
-                        hyperBeamAudio.preload = 'auto';
-                        hyperBeamAudio.crossOrigin = 'anonymous';
-                        hyperBeamAudio.loop = true;
-                        hyperBeamAudio.volume = clamp01((hyperBeamDefinition.volume ?? 1) * state.masterVolume);
-                        hyperBeamAudio.addEventListener('error', () => {
-                            hyperBeamAudio = null;
-                            shouldResumeHyperBeam = false;
-                        });
+                        const hyperBeamSrc = resolveAudioSource(hyperBeamDefinition);
+                        if (hyperBeamSrc) {
+                            hyperBeamAudio = new Audio(hyperBeamSrc);
+                            hyperBeamAudio.preload = 'auto';
+                            hyperBeamAudio.crossOrigin = 'anonymous';
+                            hyperBeamAudio.loop = true;
+                            hyperBeamAudio.volume = clamp01((hyperBeamDefinition.volume ?? 1) * state.masterVolume);
+                            hyperBeamAudio.addEventListener('error', () => {
+                                hyperBeamAudio = null;
+                                shouldResumeHyperBeam = false;
+                            });
+                        }
                     } catch {
                         hyperBeamAudio = null;
                         shouldResumeHyperBeam = false;
@@ -815,19 +874,27 @@
                 }
 
                 function createSoundPool(definition) {
-                    const { src, voices = 4 } = definition;
+                    const { voices = 4 } = definition;
+                    const src = resolveAudioSource(definition);
                     const elements = [];
-                    let disabled = false;
+                    let disabled = !src;
 
-                    for (let i = 0; i < voices; i++) {
-                        const audio = new Audio(src);
-                        audio.preload = 'auto';
-                        audio.crossOrigin = 'anonymous';
-                        audio.volume = clamp01((definition.volume ?? 1) * state.masterVolume);
-                        audio.addEventListener('error', () => {
-                            disabled = true;
-                        });
-                        elements.push(audio);
+                    if (!disabled) {
+                        for (let i = 0; i < voices; i++) {
+                            try {
+                                const audio = new Audio(src);
+                                audio.preload = 'auto';
+                                audio.crossOrigin = 'anonymous';
+                                audio.volume = clamp01((definition.volume ?? 1) * state.masterVolume);
+                                audio.addEventListener('error', () => {
+                                    disabled = true;
+                                });
+                                elements.push(audio);
+                            } catch {
+                                disabled = true;
+                                break;
+                            }
+                        }
                     }
 
                     let index = 0;
@@ -843,11 +910,7 @@
                             if (!audio) return;
 
                             audio.volume = clamp01((definition.volume ?? 1) * state.masterVolume);
-                            if (!audio.paused) {
-                                audio.currentTime = 0;
-                            } else {
-                                audio.currentTime = 0;
-                            }
+                            audio.currentTime = 0;
 
                             const playPromise = audio.play();
                             if (playPromise?.catch) {
@@ -998,6 +1061,11 @@
             window.addEventListener('pointerdown', audioManager.unlock, { once: true });
             window.addEventListener('keydown', audioManager.unlock, { once: true });
 
+            const assetOverrides =
+                typeof window !== 'undefined' && window.NYAN_ASSET_OVERRIDES && typeof window.NYAN_ASSET_OVERRIDES === 'object'
+                    ? window.NYAN_ASSET_OVERRIDES
+                    : {};
+
             const backgroundImages = [
                 'assets/background1.png',
                 'assets/background2.png',
@@ -1038,6 +1106,211 @@
             const intelCard = document.getElementById('intelCard');
             const intelContent = document.getElementById('intelContent');
             const intelMessageEl = document.getElementById('intelMessage');
+
+            function createCanvasTexture(width, height, draw) {
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const context = canvas.getContext('2d');
+                if (!context) {
+                    return null;
+                }
+                draw(context, width, height);
+                return canvas.toDataURL('image/png');
+            }
+
+            function loadImageWithFallback(src, fallbackFactory) {
+                const image = new Image();
+                image.decoding = 'async';
+                const fallbackSrc = typeof fallbackFactory === 'function' ? fallbackFactory() : null;
+
+                const assignFallback = () => {
+                    if (fallbackSrc) {
+                        image.src = fallbackSrc;
+                    } else if (!src) {
+                        image.removeAttribute('src');
+                    }
+                };
+
+                if (fallbackSrc && src && src !== fallbackSrc) {
+                    const handleError = () => {
+                        image.removeEventListener('error', handleError);
+                        assignFallback();
+                    };
+                    image.addEventListener('error', handleError);
+                }
+
+                if (src && typeof fetch === 'function' && !src.startsWith('data:')) {
+                    fetch(src, { method: 'HEAD' })
+                        .then((response) => {
+                            if (response.ok) {
+                                image.src = src;
+                            } else {
+                                assignFallback();
+                            }
+                        })
+                        .catch(assignFallback);
+                } else if (src) {
+                    image.src = src;
+                } else {
+                    assignFallback();
+                }
+
+                return image;
+            }
+
+            function createCollectibleFallbackDataUrl(tier) {
+                const size = 128;
+                const font = '700 28px "Segoe UI", Tahoma, sans-serif';
+                return (
+                    createCanvasTexture(size, size, (context, width, height) => {
+                        context.clearRect(0, 0, width, height);
+                        const center = width / 2;
+                        const radius = width * 0.42;
+                        const glow = tier?.glow ?? {};
+                        const innerGlow = glow.inner ?? 'rgba(255, 255, 255, 0.95)';
+                        const outerGlow = glow.outer ?? 'rgba(255, 215, 0, 0.28)';
+                        const gradient = context.createRadialGradient(
+                            center,
+                            center,
+                            radius * 0.2,
+                            center,
+                            center,
+                            radius
+                        );
+                        gradient.addColorStop(0, innerGlow);
+                        gradient.addColorStop(1, outerGlow);
+                        context.fillStyle = gradient;
+                        context.beginPath();
+                        context.arc(center, center, radius, 0, Math.PI * 2);
+                        context.fill();
+                        context.lineWidth = 4;
+                        context.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+                        context.stroke();
+                        const label = tier?.label ?? 'POINT';
+                        context.font = font;
+                        context.textAlign = 'center';
+                        context.textBaseline = 'middle';
+                        context.fillStyle = 'rgba(15, 23, 42, 0.82)';
+                        context.fillText(label, center, center);
+                    }) ?? tier?.src
+                );
+            }
+
+            function createAsteroidFallbackDataUrl(seed = 0) {
+                const size = 196;
+                return createCanvasTexture(size, size, (context, width, height) => {
+                    context.clearRect(0, 0, width, height);
+                    context.save();
+                    context.translate(width / 2, height / 2);
+                    const radius = width * 0.42;
+                    const sides = 9;
+                    context.beginPath();
+                    for (let i = 0; i < sides; i++) {
+                        const angle = (i / sides) * Math.PI * 2;
+                        const noise = 0.74 + (Math.sin(angle * (seed + 2.3)) + 1) * 0.12;
+                        const r = radius * noise;
+                        const x = Math.cos(angle) * r;
+                        const y = Math.sin(angle) * r;
+                        if (i === 0) {
+                            context.moveTo(x, y);
+                        } else {
+                            context.lineTo(x, y);
+                        }
+                    }
+                    context.closePath();
+                    const gradient = context.createRadialGradient(0, -radius * 0.25, radius * 0.15, 0, 0, radius);
+                    gradient.addColorStop(0, '#f8fafc');
+                    gradient.addColorStop(0.6, '#a1a1aa');
+                    gradient.addColorStop(1, '#4b5563');
+                    context.fillStyle = gradient;
+                    context.fill();
+                    context.lineWidth = 6;
+                    context.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+                    context.stroke();
+
+                    const craterCount = 3 + (seed % 3);
+                    for (let i = 0; i < craterCount; i++) {
+                        const angle = (i / craterCount) * Math.PI * 2;
+                        const distance = radius * 0.45;
+                        const cx = Math.cos(angle + seed) * distance * 0.55;
+                        const cy = Math.sin(angle * 1.2 + seed) * distance * 0.55;
+                        const craterRadius = radius * (0.12 + (i / (craterCount + 2)) * 0.12);
+                        const craterGradient = context.createRadialGradient(
+                            cx,
+                            cy,
+                            craterRadius * 0.15,
+                            cx,
+                            cy,
+                            craterRadius
+                        );
+                        craterGradient.addColorStop(0, 'rgba(226, 232, 240, 0.7)');
+                        craterGradient.addColorStop(1, 'rgba(15, 23, 42, 0.7)');
+                        context.fillStyle = craterGradient;
+                        context.beginPath();
+                        context.arc(cx, cy, craterRadius, 0, Math.PI * 2);
+                        context.fill();
+                    }
+                    context.restore();
+                });
+            }
+
+            function createPlayerFallbackDataUrl() {
+                const width = 160;
+                const height = 120;
+                return createCanvasTexture(width, height, (context) => {
+                    const gradient = context.createLinearGradient(0, 0, width, height);
+                    gradient.addColorStop(0, '#38bdf8');
+                    gradient.addColorStop(1, '#6366f1');
+                    context.fillStyle = gradient;
+                    context.fillRect(0, 0, width, height);
+
+                    context.fillStyle = 'rgba(15, 23, 42, 0.65)';
+                    context.beginPath();
+                    context.moveTo(width * 0.22, height * 0.78);
+                    context.lineTo(width * 0.5, height * 0.18);
+                    context.lineTo(width * 0.78, height * 0.78);
+                    context.closePath();
+                    context.fill();
+
+                    context.fillStyle = '#fdf4ff';
+                    context.beginPath();
+                    context.ellipse(width * 0.5, height * 0.58, width * 0.28, height * 0.2, 0, 0, Math.PI * 2);
+                    context.fill();
+                });
+            }
+
+            const villainFallbackPalette = ['#f472b6', '#34d399', '#fde68a'];
+            function createVillainFallbackDataUrl(index = 0) {
+                const size = 128;
+                const baseColor = villainFallbackPalette[index % villainFallbackPalette.length];
+                return createCanvasTexture(size, size, (context, width, height) => {
+                    context.clearRect(0, 0, width, height);
+                    context.save();
+                    context.translate(width / 2, height / 2);
+                    context.rotate((index % 4) * Math.PI * 0.12);
+                    const gradient = context.createLinearGradient(-width / 2, -height / 2, width / 2, height / 2);
+                    gradient.addColorStop(0, baseColor);
+                    gradient.addColorStop(1, '#111827');
+                    context.fillStyle = gradient;
+                    context.beginPath();
+                    context.moveTo(0, -height * 0.38);
+                    context.lineTo(width * 0.32, 0);
+                    context.lineTo(0, height * 0.38);
+                    context.lineTo(-width * 0.32, 0);
+                    context.closePath();
+                    context.fill();
+                    context.strokeStyle = 'rgba(15, 23, 42, 0.65)';
+                    context.lineWidth = 6;
+                    context.stroke();
+
+                    context.fillStyle = 'rgba(15, 23, 42, 0.75)';
+                    context.beginPath();
+                    context.arc(0, 0, width * 0.14, 0, Math.PI * 2);
+                    context.fill();
+                    context.restore();
+                });
+            }
 
             const intelTips = [
                 "Nova Pulses clear the field when charged—time them with debris clusters to stretch your lead.",
@@ -1131,9 +1404,12 @@
             window.addEventListener('resize', updateAllCardHeights);
             requestAnimationFrame(updateAllCardHeights);
 
-            const customFontFamily = 'FlightTime';
-            const primaryFontStack = `"${customFontFamily}", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif`;
-            const fontsReady = loadCustomFont(customFontFamily);
+            const fallbackFontStack = '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
+            const customFontFamily = null;
+            const primaryFontStack = customFontFamily
+                ? `"${customFontFamily}", ${fallbackFontStack}`
+                : fallbackFontStack;
+            const fontsReady = customFontFamily ? loadCustomFont(customFontFamily) : Promise.resolve();
             fontsReady.catch(() => undefined).then(updateAllCardHeights);
 
             const STORAGE_KEYS = {
@@ -1409,14 +1685,16 @@
                 }
             });
 
-            const playerImage = new Image();
-            playerImage.src = 'assets/player.png';
+            const playerImage = loadImageWithFallback('assets/player.png', createPlayerFallbackDataUrl);
 
-            const asteroidImageSources = ['assets/asteroid1.png', 'assets/asteroid2.png', 'assets/asteroid3.png'];
-            const asteroidImages = asteroidImageSources.map((src) => {
-                const image = new Image();
-                image.src = src;
-                return image;
+            const asteroidImageSources =
+                Array.isArray(assetOverrides.asteroids) && assetOverrides.asteroids.length
+                    ? assetOverrides.asteroids
+                    : Array.from({ length: 3 }, () => null);
+            const asteroidImages = asteroidImageSources.map((src, index) => {
+                const fallbackSrc = createAsteroidFallbackDataUrl(index);
+                const preferredSrc = src ?? fallbackSrc;
+                return loadImageWithFallback(preferredSrc, () => fallbackSrc ?? preferredSrc);
             });
 
             const powerUpImageSources = {
@@ -1575,7 +1853,7 @@
                 {
                     key: 'point2',
                     label: 'POINT+',
-                    src: 'assets/point2.png',
+                    src: null,
                     points: Math.round(baseCollectScore * 1.75),
                     weight: 0.26,
                     sizeMultiplier: 1.08,
@@ -1588,7 +1866,7 @@
                 {
                     key: 'point3',
                     label: 'POINT++',
-                    src: 'assets/point3.png',
+                    src: null,
                     points: Math.round(baseCollectScore * 2.5),
                     weight: 0.12,
                     sizeMultiplier: 1.16,
@@ -1602,9 +1880,12 @@
 
             const collectibleImages = {};
             for (const tier of collectibleTiers) {
-                const image = new Image();
-                image.src = tier.src;
-                collectibleImages[tier.key] = image;
+                const fallbackSrc = createCollectibleFallbackDataUrl(tier);
+                const preferredSrc = tier.src ?? fallbackSrc;
+                collectibleImages[tier.key] = loadImageWithFallback(
+                    preferredSrc,
+                    () => fallbackSrc ?? preferredSrc
+                );
             }
 
             const totalCollectibleWeight = collectibleTiers.reduce((sum, tier) => sum + tier.weight, 0);
@@ -1815,9 +2096,11 @@
             }
 
             const villainImages = {};
-            for (const villain of villainTypes) {
-                const image = new Image();
-                image.src = villain.imageSrc;
+            for (const [index, villain] of villainTypes.entries()) {
+                const image = loadImageWithFallback(
+                    villain.imageSrc,
+                    () => createVillainFallbackDataUrl(index) ?? villain.imageSrc
+                );
                 villainImages[villain.key] = image;
                 villain.image = image;
             }
