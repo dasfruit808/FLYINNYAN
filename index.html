@@ -53,13 +53,14 @@
         #loadingScreen {
             position: fixed;
             inset: 0;
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: clamp(24px, 4vw, 48px);
             justify-content: center;
             align-items: center;
-            gap: 28px;
+            padding: clamp(28px, 6vw, 80px);
             background:
-                linear-gradient(rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.82)),
+                linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.9)),
                 url('assets/background.png') center / cover no-repeat;
             z-index: 999;
             transition: opacity 400ms ease;
@@ -71,24 +72,32 @@
         }
 
         #loadingImage {
-            width: min(420px, 80vw);
+            width: clamp(180px, 40vw, 420px);
             max-width: 520px;
+            justify-self: center;
         }
 
         #loadingStatus {
-            text-align: center;
+            text-align: left;
             font-family: "Consolas", "Lucida Console", "Courier New", monospace;
             letter-spacing: 0.2em;
             color: #0f172a;
             text-transform: uppercase;
             line-height: 1.6;
+            background: rgba(226, 232, 240, 0.92);
+            border-radius: 18px;
+            padding: clamp(18px, 3vw, 26px);
+            box-shadow:
+                0 16px 42px rgba(15, 23, 42, 0.4),
+                inset 0 0 0 1px rgba(15, 23, 42, 0.18);
+            min-width: min(360px, 100%);
         }
 
         #loadingStatus .loading-prefix {
             display: block;
             font-size: 0.72rem;
             letter-spacing: 0.35em;
-            color: #475569;
+            color: #1e293b;
             margin-bottom: 8px;
         }
 
@@ -96,11 +105,173 @@
             display: block;
             font-size: 1.05rem;
             font-weight: 600;
-            color: #111827;
+            color: #0f172a;
         }
 
         #loadingStatus .loading-percent {
             color: #0284c7;
+        }
+
+        #storyboard {
+            display: grid;
+            gap: clamp(16px, 2.5vw, 24px);
+            align-content: center;
+        }
+
+        .story-slide {
+            display: grid;
+            grid-template-columns: min(120px, 32%) 1fr;
+            gap: clamp(12px, 2vw, 18px);
+            padding: clamp(16px, 2.6vw, 24px);
+            border-radius: 18px;
+            background: linear-gradient(160deg, rgba(15, 23, 42, 0.92), rgba(30, 64, 175, 0.78));
+            border: 1px solid rgba(148, 210, 255, 0.22);
+            box-shadow: 0 18px 38px rgba(2, 6, 23, 0.45);
+            opacity: 0.18;
+            transform: translateY(12px) scale(0.98);
+            transition: opacity 320ms ease, transform 320ms ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-slide::before {
+            content: attr(data-type);
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 0.58rem;
+            letter-spacing: 0.32em;
+            text-transform: uppercase;
+            color: rgba(148, 210, 255, 0.5);
+        }
+
+        .story-slide.active {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .story-figure {
+            width: clamp(96px, 26vw, 126px);
+            height: clamp(96px, 26vw, 126px);
+            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(148, 210, 255, 0.28);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+        }
+
+        .story-figure img {
+            max-width: 100%;
+            max-height: 100%;
+            filter: drop-shadow(0 16px 24px rgba(15, 23, 42, 0.6));
+        }
+
+        .story-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .story-copy h3 {
+            margin: 0;
+            font-size: 0.9rem;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: rgba(148, 210, 255, 0.88);
+        }
+
+        .story-copy p {
+            margin: 0;
+        }
+
+        .story-copy .story-subtitle {
+            font-size: 0.72rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(148, 210, 255, 0.7);
+        }
+
+        .story-copy .story-text {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: rgba(226, 232, 240, 0.9);
+        }
+
+        #introSequence {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: clamp(20px, 4vw, 28px);
+            padding: clamp(32px, 6vw, 80px);
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 0.96));
+            z-index: 998;
+        }
+
+        #introSequence.visible {
+            display: flex;
+        }
+
+        #introPanels {
+            width: min(880px, 100%);
+            min-height: clamp(260px, 40vh, 420px);
+            display: grid;
+            place-items: center;
+            border-radius: 24px;
+            padding: clamp(24px, 4vw, 36px);
+            background: linear-gradient(180deg, rgba(30, 64, 175, 0.28), rgba(15, 23, 42, 0.92));
+            border: 1px solid rgba(148, 210, 255, 0.25);
+            box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
+        }
+
+        #introPanels .story-slide {
+            width: 100%;
+            max-width: 720px;
+            opacity: 0;
+            transform: translateY(20px) scale(0.97);
+        }
+
+        #introPanels .story-slide.active {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        #introControls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        #introControls button {
+            border: none;
+            border-radius: 999px;
+            padding: 12px 24px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            background: linear-gradient(135deg, #38bdf8, #6366f1);
+            color: #fff;
+            box-shadow: 0 16px 32px rgba(99, 102, 241, 0.35);
+            transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        #introControls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 36px rgba(99, 102, 241, 0.45);
+        }
+
+        #introControls button.secondary {
+            background: rgba(148, 163, 184, 0.18);
+            color: rgba(226, 232, 240, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.32);
+            box-shadow: none;
         }
 
         #backgroundContainer {
@@ -449,6 +620,56 @@
 
         #intelCard .card-body.updating {
             opacity: 0;
+        }
+
+        .intel-log {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .intel-log li {
+            position: relative;
+            padding-left: 18px;
+            color: rgba(226, 232, 240, 0.86);
+        }
+
+        .intel-log li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.45em;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #38bdf8, #6366f1);
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
+        }
+
+        .intel-log li.locked {
+            color: rgba(148, 163, 184, 0.75);
+        }
+
+        .intel-log li.locked::before {
+            background: linear-gradient(135deg, rgba(148, 163, 184, 0.7), rgba(100, 116, 139, 0.5));
+            box-shadow: none;
+        }
+
+        .intel-log .intel-title {
+            font-size: 0.72rem;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            margin: 0 0 6px;
+            color: rgba(148, 210, 255, 0.82);
+        }
+
+        .intel-log .intel-text {
+            margin: 0;
+            font-size: 0.82rem;
+            line-height: 1.6;
         }
 
         #touchControls {
@@ -801,6 +1022,29 @@
             #gameShell {
                 gap: clamp(16px, 5vw, 24px);
             }
+
+            #loadingScreen {
+                grid-template-columns: 1fr;
+                justify-items: center;
+            }
+
+            #loadingStatus {
+                width: min(480px, 100%);
+                text-align: left;
+            }
+
+            #storyboard {
+                width: min(520px, 100%);
+            }
+
+            .story-slide {
+                grid-template-columns: 1fr;
+                text-align: left;
+            }
+
+            .story-figure {
+                justify-self: center;
+            }
         }
     </style>
 </head>
@@ -810,6 +1054,14 @@
         <div id="loadingStatus">
             <span class="loading-prefix">[SYS-BOOT:00]</span>
             <span class="loading-line">Initializing quantum cores — <span class="loading-percent">000%</span></span>
+        </div>
+        <div id="storyboard" aria-live="polite"></div>
+    </div>
+    <div id="introSequence" aria-hidden="true">
+        <div id="introPanels" aria-live="polite" role="presentation"></div>
+        <div id="introControls">
+            <button id="introAdvance" type="button">Next Brief</button>
+            <button id="introSkip" type="button" class="secondary">Skip Intro</button>
         </div>
     </div>
     <div id="backgroundContainer">
@@ -911,7 +1163,7 @@
                 <span class="toggle-icon" aria-hidden="true"></span>
             </button>
             <div class="card-content" id="intelContent" role="region" aria-labelledby="intelToggle">
-                <p class="card-body" id="intelMessage" aria-live="polite"></p>
+                <ul class="intel-log" id="intelLog" role="list" aria-live="polite"></ul>
             </div>
         </div>
         <div class="hud-card collapsible open" id="socialCard">
@@ -1585,6 +1837,11 @@
             const loadingScreen = document.getElementById('loadingScreen');
             const loadingStatus = document.getElementById('loadingStatus');
             const loadingImageEl = document.getElementById('loadingImage');
+            const storyboardEl = document.getElementById('storyboard');
+            const introSequenceEl = document.getElementById('introSequence');
+            const introPanelsEl = document.getElementById('introPanels');
+            const introAdvanceButton = document.getElementById('introAdvance');
+            const introSkipButton = document.getElementById('introSkip');
             const timerValueEl = document.getElementById('timerValue');
             const highScoreListEl = document.getElementById('highScoreList');
             const highScoreTitleEl = document.getElementById('highScoreTitle');
@@ -1598,7 +1855,385 @@
             const collapsibleCards = Array.from(document.querySelectorAll('#instructions .hud-card.collapsible'));
             const intelCard = document.getElementById('intelCard');
             const intelContent = document.getElementById('intelContent');
-            const intelMessageEl = document.getElementById('intelMessage');
+            const intelLogEl = document.getElementById('intelLog');
+
+            const narrativeBeats = [
+                {
+                    id: 'wing',
+                    type: 'ally',
+                    heading: 'ALLY // The Neon Wing',
+                    tagline: 'Pixel — Flight Lead',
+                    description:
+                        'Your neon catship is the only courier nimble enough to thread the blockade. Keep its plasma coils warm and the convoy breathes another minute.',
+                    image: 'assets/player.png',
+                    imageAlt: 'The Neon Wing starfighter poised for launch.',
+                    bootLine: 'Linking Neon Wing flight leader',
+                    voiceLine: 'Pixel checking in. I will thread the shards and clear a lane for the convoy.'
+                },
+                {
+                    id: 'echo',
+                    type: 'ally',
+                    heading: 'ALLY // Station Echo',
+                    tagline: 'Aurora — Mission Control AI',
+                    description:
+                        'Echo floods your HUD with intel, tagging power cores and stacking combo routes so your streaks stay lethal.',
+                    image: 'assets/logo.png',
+                    imageAlt: 'Station Echo emblem glowing in cyan.',
+                    bootLine: 'Bringing Station Echo online',
+                    voiceLine: 'Aurora on comms. Keep your combo alive and I will paint the safest vectors.'
+                },
+                {
+                    id: 'syndicate',
+                    type: 'villain',
+                    heading: 'VILLAIN // Gravity Syndicate',
+                    tagline: 'Interceptor Wing "Grim Comets"',
+                    description:
+                        'Fast movers lace the corridor with mines and heavy bolts. Slip their angles or your shields will shred in seconds.',
+                    image: 'assets/villain1.png',
+                    imageAlt: 'Gravity Syndicate interceptor shimmering with hostile energy.',
+                    bootLine: 'Profiling Gravity Syndicate ambush grid',
+                    voiceLine: 'The Syndicate wants that payload grounded. Keep moving or they box you in.'
+                },
+                {
+                    id: 'reclaimers',
+                    type: 'villain',
+                    heading: 'VILLAIN // Void Reclaimers',
+                    tagline: 'Siege Engines of the Null Regent',
+                    description:
+                        'Armored wreckers hurl asteroid clusters and warp recoil around themselves. Hyper Beam cuts them open—when you can charge it.',
+                    image: 'assets/villain3.png',
+                    imageAlt: 'A Void Reclaimer siege craft framed by singularity sparks.',
+                    bootLine: 'Decrypting Void Reclaimer kill-sats',
+                    voiceLine: 'Null Regent wreckers bend debris like claws. Don’t let them breathe on the evac lane.'
+                },
+                {
+                    id: 'starway',
+                    type: 'stakes',
+                    heading: 'STAKES // Fractured Starway',
+                    tagline: 'Only Route Off-World',
+                    description:
+                        'Civilian shuttles shadow your wake. Survive long enough to guide them clear and the colony lives to see sunrise.',
+                    image: 'assets/asteroid2.png',
+                    imageAlt: 'Asteroid fragments breaking around a narrow flight corridor.',
+                    bootLine: 'Plotting escape vector through fractured starway',
+                    voiceLine: 'Every second you survive keeps the convoy ahead of the collapse. Hold the line.'
+                }
+            ];
+
+            function createStorySlide(beat, { variant = 'loading' } = {}) {
+                const article = document.createElement('article');
+                const classes = ['story-slide', `story-${beat.type ?? 'beat'}`];
+                if (variant === 'intro') {
+                    classes.push('intro-slide');
+                }
+                article.className = classes.join(' ');
+                article.dataset.type = (beat.type ?? '').toUpperCase();
+
+                const figure = document.createElement('div');
+                figure.className = 'story-figure';
+                if (beat.image) {
+                    const img = document.createElement('img');
+                    img.src = beat.image;
+                    img.alt = beat.imageAlt ?? beat.heading ?? '';
+                    figure.appendChild(img);
+                }
+
+                const copy = document.createElement('div');
+                copy.className = 'story-copy';
+                const heading = document.createElement('h3');
+                heading.textContent = beat.heading;
+                copy.appendChild(heading);
+                if (beat.tagline) {
+                    const tagline = document.createElement('p');
+                    tagline.className = 'story-subtitle';
+                    tagline.textContent = beat.tagline;
+                    copy.appendChild(tagline);
+                }
+                if (beat.description) {
+                    const details = document.createElement('p');
+                    details.className = 'story-text';
+                    details.textContent = beat.description;
+                    copy.appendChild(details);
+                }
+
+                article.appendChild(figure);
+                article.appendChild(copy);
+                return article;
+            }
+
+            const storyboardSlides = [];
+            if (storyboardEl && narrativeBeats.length) {
+                for (const beat of narrativeBeats) {
+                    const slide = createStorySlide(beat);
+                    storyboardEl.appendChild(slide);
+                    storyboardSlides.push(slide);
+                }
+            }
+
+            const introSlides = [];
+            if (introPanelsEl && narrativeBeats.length) {
+                for (const beat of narrativeBeats) {
+                    const slide = createStorySlide(beat, { variant: 'intro' });
+                    introPanelsEl.appendChild(slide);
+                    introSlides.push(slide);
+                }
+            }
+
+            let storyboardActiveIndex = -1;
+            function setActiveStoryboardIndex(index) {
+                if (!storyboardSlides.length) return;
+                const normalized = Math.max(0, Math.min(index, storyboardSlides.length - 1));
+                if (storyboardActiveIndex === normalized) {
+                    return;
+                }
+                storyboardSlides.forEach((slide, slideIndex) => {
+                    slide.classList.toggle('active', slideIndex === normalized);
+                });
+                storyboardActiveIndex = normalized;
+            }
+
+            if (storyboardSlides.length) {
+                setActiveStoryboardIndex(0);
+            }
+
+            const loadingNarrativeSteps = narrativeBeats.map((beat) => beat.bootLine?.toUpperCase?.() ?? '').filter(Boolean);
+            if (!loadingNarrativeSteps.length) {
+                loadingNarrativeSteps.push(
+                    'BOOTING CYBERNETICS KERNEL',
+                    'CALIBRATING OPTIC RELAYS',
+                    'DECRYPTING NAV MATRICES'
+                );
+            }
+            loadingNarrativeSteps.push('AUTHORIZING FLIGHT SEQUENCE');
+
+            const speechSynthesisController = (() => {
+                if (typeof window === 'undefined') {
+                    return null;
+                }
+                const synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
+                const Utterance = typeof window.SpeechSynthesisUtterance === 'function' ? window.SpeechSynthesisUtterance : null;
+                if (!synth || !Utterance) {
+                    return null;
+                }
+                let activeUtterance = null;
+                return {
+                    speak(text) {
+                        if (!synth || !text) return;
+                        try {
+                            if (synth.speaking) {
+                                synth.cancel();
+                            }
+                            const utterance = new Utterance(text);
+                            utterance.rate = 1.03;
+                            utterance.pitch = 0.92;
+                            utterance.volume = 0.82;
+                            activeUtterance = utterance;
+                            synth.speak(utterance);
+                        } catch (error) {
+                            activeUtterance = null;
+                        }
+                    },
+                    cancel() {
+                        if (!synth) return;
+                        try {
+                            synth.cancel();
+                        } catch {
+                            // ignore cancellation errors
+                        }
+                        activeUtterance = null;
+                    }
+                };
+            })();
+
+            function setIntroSlide(index) {
+                if (!introSlides.length) return;
+                const normalized = Math.max(0, Math.min(index, introSlides.length - 1));
+                introSlides.forEach((slide, slideIndex) => {
+                    slide.classList.toggle('active', slideIndex === normalized);
+                });
+                const beat = narrativeBeats[normalized];
+                if (introAdvanceButton) {
+                    introAdvanceButton.textContent = normalized >= introSlides.length - 1 ? 'Launch Flight' : 'Next Brief';
+                }
+                if (speechSynthesisController && beat?.voiceLine) {
+                    speechSynthesisController.speak(beat.voiceLine);
+                }
+            }
+
+            function hideIntroSequence() {
+                if (!introSequenceEl) return;
+                introSequenceEl.classList.remove('visible');
+                introSequenceEl.setAttribute('aria-hidden', 'true');
+                if (speechSynthesisController) {
+                    speechSynthesisController.cancel();
+                }
+            }
+
+            let introSequenceResolver = null;
+            function showIntroSequence(onComplete) {
+                if (!introSequenceEl || !introSlides.length) {
+                    onComplete?.();
+                    return;
+                }
+                introSequenceResolver = onComplete ?? null;
+                introSequenceEl.classList.add('visible');
+                introSequenceEl.setAttribute('aria-hidden', 'false');
+                setIntroSlide(0);
+                if (introAdvanceButton) {
+                    try {
+                        introAdvanceButton.focus({ preventScroll: true });
+                    } catch {
+                        introAdvanceButton.focus();
+                    }
+                }
+            }
+
+            function completeIntroSequence() {
+                hideIntroSequence();
+                const resolver = introSequenceResolver;
+                introSequenceResolver = null;
+                resolver?.();
+            }
+
+            if (introAdvanceButton) {
+                introAdvanceButton.addEventListener('click', () => {
+                    if (!introSlides.length) {
+                        completeIntroSequence();
+                        return;
+                    }
+                    const activeIndex = introSlides.findIndex((slide) => slide.classList.contains('active'));
+                    if (activeIndex >= introSlides.length - 1) {
+                        completeIntroSequence();
+                        return;
+                    }
+                    setIntroSlide(activeIndex + 1);
+                });
+            }
+
+            if (introSkipButton) {
+                introSkipButton.addEventListener('click', () => {
+                    completeIntroSequence();
+                });
+            }
+
+            function updateStoryboardFromProgress(ratio) {
+                if (!storyboardSlides.length || Number.isNaN(ratio)) {
+                    return;
+                }
+                const index = Math.max(0, Math.min(storyboardSlides.length - 1, Math.floor(ratio * storyboardSlides.length)));
+                setActiveStoryboardIndex(index);
+            }
+
+            const intelLoreEntries = [
+                {
+                    id: 'mission',
+                    unlockMs: 0,
+                    title: 'Mission Uplink',
+                    text:
+                        'Station Echo routed all evac beacons through your hull. Keep combos alive to project a safe corridor.',
+                    lockedHint: ''
+                },
+                {
+                    id: 'allySignal',
+                    unlockMs: 20000,
+                    title: 'Ally Ping',
+                    text:
+                        'Pixel spotted supply pods shadowing the convoy. Collect Points fast and the pods will spill power cores.',
+                    lockedHint: 'Survive 00:20 to decode Aurora’s priority feed.'
+                },
+                {
+                    id: 'syndicateIntel',
+                    unlockMs: 40000,
+                    title: 'Syndicate Patterns',
+                    text:
+                        'Gravity Syndicate wings stagger volleys—dash diagonally after each shot to bait their aim wide.',
+                    lockedHint: 'Last 00:40 to crack the Syndicate firing matrix.'
+                },
+                {
+                    id: 'reclaimerBrief',
+                    unlockMs: 70000,
+                    title: 'Void Reclaimer Brief',
+                    text:
+                        'Void Reclaimers absorb stray bolts until Hyper Beam charge hits 60%. Ride power cores and dump the beam point-blank.',
+                    lockedHint: 'Endure 01:10 and Aurora will transmit Reclaimer weak points.'
+                },
+                {
+                    id: 'convoyHope',
+                    unlockMs: 100000,
+                    title: 'Convoy Hope',
+                    text:
+                        'Colonists have begun their burn toward daylight. Every extra second you survive widens their escape corridor.',
+                    lockedHint: 'Hold for 01:40 to hear the convoy break radio silence.'
+                }
+            ];
+
+            function formatLoreUnlock(ms) {
+                const totalSeconds = Math.max(0, Math.round(ms / 1000));
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+
+            intelLoreEntries.forEach((entry) => {
+                if (entry.unlockMs === 0) {
+                    entry.unlocked = true;
+                }
+            });
+
+            function renderIntelLog() {
+                if (!intelLogEl) {
+                    return;
+                }
+                intelLogEl.innerHTML = '';
+                for (const entry of intelLoreEntries) {
+                    const item = document.createElement('li');
+                    const unlocked = Boolean(entry.unlocked || entry.unlockMs === 0);
+                    item.classList.toggle('locked', !unlocked);
+                    const title = document.createElement('p');
+                    title.className = 'intel-title';
+                    title.textContent = entry.title;
+                    const body = document.createElement('p');
+                    body.className = 'intel-text';
+                    if (unlocked) {
+                        body.textContent = entry.text;
+                    } else {
+                        const hint = entry.lockedHint || `Survive ${formatLoreUnlock(entry.unlockMs)} to decode.`;
+                        body.textContent = hint;
+                    }
+                    item.appendChild(title);
+                    item.appendChild(body);
+                    intelLogEl.appendChild(item);
+                }
+                if (intelCard?.classList.contains('open') && intelContent) {
+                    updateCardMaxHeight(intelCard, intelContent);
+                }
+            }
+
+            let storedLoreProgressMs = 0;
+            let introSeen = false;
+
+            function updateIntelLore(currentTimeMs) {
+                if (!intelLoreEntries.length) {
+                    return;
+                }
+                const effectiveTime = Math.max(currentTimeMs ?? 0, storedLoreProgressMs ?? 0);
+                let updated = false;
+                for (const entry of intelLoreEntries) {
+                    if (!entry.unlocked && effectiveTime >= entry.unlockMs) {
+                        entry.unlocked = true;
+                        updated = true;
+                    }
+                }
+                if (updated) {
+                    storedLoreProgressMs = Math.max(storedLoreProgressMs, effectiveTime);
+                    renderIntelLog();
+                    if (storageAvailable) {
+                        writeStorage(STORAGE_KEYS.loreProgress, String(storedLoreProgressMs));
+                    }
+                }
+            }
+
+            renderIntelLog();
 
             const hudCache = {
                 score: '',
@@ -1632,9 +2267,20 @@
                     overlayButton.setAttribute('aria-disabled', 'true');
                     overlayButton.disabled = true;
                 }
-                if (intelMessageEl) {
-                    intelMessageEl.textContent =
+                if (intelLogEl) {
+                    intelLogEl.innerHTML = '';
+                    const item = document.createElement('li');
+                    item.classList.add('locked');
+                    const title = document.createElement('p');
+                    title.className = 'intel-title';
+                    title.textContent = 'Telemetry Offline';
+                    const body = document.createElement('p');
+                    body.className = 'intel-text';
+                    body.textContent =
                         'Canvas rendering is disabled. Upgrade your browser to restore full mission control visuals.';
+                    item.appendChild(title);
+                    item.appendChild(body);
+                    intelLogEl.appendChild(item);
                 }
 
                 return;
@@ -1876,54 +2522,6 @@
                 });
             }
 
-            const intelTips = [
-                "Nova Pulses clear the field when charged—time them with debris clusters to stretch your lead.",
-                "Hyper Beam slices through villain armor—align your strafing run to tunnel past blockades.",
-                "Power cores boost both fire rate and agility—snag them when the sky is most crowded.",
-                "Keep the combo meter glowing by chaining pickups and takedowns without breaking stride.",
-                "Diagonal drifts slip past enemy fire—small corrections keep your streak intact.",
-                "Pulse the plasma cannon in bursts to manage recoil while keeping threats in check.",
-                "Sweep up stray Points before they fade to keep the leaderboard within reach."
-            ];
-
-            let intelTipIndex = -1;
-
-            const setIntelTip = (index) => {
-                if (!intelMessageEl || intelTips.length === 0) return;
-
-                const normalizedIndex = ((index % intelTips.length) + intelTips.length) % intelTips.length;
-                if (normalizedIndex === intelTipIndex && intelMessageEl.textContent?.trim()) {
-                    return;
-                }
-
-                intelMessageEl.classList.add('updating');
-
-                window.setTimeout(() => {
-                    intelMessageEl.textContent = intelTips[normalizedIndex];
-                    intelTipIndex = normalizedIndex;
-
-                    if (intelCard?.classList.contains('open') && intelContent) {
-                        updateCardMaxHeight(intelCard, intelContent);
-                    }
-
-                    window.requestAnimationFrame(() => {
-                        intelMessageEl.classList.remove('updating');
-                    });
-                }, 160);
-            };
-
-            if (intelMessageEl && intelTips.length > 0) {
-                setIntelTip(0);
-
-                if (intelTips.length > 1) {
-                    const intelRotationInterval = 26000;
-                    window.setInterval(() => {
-                        const nextIndex = intelTipIndex + 1;
-                        setIntelTip(nextIndex);
-                    }, intelRotationInterval);
-                }
-            }
-
             const updateCardMaxHeight = (card, content) => {
                 const viewportLimit = Math.max(window.innerHeight * 0.45, 220);
                 const naturalHeight = content.scrollHeight + 1;
@@ -1980,7 +2578,9 @@
                 playerName: 'nyanEscape.playerName',
                 highScores: 'nyanEscape.highScores',
                 leaderboard: 'nyanEscape.leaderboard',
-                socialFeed: 'nyanEscape.socialFeed'
+                socialFeed: 'nyanEscape.socialFeed',
+                introSeen: 'nyanEscape.introSeen',
+                loreProgress: 'nyanEscape.loreProgress'
             };
 
             let storageAvailable = false;
@@ -2009,6 +2609,16 @@
                     localStorage.setItem(key, value);
                 } catch (error) {
                     storageAvailable = false;
+                }
+            }
+
+            if (storageAvailable) {
+                introSeen = readStorage(STORAGE_KEYS.introSeen) === '1';
+                const rawLoreProgress = readStorage(STORAGE_KEYS.loreProgress);
+                const parsedLore = rawLoreProgress != null ? Number.parseInt(rawLoreProgress, 10) : NaN;
+                if (!Number.isNaN(parsedLore) && parsedLore > 0) {
+                    storedLoreProgressMs = parsedLore;
+                    updateIntelLore(storedLoreProgressMs);
                 }
             }
 
@@ -2418,14 +3028,7 @@
                     return;
                 }
 
-                const steps = [
-                    'Booting cybernetics kernel',
-                    'Calibrating optic relays',
-                    'Decrypting nav matrices',
-                    'Spooling plasma capacitors',
-                    'Synchronizing nyan drives',
-                    'Authorizing flight sequence'
-                ].map((step) => step.toUpperCase());
+                const steps = loadingNarrativeSteps.length ? loadingNarrativeSteps : ['INITIALIZING SYSTEMS'];
 
                 let progress = 0;
                 let stepIndex = 0;
@@ -2436,7 +3039,7 @@
                     const percentText = `${progress.toString().padStart(3, '0')}%`;
                     loadingStatus.innerHTML = `
                         <span class="loading-prefix">${prefix}</span>
-                        <span class="loading-line">${steps[stepIndex]} — <span class="loading-percent">${percentText}</span></span>
+                        <span class="loading-line">${steps[Math.min(stepIndex, maxIndex)]} — <span class="loading-percent">${percentText}</span></span>
                     `;
                 };
 
@@ -2446,17 +3049,44 @@
                     const ratio = progress / 100;
                     stepIndex = Math.min(maxIndex, Math.floor(ratio * steps.length));
                     updateStatus();
+                    updateStoryboardFromProgress(ratio);
 
                     if (progress >= 100) {
                         setTimeout(() => {
+                            updateStoryboardFromProgress(1);
                             fontsReady.catch(() => undefined).then(() => {
-                                startGame();
-                                loadingScreen.classList.add('hidden');
-                                setTimeout(() => {
-                                    if (loadingScreen.parentElement) {
-                                        loadingScreen.parentElement.removeChild(loadingScreen);
+                                const hideLoading = () => {
+                                    loadingScreen.classList.add('hidden');
+                                    setTimeout(() => {
+                                        if (loadingScreen.parentElement) {
+                                            loadingScreen.parentElement.removeChild(loadingScreen);
+                                        }
+                                    }, 520);
+                                };
+
+                                const beginFlight = () => {
+                                    hideLoading();
+                                    startGame();
+                                };
+
+                                if (!introSeen && introSequenceEl && introSlides.length) {
+                                    hideLoading();
+                                    showIntroSequence(() => {
+                                        introSeen = true;
+                                        if (storageAvailable) {
+                                            writeStorage(STORAGE_KEYS.introSeen, '1');
+                                        }
+                                        startGame();
+                                    });
+                                } else {
+                                    if (!introSeen) {
+                                        introSeen = true;
+                                        if (storageAvailable) {
+                                            writeStorage(STORAGE_KEYS.introSeen, '1');
+                                        }
                                     }
-                                }, 520);
+                                    beginFlight();
+                                }
                             });
                         }, 480);
                         return;
@@ -6175,6 +6805,7 @@
 
             function stepRunning(delta) {
                 state.elapsedTime += delta;
+                updateIntelLore(state.elapsedTime);
                 state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (delta / 1000);
 
                 updateCameraShake(delta);
