@@ -1215,9 +1215,40 @@
             const supportsPointerEvents = typeof window !== 'undefined' && 'PointerEvent' in window;
 
             const audioManager = (() => {
-                const isSupported = typeof window !== 'undefined' && typeof Audio === 'function';
                 const clamp01 = (value) => Math.max(0, Math.min(1, value));
-                const audioCapabilityProbe = isSupported ? document.createElement('audio') : null;
+
+                const audioCapabilityProbe = (() => {
+                    if (typeof window === 'undefined' || typeof document === 'undefined') {
+                        return null;
+                    }
+
+                    if (typeof Audio !== 'function') {
+                        return null;
+                    }
+
+                    try {
+                        const element = document.createElement('audio');
+                        return typeof element?.canPlayType === 'function' ? element : null;
+                    } catch {
+                        return null;
+                    }
+                })();
+
+                const supportedFormats = audioCapabilityProbe
+                    ? {
+                        mp3: audioCapabilityProbe.canPlayType('audio/mpeg') !== '',
+                        ogg: audioCapabilityProbe.canPlayType('audio/ogg; codecs="vorbis"') !== '',
+                        wav: audioCapabilityProbe.canPlayType('audio/wav; codecs="1"') !== ''
+                    }
+                    : {};
+
+                const supportedExtensions = new Set(
+                    Object.entries(supportedFormats)
+                        .filter(([, value]) => Boolean(value))
+                        .map(([ext]) => ext)
+                );
+
+                const isSupported = Boolean(audioCapabilityProbe) && supportedExtensions.size > 0;
 
                 const normalizeSources = (definition) => {
                     if (!definition) {
@@ -1271,17 +1302,23 @@
 
                     for (const candidate of sources) {
                         const extension = candidate.split('?')[0].split('#')[0].split('.').pop()?.toLowerCase();
-                        if (!extension) {
+                        if (extension && supportedExtensions.size > 0 && !supportedExtensions.has(extension)) {
                             continue;
                         }
 
                         const mimeType = mimeForExtension(extension);
-                        if (!mimeType) {
-                            continue;
-                        }
-
-                        if (audioCapabilityProbe.canPlayType(mimeType) !== '') {
+                        if (!mimeType || audioCapabilityProbe.canPlayType(mimeType) !== '') {
                             return candidate;
+                        }
+                    }
+
+                    if (supportedExtensions.size > 0) {
+                        const fallback = sources.find((candidate) => {
+                            const extension = candidate.split('?')[0].split('#')[0].split('.').pop()?.toLowerCase();
+                            return !extension || supportedExtensions.has(extension);
+                        });
+                        if (fallback) {
+                            return fallback;
                         }
                     }
 
@@ -1290,20 +1327,20 @@
 
                 const soundDefinitions = {
                     projectile: {
-                        standard: { sources: ['assets/audio/projectile-standard.mp3', 'assets/audio/projectile-standard.wav'], voices: 6, volume: 0.55 },
-                        spread: { sources: ['assets/audio/projectile-spread.mp3', 'assets/audio/projectile-spread.wav'], voices: 6, volume: 0.52 },
-                        missile: { sources: ['assets/audio/projectile-missile.mp3', 'assets/audio/projectile-missile.wav'], voices: 4, volume: 0.6 }
+                        standard: { sources: ['assets/audio/projectile-standard.mp3'], voices: 6, volume: 0.55 },
+                        spread: { sources: ['assets/audio/projectile-spread.mp3'], voices: 6, volume: 0.52 },
+                        missile: { sources: ['assets/audio/projectile-missile.mp3'], voices: 4, volume: 0.6 }
                     },
                     collect: {
-                        point: { sources: ['assets/audio/point.mp3', 'assets/audio/point.wav'], voices: 4, volume: 0.6 }
+                        point: { sources: ['assets/audio/point.mp3'], voices: 4, volume: 0.6 }
                     },
                     explosion: {
-                        villain1: { sources: ['assets/audio/explosion-villain1.mp3', 'assets/audio/explosion-villain1.wav'], voices: 3, volume: 0.7 },
-                        villain2: { sources: ['assets/audio/explosion-villain2.mp3', 'assets/audio/explosion-villain2.wav'], voices: 3, volume: 0.7 },
-                        villain3: { sources: ['assets/audio/explosion-villain3.mp3', 'assets/audio/explosion-villain3.wav'], voices: 3, volume: 0.75 },
-                        asteroid: { sources: ['assets/audio/explosion-asteroid.mp3', 'assets/audio/explosion-asteroid.wav'], voices: 3, volume: 0.68 },
-                        powerbomb: { sources: ['assets/audio/explosion-powerbomb.mp3', 'assets/audio/explosion-powerbomb.wav'], voices: 2, volume: 0.76 },
-                        generic: { sources: ['assets/audio/explosion-generic.mp3', 'assets/audio/explosion-generic.wav'], voices: 3, volume: 0.66 }
+                        villain1: { sources: ['assets/audio/explosion-villain1.mp3'], voices: 3, volume: 0.7 },
+                        villain2: { sources: ['assets/audio/explosion-villain2.mp3'], voices: 3, volume: 0.7 },
+                        villain3: { sources: ['assets/audio/explosion-villain3.mp3'], voices: 3, volume: 0.75 },
+                        asteroid: { sources: ['assets/audio/explosion-asteroid.mp3'], voices: 3, volume: 0.68 },
+                        powerbomb: { sources: ['assets/audio/explosion-powerbomb.mp3'], voices: 2, volume: 0.76 },
+                        generic: { sources: ['assets/audio/explosion-generic.mp3'], voices: 3, volume: 0.66 }
                     }
                 };
 
@@ -1314,8 +1351,8 @@
                 };
 
                 const pools = new Map();
-                const musicDefinition = { sources: ['assets/audio/gameplay.mp3', 'assets/audio/gameplay.wav'], volume: 0.52 };
-                const hyperBeamDefinition = { sources: ['assets/audio/hyperbeam.mp3', 'assets/audio/hyperbeam.wav'], volume: 0.62 };
+                const musicDefinition = { sources: ['assets/audio/gameplay.mp3'], volume: 0.52 };
+                const hyperBeamDefinition = { sources: ['assets/audio/hyperbeam.mp3'], volume: 0.62 };
                 let gameplayMusic = null;
                 let shouldResumeGameplayMusic = false;
                 let hyperBeamAudio = null;
@@ -1518,7 +1555,7 @@
                     const { voices = 4 } = definition;
                     const src = resolveAudioSource(definition);
                     const elements = [];
-                    let disabled = !src;
+                    let disabled = !src || !isSupported;
 
                     if (!disabled) {
                         for (let i = 0; i < voices; i++) {
