@@ -25,12 +25,29 @@
             background: #000;
             display: flex;
             justify-content: center;
-            align-items: center;
-            height: 100vh;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: clamp(24px, 5vw, 48px);
             font-family: var(--primary-font-stack);
             color: #fff;
-            overflow: hidden;
+            overflow: auto;
             position: relative;
+        }
+
+        #gameShell {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+            gap: clamp(20px, 4vw, 32px);
+            align-items: start;
+            width: min(1100px, 100%);
+            z-index: 0;
+        }
+
+        #playfield {
+            position: relative;
+            display: flex;
+            justify-content: center;
         }
 
         #loadingScreen {
@@ -119,7 +136,8 @@
         }
 
         #stats {
-            position: relative;
+            position: sticky;
+            top: 0;
             font-size: 15px;
             line-height: 1.4;
             text-align: left;
@@ -201,18 +219,19 @@
         }
 
         #instructions {
-            position: absolute;
-            top: 12px;
-            left: 16px;
+            position: relative;
             display: flex;
             flex-direction: column;
-            gap: 14px;
-            width: min(260px, 28vw);
+            gap: 18px;
+            width: min(320px, 28vw);
             font-size: 14px;
             text-align: left;
             opacity: 0.95;
             line-height: 1.6;
             z-index: 1;
+            max-height: calc(100vh - 160px);
+            overflow-y: auto;
+            padding-right: 4px;
         }
 
         #instructions .hud-card {
@@ -754,6 +773,35 @@
         #shareStatus.error {
             color: rgba(248, 113, 113, 0.9);
         }
+
+        @media (max-width: 1080px) {
+            #gameShell {
+                grid-template-columns: 1fr;
+                width: min(920px, 100%);
+            }
+
+            #instructions {
+                width: min(520px, 100%);
+                max-height: none;
+                overflow: visible;
+                padding-right: 0;
+                margin: clamp(18px, 4vw, 28px) auto 0;
+            }
+
+            #stats {
+                position: relative;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: clamp(16px, 4vw, 28px);
+            }
+
+            #gameShell {
+                gap: clamp(16px, 5vw, 24px);
+            }
+        }
     </style>
 </head>
 <body>
@@ -768,14 +816,17 @@
         <div class="backgroundLayer visible" id="backgroundLayerA"></div>
         <div class="backgroundLayer" id="backgroundLayerB"></div>
     </div>
-    <canvas id="gameCanvas" width="900" height="600" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
-    <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
-    <aside id="instructions" aria-label="Flight telemetry, controls, and mission information">
-        <section id="stats" role="complementary" aria-live="polite">
-            <h2 class="card-title">Flight Telemetry</h2>
-            <div class="stat-list" role="presentation">
-                <div class="stat-row">
-                    <span class="stat-label">Score</span>
+    <div id="gameShell">
+        <div id="playfield">
+            <canvas id="gameCanvas" width="900" height="600" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
+            <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
+        </div>
+        <aside id="instructions" aria-label="Flight telemetry, controls, and mission information">
+            <section id="stats" role="complementary" aria-live="polite">
+                <h2 class="card-title">Flight Telemetry</h2>
+                <div class="stat-list" role="presentation">
+                    <div class="stat-row">
+                        <span class="stat-label">Score</span>
                     <span class="value" id="score">0</span>
                 </div>
                 <div class="stat-row">
@@ -872,7 +923,8 @@
                 <ul id="socialFeed" role="list"></ul>
             </div>
         </div>
-    </aside>
+        </aside>
+    </div>
     <div id="touchControls" aria-hidden="true">
         <div id="joystickZone">
             <div class="joystick-ring"></div>
@@ -2227,39 +2279,59 @@
 
             function updateSharePanel() {
                 if (shareButton) {
-                    if (!canNativeShare) {
-                        shareButton.setAttribute('title', 'Web Share API not available in this browser.');
-                    }
-                    shareButton.disabled = !lastRunSummary || !canNativeShare;
+                    shareButton.disabled = !lastRunSummary;
+                    shareButton.setAttribute('title', 'Open X to post your flight log');
                 }
                 if (copyShareButton) {
                     copyShareButton.disabled = !lastRunSummary;
                 }
                 if (!lastRunSummary) {
                     showShareStatus('Complete a run to generate a broadcast log.');
-                } else if (!canNativeShare) {
-                    showShareStatus('Copy the flight log and rally your crew!');
                 } else {
-                    showShareStatus('Flight log armed. Share your escape!');
+                    showShareStatus('Flight log ready. Share to X or copy it for later.');
                 }
             }
 
             async function handleShareClick(event) {
                 event?.preventDefault?.();
-                if (!lastRunSummary || !canNativeShare || typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+                if (!lastRunSummary) {
                     return;
                 }
+
+                const text = getShareText(lastRunSummary);
+                const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+                let popup = null;
+
                 try {
-                    await navigator.share({
-                        title: 'Nyan Escape — Flight Log',
-                        text: getShareText(lastRunSummary)
-                    });
-                    showShareStatus('Flight log transmitted to the squadron!', 'success');
+                    popup = typeof window !== 'undefined' && typeof window.open === 'function'
+                        ? window.open(shareUrl, '_blank', 'noopener,width=600,height=640')
+                        : null;
                 } catch (error) {
-                    if (error?.name !== 'AbortError') {
-                        showShareStatus('Broadcast cancelled. Try again when ready.', 'error');
+                    popup = null;
+                }
+
+                if (popup) {
+                    popup.focus?.();
+                    showShareStatus('Flight log loaded into X. Finalize your post!', 'success');
+                    return;
+                }
+
+                if (canNativeShare && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+                    try {
+                        await navigator.share({
+                            title: 'Nyan Escape — Flight Log',
+                            text
+                        });
+                        showShareStatus('Flight log transmitted to the squadron!', 'success');
+                        return;
+                    } catch (error) {
+                        if (error?.name === 'AbortError') {
+                            return;
+                        }
                     }
                 }
+
+                showShareStatus('Unable to open X. Allow pop-ups or copy the log manually.', 'error');
             }
 
             async function handleCopyShareClick(event) {
@@ -5042,7 +5114,7 @@
                 ctx.textBaseline = 'middle';
                 for (const entry of floatingTexts) {
                     const alpha = clamp(entry.life / entry.maxLife, 0, 1);
-                    const fontSize = 16 + entry.scale * 6;
+                    const fontSize = 14 + entry.scale * 4;
                     ctx.globalAlpha = alpha;
                     ctx.font = `700 ${fontSize}px ${primaryFontStack}`;
                     ctx.fillStyle = entry.color;
