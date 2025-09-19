@@ -853,6 +853,162 @@
                 let shouldResumeGameplayMusic = false;
                 let hyperBeamAudio = null;
                 let shouldResumeHyperBeam = false;
+                let resumeGameplayAfterVisibility = false;
+                let resumeHyperAfterVisibility = false;
+                const fadeControllers = new WeakMap();
+                const stopTimers = new WeakMap();
+
+                const scheduleAnimationFrame = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+                    ? window.requestAnimationFrame.bind(window)
+                    : null;
+                const cancelAnimationFrame = typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function'
+                    ? window.cancelAnimationFrame.bind(window)
+                    : null;
+
+                const clearStopTimer = (audio) => {
+                    const timerId = stopTimers.get(audio);
+                    if (timerId != null) {
+                        window.clearTimeout(timerId);
+                        stopTimers.delete(audio);
+                    }
+                };
+
+                const stopExistingFade = (audio) => {
+                    const cancel = fadeControllers.get(audio);
+                    if (typeof cancel === 'function') {
+                        cancel();
+                        fadeControllers.delete(audio);
+                    }
+                };
+
+                const fadeAudio = (audio, targetVolume, duration = 220) => {
+                    if (!audio) {
+                        return;
+                    }
+
+                    const resolvedTarget = clamp01(targetVolume ?? 0);
+                    const currentVolume = clamp01(audio.volume ?? 0);
+
+                    if (Math.abs(currentVolume - resolvedTarget) < 0.001 || duration <= 0) {
+                        stopExistingFade(audio);
+                        audio.volume = resolvedTarget;
+                        return;
+                    }
+
+                    stopExistingFade(audio);
+
+                    const startVolume = currentVolume;
+                    const startTime = performance.now();
+                    let rafId = null;
+                    let timeoutId = null;
+                    const useRaf = typeof scheduleAnimationFrame === 'function';
+
+                    const cancel = () => {
+                        if (useRaf && rafId != null) {
+                            cancelAnimationFrame?.(rafId);
+                        } else if (!useRaf && timeoutId != null) {
+                            window.clearTimeout(timeoutId);
+                        }
+                    };
+
+                    const step = (now) => {
+                        const progress = clamp01((now - startTime) / duration);
+                        const nextVolume = startVolume + (resolvedTarget - startVolume) * progress;
+                        audio.volume = clamp01(nextVolume);
+
+                        if (progress < 1) {
+                            if (useRaf) {
+                                rafId = scheduleAnimationFrame(step);
+                            } else {
+                                timeoutId = window.setTimeout(() => step(performance.now()), 16);
+                            }
+                        } else {
+                            fadeControllers.delete(audio);
+                        }
+                    };
+
+                    fadeControllers.set(audio, cancel);
+
+                    if (useRaf) {
+                        rafId = scheduleAnimationFrame(step);
+                    } else {
+                        timeoutId = window.setTimeout(() => step(performance.now()), 16);
+                    }
+                };
+
+                const getLoopTargetVolume = (definition) => clamp01((definition.volume ?? 1) * state.masterVolume);
+
+                const prepareLoopForPlayback = (audio, definition) => {
+                    if (!audio) {
+                        return;
+                    }
+
+                    clearStopTimer(audio);
+                    stopExistingFade(audio);
+
+                    const target = getLoopTargetVolume(definition);
+                    if (audio.paused) {
+                        audio.volume = 0;
+                    } else {
+                        audio.volume = Math.min(audio.volume ?? target, target);
+                    }
+                };
+
+                const fadeOutLoop = (audio, duration, { reset = true } = {}) => {
+                    if (!audio) {
+                        return;
+                    }
+
+                    stopExistingFade(audio);
+                    clearStopTimer(audio);
+
+                    if (duration <= 0) {
+                        audio.volume = 0;
+                        if (!audio.paused) {
+                            audio.pause();
+                        }
+                        if (reset) {
+                            try {
+                                audio.currentTime = 0;
+                            } catch {
+                                // Ignore reset failures
+                            }
+                        }
+                        return;
+                    }
+
+                    fadeAudio(audio, 0, duration);
+                    const stopDelay = duration + 32;
+                    const timerId = window.setTimeout(() => {
+                        stopTimers.delete(audio);
+                        try {
+                            audio.volume = 0;
+                            if (!audio.paused) {
+                                audio.pause();
+                            }
+                            if (reset) {
+                                audio.currentTime = 0;
+                            }
+                        } catch {
+                            // Ignore errors when pausing/resetting
+                        }
+                    }, stopDelay);
+                    stopTimers.set(audio, timerId);
+                };
+
+                const attemptPlayLoop = (audio, definition) => {
+                    if (!audio || !state.unlocked || state.muted) {
+                        return false;
+                    }
+
+                    prepareLoopForPlayback(audio, definition);
+                    const playPromise = audio.play();
+                    if (playPromise?.catch) {
+                        playPromise.catch(() => undefined);
+                    }
+                    fadeAudio(audio, getLoopTargetVolume(definition), 320);
+                    return true;
+                };
 
                 if (isSupported) {
                     try {
@@ -904,6 +1060,9 @@
                                 audio.preload = 'auto';
                                 audio.crossOrigin = 'anonymous';
                                 audio.volume = clamp01((definition.volume ?? 1) * state.masterVolume);
+                                if (typeof audio.load === 'function') {
+                                    audio.load();
+                                }
                                 audio.addEventListener('error', () => {
                                     disabled = true;
                                 });
@@ -927,8 +1086,14 @@
                             index = (index + 1) % elements.length;
                             if (!audio) return;
 
+                            clearStopTimer(audio);
+                            stopExistingFade(audio);
                             audio.volume = clamp01((definition.volume ?? 1) * state.masterVolume);
-                            audio.currentTime = 0;
+                            try {
+                                audio.currentTime = 0;
+                            } catch {
+                                // Ignore if resetting currentTime fails
+                            }
 
                             const playPromise = audio.play();
                             if (playPromise?.catch) {
@@ -957,31 +1122,39 @@
                     pool?.play();
                 }
 
-                function updateGameplayMusicVolume() {
+                function updateGameplayMusicVolume({ immediate = false } = {}) {
                     if (!gameplayMusic) return;
-                    gameplayMusic.volume = clamp01((musicDefinition.volume ?? 1) * state.masterVolume);
+                    const target = getLoopTargetVolume(musicDefinition);
+                    if (immediate) {
+                        stopExistingFade(gameplayMusic);
+                        clearStopTimer(gameplayMusic);
+                        gameplayMusic.volume = target;
+                    } else {
+                        fadeAudio(gameplayMusic, target, 200);
+                    }
                 }
 
-                function updateHyperBeamVolume() {
+                function updateHyperBeamVolume({ immediate = false } = {}) {
                     if (!hyperBeamAudio) return;
-                    hyperBeamAudio.volume = clamp01((hyperBeamDefinition.volume ?? 1) * state.masterVolume);
+                    const target = getLoopTargetVolume(hyperBeamDefinition);
+                    if (immediate) {
+                        stopExistingFade(hyperBeamAudio);
+                        clearStopTimer(hyperBeamAudio);
+                        hyperBeamAudio.volume = target;
+                    } else {
+                        fadeAudio(hyperBeamAudio, target, 200);
+                    }
                 }
 
                 function attemptPlayGameplayMusic() {
-                    if (!gameplayMusic || !state.unlocked || state.muted) return;
-                    updateGameplayMusicVolume();
-                    const playPromise = gameplayMusic.play();
-                    if (playPromise?.catch) {
-                        playPromise.catch(() => undefined);
+                    if (!attemptPlayLoop(gameplayMusic, musicDefinition)) {
+                        return;
                     }
                 }
 
                 function attemptPlayHyperBeam() {
-                    if (!hyperBeamAudio || !state.unlocked || state.muted) return;
-                    updateHyperBeamVolume();
-                    const playPromise = hyperBeamAudio.play();
-                    if (playPromise?.catch) {
-                        playPromise.catch(() => undefined);
+                    if (!attemptPlayLoop(hyperBeamAudio, hyperBeamDefinition)) {
+                        return;
                     }
                 }
 
@@ -991,6 +1164,7 @@
                         return;
                     }
                     shouldResumeGameplayMusic = true;
+                    clearStopTimer(gameplayMusic);
                     try {
                         gameplayMusic.currentTime = 0;
                     } catch {
@@ -1004,16 +1178,7 @@
                     if (!gameplayMusic) {
                         return;
                     }
-                    if (!gameplayMusic.paused) {
-                        gameplayMusic.pause();
-                    }
-                    if (reset) {
-                        try {
-                            gameplayMusic.currentTime = 0;
-                        } catch {
-                            // Ignore if resetting currentTime fails
-                        }
-                    }
+                    fadeOutLoop(gameplayMusic, 220, { reset });
                 }
 
                 function playHyperBeam() {
@@ -1022,6 +1187,7 @@
                         return;
                     }
                     shouldResumeHyperBeam = true;
+                    clearStopTimer(hyperBeamAudio);
                     try {
                         hyperBeamAudio.currentTime = 0;
                     } catch {
@@ -1035,15 +1201,37 @@
                     if (!hyperBeamAudio) {
                         return;
                     }
-                    if (!hyperBeamAudio.paused) {
-                        hyperBeamAudio.pause();
+                    fadeOutLoop(hyperBeamAudio, 200, { reset });
+                }
+
+                function suspendForVisibilityChange() {
+                    if (!isSupported) {
+                        return;
                     }
-                    if (reset) {
-                        try {
-                            hyperBeamAudio.currentTime = 0;
-                        } catch {
-                            // Ignore if resetting currentTime fails (e.g., not yet loaded)
-                        }
+
+                    resumeGameplayAfterVisibility = shouldResumeGameplayMusic && !!(gameplayMusic && !gameplayMusic.paused);
+                    resumeHyperAfterVisibility = shouldResumeHyperBeam && !!(hyperBeamAudio && !hyperBeamAudio.paused);
+
+                    if (resumeGameplayAfterVisibility) {
+                        fadeOutLoop(gameplayMusic, 140, { reset: false });
+                    }
+                    if (resumeHyperAfterVisibility) {
+                        fadeOutLoop(hyperBeamAudio, 140, { reset: false });
+                    }
+                }
+
+                function resumeAfterVisibilityChange() {
+                    if (!isSupported) {
+                        return;
+                    }
+
+                    if (resumeGameplayAfterVisibility) {
+                        attemptPlayGameplayMusic();
+                        resumeGameplayAfterVisibility = false;
+                    }
+                    if (resumeHyperAfterVisibility) {
+                        attemptPlayHyperBeam();
+                        resumeHyperAfterVisibility = false;
                     }
                 }
 
@@ -1072,6 +1260,8 @@
                     stopGameplayMusic,
                     playHyperBeam,
                     stopHyperBeam,
+                    suspendForVisibilityChange,
+                    resumeAfterVisibilityChange,
                     unlock
                 };
             })();
@@ -1080,6 +1270,26 @@
             window.addEventListener('keydown', audioManager.unlock, { once: true });
             if (typeof window !== 'undefined' && 'ontouchstart' in window) {
                 window.addEventListener('touchstart', audioManager.unlock, { once: true });
+            }
+
+            const handleAudioSuspend = () => {
+                audioManager.suspendForVisibilityChange();
+            };
+            const handleAudioResume = () => {
+                audioManager.resumeAfterVisibilityChange();
+            };
+
+            window.addEventListener('blur', handleAudioSuspend);
+            window.addEventListener('focus', handleAudioResume);
+
+            if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        handleAudioSuspend();
+                    } else {
+                        handleAudioResume();
+                    }
+                });
             }
 
             const assetOverrides =
@@ -2908,11 +3118,32 @@
                     overlayTitle.textContent = titleText;
                 }
                 resetVirtualControls();
-                overlay.classList.remove('hidden');
+                if (overlay) {
+                    overlay.classList.remove('hidden');
+                    overlay.setAttribute('aria-hidden', 'false');
+                }
+                if (overlayButton) {
+                    window.requestAnimationFrame(() => {
+                        try {
+                            overlayButton.focus({ preventScroll: true });
+                        } catch {
+                            // Ignore focus errors (e.g., if element is detached)
+                        }
+                    });
+                }
             }
 
             function hideOverlay() {
-                overlay.classList.add('hidden');
+                if (overlay) {
+                    overlay.classList.add('hidden');
+                    overlay.setAttribute('aria-hidden', 'true');
+                }
+                if (overlayButton && typeof document !== 'undefined') {
+                    const activeElement = document.activeElement;
+                    if (activeElement === overlayButton) {
+                        overlayButton.blur();
+                    }
+                }
             }
 
             function setJoystickThumbPosition(dx, dy) {
@@ -3063,7 +3294,9 @@
                 resetGame();
                 state.gameState = 'running';
                 lastTime = null;
+                accumulatedDelta = 0;
                 hideOverlay();
+                audioManager.unlock();
                 audioManager.playGameplayMusic();
                 focusGameCanvas();
             }
@@ -3234,7 +3467,7 @@
                         }
                     }
                 }
-                if (normalizedKey === 'Enter' && state.gameState === 'gameover') {
+                if (normalizedKey === 'Enter' && (state.gameState === 'ready' || state.gameState === 'gameover')) {
                     startGame();
                 }
             });
@@ -5250,58 +5483,40 @@
                 ctx.restore();
             }
 
-            let lastTime = null;
-            function gameLoop(timestamp = performance.now()) {
-                requestAnimationFrame(gameLoop);
+            function stepNonRunning(delta) {
+                updateStars(delta);
+                updateAsteroids(delta);
+                updateParticles(delta);
+                updateAreaBursts(delta);
+                updateVillainExplosions(delta);
+                updateShieldEffects(delta);
+                updateHyperBeam(delta);
+            }
 
-                if (state.gameState === 'ready') {
-                    updateStars(16);
-                    updateAsteroids(16);
-                    drawBackground();
-                    drawStars(timestamp);
-                    drawAsteroids(timestamp);
-                    drawPlayer();
-                    return;
-                }
+            function stepRunning(delta) {
+                state.elapsedTime += delta;
+                state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (delta / 1000);
 
-                if (lastTime === null) {
-                    lastTime = timestamp;
-                }
-                let delta = timestamp - lastTime;
-                if (delta > 50) delta = 50;
-                lastTime = timestamp;
+                updatePlayer(delta);
+                updateProjectiles(delta);
+                updateObstacles(delta);
+                updateCollectibles(delta);
+                updatePowerUps(delta);
+                updateHyperBeam(delta);
+                updateProjectilesCollisions();
+                updateStars(delta);
+                updateAsteroids(delta);
+                updateParticles(delta);
+                updateSpawns(delta);
+                updatePowerUpTimers(delta);
+                updatePowerBomb(delta);
+                updateShieldEffects(delta);
+                updateAreaBursts(delta);
+                updateVillainExplosions(delta);
+                updateCombo(delta);
+            }
 
-                if (state.gameState === 'running') {
-                    state.elapsedTime += delta;
-                    state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (delta / 1000);
-
-                    updatePlayer(delta);
-                    updateProjectiles(delta);
-                    updateObstacles(delta);
-                    updateCollectibles(delta);
-                    updatePowerUps(delta);
-                    updateHyperBeam(delta);
-                    updateProjectilesCollisions();
-                    updateStars(delta);
-                    updateAsteroids(delta);
-                    updateParticles(delta);
-                    updateSpawns(delta);
-                    updatePowerUpTimers(delta);
-                    updatePowerBomb(delta);
-                    updateShieldEffects(delta);
-                    updateAreaBursts(delta);
-                    updateVillainExplosions(delta);
-                    updateCombo(delta);
-                } else {
-                    updateStars(delta);
-                    updateAsteroids(delta);
-                    updateParticles(delta);
-                    updateAreaBursts(delta);
-                    updateVillainExplosions(delta);
-                    updateShieldEffects(delta);
-                    updateHyperBeam(delta);
-                }
-
+            function renderFrame(timestamp) {
                 drawBackground();
                 drawStars(timestamp);
                 drawAsteroids(timestamp);
@@ -5315,7 +5530,51 @@
                 drawProjectiles();
                 drawParticles();
                 drawPlayer();
+            }
 
+            let lastTime = null;
+            let accumulatedDelta = 0;
+            const FIXED_TIMESTEP = 16;
+            const MAX_ACCUMULATED_TIME = FIXED_TIMESTEP * 6;
+
+            function gameLoop(timestamp = performance.now()) {
+                requestAnimationFrame(gameLoop);
+
+                if (state.gameState === 'ready') {
+                    stepNonRunning(FIXED_TIMESTEP);
+                    renderFrame(timestamp);
+                    updateHUD();
+                    updateTimerDisplay();
+                    lastTime = timestamp;
+                    accumulatedDelta = 0;
+                    return;
+                }
+
+                if (lastTime === null) {
+                    lastTime = timestamp;
+                }
+
+                let delta = timestamp - lastTime;
+                lastTime = timestamp;
+
+                if (delta > 200) {
+                    delta = 200;
+                } else if (delta < 0) {
+                    delta = 0;
+                }
+
+                accumulatedDelta = Math.min(accumulatedDelta + delta, MAX_ACCUMULATED_TIME);
+
+                while (accumulatedDelta >= FIXED_TIMESTEP) {
+                    if (state.gameState === 'running') {
+                        stepRunning(FIXED_TIMESTEP);
+                    } else {
+                        stepNonRunning(FIXED_TIMESTEP);
+                    }
+                    accumulatedDelta -= FIXED_TIMESTEP;
+                }
+
+                renderFrame(timestamp);
                 updateHUD();
                 updateTimerDisplay();
             }
