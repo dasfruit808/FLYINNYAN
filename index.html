@@ -392,6 +392,38 @@
             font-size: 0.86rem;
         }
 
+        #socialFeed {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #socialFeed li {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: rgba(226, 232, 240, 0.9);
+            padding-left: 12px;
+            border-left: 2px solid rgba(96, 165, 250, 0.35);
+        }
+
+        #socialFeed li .timestamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.7);
+        }
+
+        #socialFeed li.empty {
+            border: none;
+            padding-left: 0;
+            font-style: italic;
+            color: rgba(148, 163, 184, 0.8);
+        }
+
         #intelCard .card-body {
             transition: opacity 220ms ease;
         }
@@ -568,7 +600,27 @@
             transition: width 100ms ease-out;
         }
 
-        #highScorePanel {
+        #comboMeter.charged {
+            background: rgba(16, 185, 129, 0.32);
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
+        }
+
+        #comboMeter.charged #comboFill {
+            filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.75));
+        }
+
+        #overlayPanels {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            justify-content: center;
+            width: 100%;
+            max-width: 720px;
+        }
+
+        #highScorePanel,
+        #leaderboardPanel,
+        #sharePanel {
             margin-top: 8px;
             padding: 12px 18px;
             border-radius: 12px;
@@ -579,6 +631,15 @@
         }
 
         #highScoreTitle {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            margin-bottom: 8px;
+            color: rgba(148, 163, 184, 0.95);
+        }
+
+        #leaderboardPanel .panel-title,
+        #sharePanel .panel-title {
             font-size: 0.85rem;
             text-transform: uppercase;
             letter-spacing: 0.18em;
@@ -613,6 +674,85 @@
 
         #highScoreList li .score {
             color: #facc15;
+        }
+
+        #leaderboardList {
+            list-style: decimal inside;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.9rem;
+        }
+
+        #leaderboardList li {
+            color: rgba(226, 232, 240, 0.92);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        #leaderboardList li .meta {
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            color: rgba(148, 163, 184, 0.78);
+        }
+
+        #leaderboardList li.empty {
+            list-style: none;
+            color: rgba(148, 163, 184, 0.85);
+            font-style: italic;
+        }
+
+        #sharePanel {
+            max-width: 420px;
+        }
+
+        #sharePanel .share-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        #sharePanel button.share-button {
+            background: linear-gradient(135deg, #38bdf8, #6366f1);
+            padding: 10px 18px;
+            font-size: 0.9rem;
+            border-radius: 12px;
+            border: none;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 10px 26px rgba(14, 165, 233, 0.35);
+            transition: transform 140ms ease, box-shadow 140ms ease;
+        }
+
+        #sharePanel button.share-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 32px rgba(14, 165, 233, 0.45);
+        }
+
+        #sharePanel button.share-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #shareStatus {
+            margin: 0;
+            font-size: 0.82rem;
+            color: rgba(148, 210, 255, 0.85);
+            min-height: 1.4em;
+        }
+
+        #shareStatus.success {
+            color: rgba(129, 230, 217, 0.9);
+        }
+
+        #shareStatus.error {
+            color: rgba(248, 113, 113, 0.9);
         }
     </style>
 </head>
@@ -723,6 +863,15 @@
                 <p class="card-body" id="intelMessage" aria-live="polite"></p>
             </div>
         </div>
+        <div class="hud-card collapsible open" id="socialCard">
+            <button class="card-toggle" type="button" id="socialToggle" aria-expanded="true" aria-controls="socialContent">
+                <span class="card-title">Squadron Feed</span>
+                <span class="toggle-icon" aria-hidden="true"></span>
+            </button>
+            <div class="card-content" id="socialContent" role="region" aria-labelledby="socialToggle">
+                <ul id="socialFeed" role="list"></ul>
+            </div>
+        </div>
     </aside>
     <div id="touchControls" aria-hidden="true">
         <div id="joystickZone">
@@ -735,9 +884,23 @@
         <h1>NYAN ESCAPE</h1>
         <p id="overlayMessage">Thread the cosmic needle, gather Points, and charge Nova Pulses to vaporize space junk. Ready to glide?</p>
         <button id="overlayButton">Start Flight</button>
-        <div id="highScorePanel">
-            <div id="highScoreTitle">Top Flight Times</div>
-            <ol id="highScoreList"></ol>
+        <div id="overlayPanels">
+            <div id="highScorePanel">
+                <div id="highScoreTitle">Top Flight Times</div>
+                <ol id="highScoreList"></ol>
+            </div>
+            <div id="leaderboardPanel">
+                <div class="panel-title">Galaxy Standings</div>
+                <ol id="leaderboardList"></ol>
+            </div>
+        </div>
+        <div id="sharePanel">
+            <div class="panel-title">Broadcast Run</div>
+            <div class="share-buttons">
+                <button id="shareButton" class="share-button" type="button">Share Flight Log</button>
+                <button id="copyShareButton" class="share-button" type="button">Copy to Clipboard</button>
+            </div>
+            <p id="shareStatus" role="status" aria-live="polite"></p>
         </div>
     </div>
 
@@ -1373,6 +1536,13 @@
             const timerValueEl = document.getElementById('timerValue');
             const highScoreListEl = document.getElementById('highScoreList');
             const highScoreTitleEl = document.getElementById('highScoreTitle');
+            const leaderboardListEl = document.getElementById('leaderboardList');
+            const shareButton = document.getElementById('shareButton');
+            const copyShareButton = document.getElementById('copyShareButton');
+            const shareStatusEl = document.getElementById('shareStatus');
+            const socialFeedEl = document.getElementById('socialFeed');
+            const socialCard = document.getElementById('socialCard');
+            const socialContent = document.getElementById('socialContent');
             const collapsibleCards = Array.from(document.querySelectorAll('#instructions .hud-card.collapsible'));
             const intelCard = document.getElementById('intelCard');
             const intelContent = document.getElementById('intelContent');
@@ -1756,7 +1926,9 @@
 
             const STORAGE_KEYS = {
                 playerName: 'nyanEscape.playerName',
-                highScores: 'nyanEscape.highScores'
+                highScores: 'nyanEscape.highScores',
+                leaderboard: 'nyanEscape.leaderboard',
+                socialFeed: 'nyanEscape.socialFeed'
             };
 
             let storageAvailable = false;
@@ -1804,6 +1976,38 @@
                 writeStorage(STORAGE_KEYS.highScores, JSON.stringify(data));
             }
 
+            function loadLeaderboard() {
+                const raw = readStorage(STORAGE_KEYS.leaderboard);
+                if (!raw) return [];
+                try {
+                    const parsed = JSON.parse(raw);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (error) {
+                    return [];
+                }
+            }
+
+            function persistLeaderboard(entries) {
+                if (!storageAvailable) return;
+                writeStorage(STORAGE_KEYS.leaderboard, JSON.stringify(entries));
+            }
+
+            function loadSocialFeed() {
+                const raw = readStorage(STORAGE_KEYS.socialFeed);
+                if (!raw) return [];
+                try {
+                    const parsed = JSON.parse(raw);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (error) {
+                    return [];
+                }
+            }
+
+            function persistSocialFeed(entries) {
+                if (!storageAvailable) return;
+                writeStorage(STORAGE_KEYS.socialFeed, JSON.stringify(entries));
+            }
+
             function requestPlayerName() {
                 const defaultName = 'Ace Pilot';
                 const storedName = readStorage(STORAGE_KEYS.playerName);
@@ -1819,6 +2023,10 @@
 
             let highScoreData = loadHighScores();
             let playerName = requestPlayerName();
+            let leaderboardEntries = loadLeaderboard();
+            let socialFeedData = loadSocialFeed();
+            const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+            let lastRunSummary = null;
 
             function formatTime(milliseconds) {
                 const totalSeconds = Math.floor(milliseconds / 1000);
@@ -1826,6 +2034,20 @@
                 const seconds = totalSeconds % 60;
                 const tenths = Math.floor((milliseconds % 1000) / 100);
                 return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${tenths}`;
+            }
+
+            function formatRelativeTime(timestamp) {
+                if (!timestamp) return '';
+                const now = Date.now();
+                const diff = Math.max(0, now - timestamp);
+                const seconds = Math.floor(diff / 1000);
+                if (seconds < 60) return 'Just now';
+                const minutes = Math.floor(seconds / 60);
+                if (minutes < 60) return `${minutes}m ago`;
+                const hours = Math.floor(minutes / 60);
+                if (hours < 24) return `${hours}h ago`;
+                const days = Math.floor(hours / 24);
+                return `${days}d ago`;
             }
 
             function updateTimerDisplay() {
@@ -1837,12 +2059,14 @@
                 }
             }
 
-            function recordHighScore(durationMs, score) {
-                if (!playerName || durationMs <= 0) return;
+            function recordHighScore(durationMs, score, metadata = {}) {
+                if (!playerName || durationMs <= 0) return null;
                 const entry = {
                     timeMs: durationMs,
                     score,
-                    recordedAt: Date.now()
+                    recordedAt: metadata.recordedAt ?? Date.now(),
+                    bestStreak: metadata.bestStreak ?? 0,
+                    nyan: metadata.nyan ?? 0
                 };
                 const userScores = highScoreData[playerName] ? [...highScoreData[playerName]] : [];
                 userScores.push(entry);
@@ -1853,6 +2077,15 @@
                 });
                 highScoreData[playerName] = userScores.slice(0, 3);
                 persistHighScores(highScoreData);
+                const placement = recordLeaderboardEntry({
+                    player: playerName,
+                    timeMs: entry.timeMs,
+                    score: entry.score,
+                    bestStreak: entry.bestStreak,
+                    nyan: entry.nyan,
+                    recordedAt: entry.recordedAt
+                });
+                return placement;
             }
 
             function updateHighScorePanel() {
@@ -1881,7 +2114,192 @@
                 }
             }
 
+            function recordLeaderboardEntry(entry) {
+                if (!entry || !entry.player) return null;
+                const normalized = {
+                    player: entry.player,
+                    timeMs: entry.timeMs ?? 0,
+                    score: entry.score ?? 0,
+                    bestStreak: entry.bestStreak ?? 0,
+                    nyan: entry.nyan ?? 0,
+                    recordedAt: entry.recordedAt ?? Date.now()
+                };
+                leaderboardEntries.push(normalized);
+                leaderboardEntries.sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    if (b.timeMs !== a.timeMs) return b.timeMs - a.timeMs;
+                    return a.recordedAt - b.recordedAt;
+                });
+                const limit = 7;
+                const placementIndex = leaderboardEntries.indexOf(normalized);
+                leaderboardEntries = leaderboardEntries.slice(0, limit);
+                persistLeaderboard(leaderboardEntries);
+                updateLeaderboardPanel();
+                if (placementIndex >= 0 && placementIndex < limit) {
+                    return placementIndex + 1;
+                }
+                return null;
+            }
+
+            function updateLeaderboardPanel() {
+                if (!leaderboardListEl) return;
+                leaderboardListEl.innerHTML = '';
+                if (!leaderboardEntries.length) {
+                    const empty = document.createElement('li');
+                    empty.className = 'empty';
+                    empty.textContent = 'No galaxy standings yet. Finish a run to seed the board!';
+                    leaderboardListEl.appendChild(empty);
+                    return;
+                }
+
+                leaderboardEntries.forEach((entry) => {
+                    const item = document.createElement('li');
+                    const main = document.createElement('span');
+                    main.textContent = `${entry.player} — ${entry.score.toLocaleString()} pts`;
+                    const meta = document.createElement('span');
+                    meta.className = 'meta';
+                    const streakText = entry.bestStreak ? ` • x${entry.bestStreak} streak` : '';
+                    meta.textContent = `${formatTime(entry.timeMs)}${streakText}`;
+                    item.appendChild(main);
+                    item.appendChild(meta);
+                    leaderboardListEl.appendChild(item);
+                });
+            }
+
+            function updateSocialFeedPanel() {
+                if (!socialFeedEl) return;
+                socialFeedEl.innerHTML = '';
+                if (!socialFeedData.length) {
+                    const empty = document.createElement('li');
+                    empty.className = 'empty';
+                    empty.textContent = 'Complete missions to broadcast your squadron exploits.';
+                    socialFeedEl.appendChild(empty);
+                    return;
+                }
+
+                const visibleEntries = socialFeedData.slice(0, 8);
+                for (const entry of visibleEntries) {
+                    const item = document.createElement('li');
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = entry.message;
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'timestamp';
+                    timeSpan.textContent = formatRelativeTime(entry.timestamp);
+                    item.appendChild(textSpan);
+                    item.appendChild(timeSpan);
+                    socialFeedEl.appendChild(item);
+                }
+                if (socialCard?.classList.contains('open') && socialContent) {
+                    updateCardMaxHeight(socialCard, socialContent);
+                }
+            }
+
+            function addSocialMoment(message, { type = 'run', timestamp = Date.now() } = {}) {
+                if (!message) return;
+                socialFeedData.unshift({ message, type, timestamp });
+                const limit = 12;
+                socialFeedData = socialFeedData.slice(0, limit);
+                persistSocialFeed(socialFeedData);
+                updateSocialFeedPanel();
+            }
+
+            function getShareText(summary) {
+                if (!summary) return '';
+                const formattedTime = formatTime(summary.timeMs);
+                const streakText = summary.bestStreak ? ` x${summary.bestStreak}` : '';
+                const core = `${summary.player} survived ${formattedTime} for ${summary.score.toLocaleString()} pts${streakText} in Nyan Escape.`;
+                const pickups = summary.nyan ? ` Pickups: ${summary.nyan.toLocaleString()} energy.` : '';
+                const placementText = summary.placement ? ` Ranked #${summary.placement} on the local galaxy board.` : '';
+                const locationUrl = typeof window !== 'undefined' && window.location ? ` Play: ${window.location.href}` : '';
+                return `${core}${pickups}${placementText}${locationUrl}`.trim();
+            }
+
+            function showShareStatus(message, type = 'info') {
+                if (!shareStatusEl) return;
+                shareStatusEl.textContent = message;
+                shareStatusEl.className = '';
+                if (type === 'success') {
+                    shareStatusEl.classList.add('success');
+                } else if (type === 'error') {
+                    shareStatusEl.classList.add('error');
+                }
+            }
+
+            function updateSharePanel() {
+                if (shareButton) {
+                    if (!canNativeShare) {
+                        shareButton.setAttribute('title', 'Web Share API not available in this browser.');
+                    }
+                    shareButton.disabled = !lastRunSummary || !canNativeShare;
+                }
+                if (copyShareButton) {
+                    copyShareButton.disabled = !lastRunSummary;
+                }
+                if (!lastRunSummary) {
+                    showShareStatus('Complete a run to generate a broadcast log.');
+                } else if (!canNativeShare) {
+                    showShareStatus('Copy the flight log and rally your crew!');
+                } else {
+                    showShareStatus('Flight log armed. Share your escape!');
+                }
+            }
+
+            async function handleShareClick(event) {
+                event?.preventDefault?.();
+                if (!lastRunSummary || !canNativeShare || typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+                    return;
+                }
+                try {
+                    await navigator.share({
+                        title: 'Nyan Escape — Flight Log',
+                        text: getShareText(lastRunSummary)
+                    });
+                    showShareStatus('Flight log transmitted to the squadron!', 'success');
+                } catch (error) {
+                    if (error?.name !== 'AbortError') {
+                        showShareStatus('Broadcast cancelled. Try again when ready.', 'error');
+                    }
+                }
+            }
+
+            async function handleCopyShareClick(event) {
+                event?.preventDefault?.();
+                if (!lastRunSummary) {
+                    return;
+                }
+                const text = getShareText(lastRunSummary);
+                const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : null;
+                try {
+                    if (clipboard?.writeText) {
+                        await clipboard.writeText(text);
+                    } else {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = text;
+                        textarea.setAttribute('readonly', '');
+                        textarea.style.position = 'absolute';
+                        textarea.style.left = '-9999px';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                    }
+                    showShareStatus('Flight log copied. Rally the crew!', 'success');
+                } catch (error) {
+                    showShareStatus('Clipboard unavailable. Manually copy from the log.', 'error');
+                }
+            }
+
             updateHighScorePanel();
+            updateLeaderboardPanel();
+            updateSocialFeedPanel();
+            updateSharePanel();
+
+            if (shareButton) {
+                shareButton.addEventListener('click', handleShareClick);
+            }
+            if (copyShareButton) {
+                copyShareButton.addEventListener('click', handleCopyShareClick);
+            }
 
             if (highScoreTitleEl && typeof highScoreTitleEl.addEventListener === 'function') {
                 highScoreTitleEl.addEventListener('click', () => {
@@ -1898,6 +2316,10 @@
                     }
                     persistHighScores(highScoreData);
                     updateHighScorePanel();
+                    if (lastRunSummary) {
+                        lastRunSummary.player = playerName;
+                        updateSharePanel();
+                    }
                 });
             }
 
@@ -2371,6 +2793,8 @@
             const villainExplosions = [];
             const trail = [];
             const areaBursts = [];
+            const floatingTexts = [];
+            const cameraShake = { intensity: 0, duration: 0, elapsed: 0, offsetX: 0, offsetY: 0 };
             const hyperBeamState = {
                 intensity: 0,
                 wave: 0,
@@ -3021,7 +3445,13 @@
                     createHitSpark({ x: asteroid.x, y: asteroid.y, color: { r: 186, g: 198, b: 214 } });
                 }
                 if (state.gameState === 'running' && options.awardScore !== false) {
-                    awardScore(getAsteroidScoreValue(asteroid));
+                    awardScore(getAsteroidScoreValue(asteroid), {
+                        x: asteroid.x,
+                        y: asteroid.y,
+                        type: 'asteroid',
+                        color: '#fca5a5'
+                    });
+                    triggerScreenShake(Math.min(10, 4 + asteroid.radius * 0.04), 220);
                 }
                 asteroids.splice(index, 1);
                 asteroidSpawnTimer = 0;
@@ -4564,6 +4994,100 @@
                 }
             }
 
+            function spawnFloatingText({
+                text,
+                x,
+                y,
+                color = '#facc15',
+                life = 1200,
+                variant = 'score',
+                multiplier = 1
+            }) {
+                if (!text) return;
+                const scale = 1 + Math.max(0, multiplier - 1) * 0.4;
+                floatingTexts.push({
+                    text,
+                    x,
+                    y,
+                    color,
+                    life,
+                    maxLife: life,
+                    vx: (Math.random() * 24 - 12) * 0.4,
+                    vy: -60 - Math.random() * 30,
+                    gravity: 38,
+                    scale,
+                    variant
+                });
+            }
+
+            function updateFloatingTexts(delta) {
+                const deltaSeconds = delta / 1000;
+                for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                    const entry = floatingTexts[i];
+                    entry.life -= delta;
+                    if (entry.life <= 0) {
+                        floatingTexts.splice(i, 1);
+                        continue;
+                    }
+                    entry.x += entry.vx * deltaSeconds;
+                    entry.y += entry.vy * deltaSeconds;
+                    entry.vy += entry.gravity * deltaSeconds;
+                }
+            }
+
+            function drawFloatingTexts() {
+                if (!floatingTexts.length) return;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                for (const entry of floatingTexts) {
+                    const alpha = clamp(entry.life / entry.maxLife, 0, 1);
+                    const fontSize = 16 + entry.scale * 6;
+                    ctx.globalAlpha = alpha;
+                    ctx.font = `700 ${fontSize}px ${primaryFontStack}`;
+                    ctx.fillStyle = entry.color;
+                    let shadowColor = 'rgba(244, 114, 182, 0.65)';
+                    if (entry.variant === 'collect') {
+                        shadowColor = 'rgba(56, 189, 248, 0.75)';
+                    } else if (entry.variant === 'penalty') {
+                        shadowColor = 'rgba(248, 113, 113, 0.75)';
+                    } else if (entry.variant === 'dodge') {
+                        shadowColor = 'rgba(250, 204, 21, 0.65)';
+                    }
+                    ctx.shadowColor = shadowColor;
+                    ctx.shadowBlur = 18 * alpha;
+                    ctx.fillText(entry.text, entry.x, entry.y);
+                }
+                ctx.restore();
+            }
+
+            function triggerScreenShake(strength = 6, duration = 220) {
+                cameraShake.intensity = Math.max(cameraShake.intensity, strength);
+                cameraShake.duration = Math.max(cameraShake.duration, duration);
+                cameraShake.elapsed = 0;
+            }
+
+            function updateCameraShake(delta) {
+                if (cameraShake.duration <= 0) {
+                    cameraShake.offsetX = 0;
+                    cameraShake.offsetY = 0;
+                    return;
+                }
+                cameraShake.elapsed += delta;
+                if (cameraShake.elapsed >= cameraShake.duration) {
+                    cameraShake.intensity = 0;
+                    cameraShake.duration = 0;
+                    cameraShake.offsetX = 0;
+                    cameraShake.offsetY = 0;
+                    return;
+                }
+                const progress = cameraShake.elapsed / cameraShake.duration;
+                const falloff = Math.pow(1 - progress, 2);
+                const magnitude = cameraShake.intensity * falloff;
+                cameraShake.offsetX = (Math.random() * 2 - 1) * magnitude;
+                cameraShake.offsetY = (Math.random() * 2 - 1) * magnitude;
+            }
+
             function createVillainExplosion(obstacle) {
                 const centerX = obstacle.x + obstacle.width * 0.5;
                 const centerY = obstacle.y + obstacle.height * 0.5;
@@ -4698,6 +5222,7 @@
 
                 villainExplosions.push(explosion);
                 audioManager.playExplosion(villainKey ?? 'generic');
+                triggerScreenShake(Math.min(18, 8 + (sizeFactor ?? 0) * 0.05), 340);
 
                 switch (explosion.type) {
                     case 'ionBurst': {
@@ -4771,19 +5296,39 @@
             function awardCollect(collectible) {
                 const points = collectible?.points ?? config.score.collect;
                 state.nyan += points;
-                awardScore(points);
+                awardScore(points, {
+                    x: collectible.x + collectible.width * 0.5,
+                    y: collectible.y + collectible.height * 0.5,
+                    type: 'collect',
+                    color: '#7dd3fc'
+                });
+                triggerScreenShake(3, 160);
                 audioManager.playCollect(collectible?.key ?? 'point');
             }
 
             function awardDestroy(obstacle) {
                 const sizeBonus = Math.floor(obstacle.width * 0.6);
                 const durabilityBonus = (obstacle.maxHealth ? obstacle.maxHealth - 1 : 0) * 90;
-                awardScore(config.score.destroy + sizeBonus + durabilityBonus);
+                awardScore(config.score.destroy + sizeBonus + durabilityBonus, {
+                    x: obstacle.x + obstacle.width * 0.5,
+                    y: obstacle.y + obstacle.height * 0.5,
+                    type: 'villain',
+                    color: '#f9a8d4'
+                });
+                triggerScreenShake(12, 300);
             }
 
             function awardDodge() {
                 state.score += config.score.dodge;
                 state.comboTimer = Math.max(0, state.comboTimer - 400);
+                spawnFloatingText({
+                    text: `+${config.score.dodge} Dodge`,
+                    x: player.x + player.width,
+                    y: player.y + player.height * 0.5,
+                    color: '#fde68a',
+                    life: 900,
+                    variant: 'dodge'
+                });
             }
 
             function getVillainEscapePenalty(obstacle) {
@@ -4797,6 +5342,15 @@
                 const penalty = getVillainEscapePenalty(obstacle);
                 if (penalty > 0) {
                     state.score = Math.max(0, state.score - penalty);
+                    spawnFloatingText({
+                        text: `-${penalty} pts`,
+                        x: player.x + player.width * 0.5,
+                        y: player.y + player.height * 0.5,
+                        color: '#f87171',
+                        life: 1100,
+                        variant: 'penalty'
+                    });
+                    triggerScreenShake(8, 240);
                 }
                 state.comboTimer = config.comboDecayWindow;
                 resetStreak();
@@ -4807,15 +5361,36 @@
                 });
             }
 
-            function awardScore(basePoints) {
+            function awardScore(basePoints, source = {}) {
                 state.comboTimer = 0;
+                const previousBest = state.bestStreak;
                 state.streak += 1;
                 if (state.streak > state.bestStreak) {
                     state.bestStreak = state.streak;
+                    if (state.bestStreak >= 4 && state.bestStreak > previousBest) {
+                        addSocialMoment(`${playerName} pushed a x${state.bestStreak} streak!`, {
+                            type: 'combo'
+                        });
+                    }
                 }
                 state.tailTarget = config.baseTrailLength + state.streak * config.trailGrowthPerStreak;
                 const multiplier = 1 + state.streak * config.comboMultiplierStep;
-                state.score += Math.floor(basePoints * multiplier);
+                const finalPoints = Math.floor(basePoints * multiplier);
+                state.score += finalPoints;
+                const originX = source.x ?? player.x + player.width * 0.5;
+                const originY = source.y ?? player.y;
+                const text = `+${finalPoints.toLocaleString()}${multiplier > 1.01 ? ` x${multiplier.toFixed(2)}` : ''}`;
+                spawnFloatingText({
+                    text,
+                    x: originX,
+                    y: originY,
+                    color: source.color ?? '#fbbf24',
+                    variant: source.type ?? 'score',
+                    multiplier
+                });
+                if (finalPoints >= 600) {
+                    triggerScreenShake(Math.min(16, 6 + finalPoints / 400), 280);
+                }
             }
 
             function resetStreak() {
@@ -4829,12 +5404,39 @@
                 audioManager.stopGameplayMusic();
                 audioManager.stopHyperBeam();
                 const finalTimeMs = state.elapsedTime;
-                recordHighScore(finalTimeMs, state.score);
+                const runTimestamp = Date.now();
+                const placement = recordHighScore(finalTimeMs, state.score, {
+                    bestStreak: state.bestStreak,
+                    nyan: state.nyan,
+                    recordedAt: runTimestamp
+                });
                 updateHighScorePanel();
                 updateTimerDisplay();
                 const formattedTime = formatTime(finalTimeMs);
+                lastRunSummary = {
+                    player: playerName,
+                    timeMs: finalTimeMs,
+                    score: state.score,
+                    nyan: state.nyan,
+                    bestStreak: state.bestStreak,
+                    placement,
+                    recordedAt: runTimestamp
+                };
+                updateSharePanel();
+                const placementLine = placement ? `\nGalaxy Standings: #${placement}` : '';
+                if (placement && placement <= 7) {
+                    addSocialMoment(`${playerName} entered the galaxy standings at #${placement}!`, {
+                        type: 'leaderboard',
+                        timestamp: runTimestamp
+                    });
+                } else {
+                    addSocialMoment(`${playerName} survived ${formattedTime} for ${state.score.toLocaleString()} pts.`, {
+                        type: 'run',
+                        timestamp: runTimestamp
+                    });
+                }
                 showOverlay(
-                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — Points collected: ${state.nyan.toLocaleString()}`,
+                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — Points collected: ${state.nyan.toLocaleString()}${placementLine}`,
                     'Run It Back',
                     { title: '' }
                 );
@@ -4853,6 +5455,10 @@
                         comboMeterEl.setAttribute('aria-valuenow', String(percentage));
                     }
                     lastComboPercent = percentage;
+                }
+                if (comboMeterEl) {
+                    const charged = state.streak >= 5 && ratio > 0.4;
+                    comboMeterEl.classList.toggle('charged', charged);
                 }
             }
 
@@ -5484,9 +6090,11 @@
             }
 
             function stepNonRunning(delta) {
+                updateCameraShake(delta);
                 updateStars(delta);
                 updateAsteroids(delta);
                 updateParticles(delta);
+                updateFloatingTexts(delta);
                 updateAreaBursts(delta);
                 updateVillainExplosions(delta);
                 updateShieldEffects(delta);
@@ -5497,6 +6105,7 @@
                 state.elapsedTime += delta;
                 state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (delta / 1000);
 
+                updateCameraShake(delta);
                 updatePlayer(delta);
                 updateProjectiles(delta);
                 updateObstacles(delta);
@@ -5507,6 +6116,7 @@
                 updateStars(delta);
                 updateAsteroids(delta);
                 updateParticles(delta);
+                updateFloatingTexts(delta);
                 updateSpawns(delta);
                 updatePowerUpTimers(delta);
                 updatePowerBomb(delta);
@@ -5518,6 +6128,8 @@
 
             function renderFrame(timestamp) {
                 drawBackground();
+                ctx.save();
+                ctx.translate(cameraShake.offsetX ?? 0, cameraShake.offsetY ?? 0);
                 drawStars(timestamp);
                 drawAsteroids(timestamp);
                 drawTrail();
@@ -5530,6 +6142,8 @@
                 drawProjectiles();
                 drawParticles();
                 drawPlayer();
+                drawFloatingTexts();
+                ctx.restore();
             }
 
             let lastTime = null;
