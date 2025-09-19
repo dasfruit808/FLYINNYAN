@@ -112,168 +112,6 @@
             color: #0284c7;
         }
 
-        #storyboard {
-            display: grid;
-            gap: clamp(16px, 2.5vw, 24px);
-            align-content: center;
-        }
-
-        .story-slide {
-            display: grid;
-            grid-template-columns: min(120px, 32%) 1fr;
-            gap: clamp(12px, 2vw, 18px);
-            padding: clamp(16px, 2.6vw, 24px);
-            border-radius: 18px;
-            background: linear-gradient(160deg, rgba(15, 23, 42, 0.92), rgba(30, 64, 175, 0.78));
-            border: 1px solid rgba(148, 210, 255, 0.22);
-            box-shadow: 0 18px 38px rgba(2, 6, 23, 0.45);
-            opacity: 0.18;
-            transform: translateY(12px) scale(0.98);
-            transition: opacity 320ms ease, transform 320ms ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .story-slide::before {
-            content: attr(data-type);
-            position: absolute;
-            top: 12px;
-            right: 16px;
-            font-size: 0.58rem;
-            letter-spacing: 0.32em;
-            text-transform: uppercase;
-            color: rgba(148, 210, 255, 0.5);
-        }
-
-        .story-slide.active {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-
-        .story-figure {
-            width: clamp(96px, 26vw, 126px);
-            height: clamp(96px, 26vw, 126px);
-            border-radius: 16px;
-            background: rgba(15, 23, 42, 0.65);
-            border: 1px solid rgba(148, 210, 255, 0.28);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px;
-        }
-
-        .story-figure img {
-            max-width: 100%;
-            max-height: 100%;
-            filter: drop-shadow(0 16px 24px rgba(15, 23, 42, 0.6));
-        }
-
-        .story-copy {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .story-copy h3 {
-            margin: 0;
-            font-size: 0.9rem;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
-            color: rgba(148, 210, 255, 0.88);
-        }
-
-        .story-copy p {
-            margin: 0;
-        }
-
-        .story-copy .story-subtitle {
-            font-size: 0.72rem;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            color: rgba(148, 210, 255, 0.7);
-        }
-
-        .story-copy .story-text {
-            font-size: 0.85rem;
-            line-height: 1.6;
-            color: rgba(226, 232, 240, 0.9);
-        }
-
-        #introSequence {
-            position: fixed;
-            inset: 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: clamp(20px, 4vw, 28px);
-            padding: clamp(32px, 6vw, 80px);
-            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 0.96));
-            z-index: 998;
-        }
-
-        #introSequence.visible {
-            display: flex;
-        }
-
-        #introPanels {
-            width: min(880px, 100%);
-            min-height: clamp(260px, 40vh, 420px);
-            display: grid;
-            place-items: center;
-            border-radius: 24px;
-            padding: clamp(24px, 4vw, 36px);
-            background: linear-gradient(180deg, rgba(30, 64, 175, 0.28), rgba(15, 23, 42, 0.92));
-            border: 1px solid rgba(148, 210, 255, 0.25);
-            box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
-        }
-
-        #introPanels .story-slide {
-            width: 100%;
-            max-width: 720px;
-            opacity: 0;
-            transform: translateY(20px) scale(0.97);
-        }
-
-        #introPanels .story-slide.active {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-
-        #introControls {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        #introControls button {
-            border: none;
-            border-radius: 999px;
-            padding: 12px 24px;
-            font-size: 0.92rem;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            cursor: pointer;
-            background: linear-gradient(135deg, #38bdf8, #6366f1);
-            color: #fff;
-            box-shadow: 0 16px 32px rgba(99, 102, 241, 0.35);
-            transition: transform 160ms ease, box-shadow 160ms ease;
-        }
-
-        #introControls button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 20px 36px rgba(99, 102, 241, 0.45);
-        }
-
-        #introControls button.secondary {
-            background: rgba(148, 163, 184, 0.18);
-            color: rgba(226, 232, 240, 0.85);
-            border: 1px solid rgba(148, 163, 184, 0.32);
-            box-shadow: none;
-        }
-
         #backgroundContainer {
             position: fixed;
             inset: 0;
@@ -1033,18 +871,6 @@
                 text-align: left;
             }
 
-            #storyboard {
-                width: min(520px, 100%);
-            }
-
-            .story-slide {
-                grid-template-columns: 1fr;
-                text-align: left;
-            }
-
-            .story-figure {
-                justify-self: center;
-            }
         }
     </style>
 </head>
@@ -1054,14 +880,6 @@
         <div id="loadingStatus">
             <span class="loading-prefix">[SYS-BOOT:00]</span>
             <span class="loading-line">Initializing quantum cores — <span class="loading-percent">000%</span></span>
-        </div>
-        <div id="storyboard" aria-live="polite"></div>
-    </div>
-    <div id="introSequence" aria-hidden="true">
-        <div id="introPanels" aria-live="polite" role="presentation"></div>
-        <div id="introControls">
-            <button id="introAdvance" type="button">Next Brief</button>
-            <button id="introSkip" type="button" class="secondary">Skip Intro</button>
         </div>
     </div>
     <div id="backgroundContainer">
@@ -1874,11 +1692,6 @@
             const loadingScreen = document.getElementById('loadingScreen');
             const loadingStatus = document.getElementById('loadingStatus');
             const loadingImageEl = document.getElementById('loadingImage');
-            const storyboardEl = document.getElementById('storyboard');
-            const introSequenceEl = document.getElementById('introSequence');
-            const introPanelsEl = document.getElementById('introPanels');
-            const introAdvanceButton = document.getElementById('introAdvance');
-            const introSkipButton = document.getElementById('introSkip');
             const timerValueEl = document.getElementById('timerValue');
             const highScoreListEl = document.getElementById('highScoreList');
             const highScoreTitleEl = document.getElementById('highScoreTitle');
@@ -1893,273 +1706,6 @@
             const intelCard = document.getElementById('intelCard');
             const intelContent = document.getElementById('intelContent');
             const intelLogEl = document.getElementById('intelLog');
-
-            const narrativeBeats = [
-                {
-                    id: 'wing',
-                    type: 'ally',
-                    heading: 'ALLY // The Neon Wing',
-                    tagline: 'Pixel — Flight Lead',
-                    description:
-                        'Your neon catship is the only courier nimble enough to thread the blockade. Keep its plasma coils warm and the convoy breathes another minute.',
-                    image: 'assets/player.png',
-                    imageAlt: 'The Neon Wing starfighter poised for launch.',
-                    bootLine: 'Linking Neon Wing flight leader',
-                    voiceLine: 'Pixel checking in. I will thread the shards and clear a lane for the convoy.'
-                },
-                {
-                    id: 'echo',
-                    type: 'ally',
-                    heading: 'ALLY // Station Echo',
-                    tagline: 'Aurora — Mission Control AI',
-                    description:
-                        'Echo floods your HUD with intel, tagging power cores and stacking combo routes so your streaks stay lethal.',
-                    image: 'assets/logo.png',
-                    imageAlt: 'Station Echo emblem glowing in cyan.',
-                    bootLine: 'Bringing Station Echo online',
-                    voiceLine: 'Aurora on comms. Keep your combo alive and I will paint the safest vectors.'
-                },
-                {
-                    id: 'syndicate',
-                    type: 'villain',
-                    heading: 'VILLAIN // Gravity Syndicate',
-                    tagline: 'Interceptor Wing "Grim Comets"',
-                    description:
-                        'Fast movers lace the corridor with mines and heavy bolts. Slip their angles or your shields will shred in seconds.',
-                    image: 'assets/villain1.png',
-                    imageAlt: 'Gravity Syndicate interceptor shimmering with hostile energy.',
-                    bootLine: 'Profiling Gravity Syndicate ambush grid',
-                    voiceLine: 'The Syndicate wants that payload grounded. Keep moving or they box you in.'
-                },
-                {
-                    id: 'reclaimers',
-                    type: 'villain',
-                    heading: 'VILLAIN // Void Reclaimers',
-                    tagline: 'Siege Engines of the Null Regent',
-                    description:
-                        'Armored wreckers hurl asteroid clusters and warp recoil around themselves. Hyper Beam cuts them open—when you can charge it.',
-                    image: 'assets/villain3.png',
-                    imageAlt: 'A Void Reclaimer siege craft framed by singularity sparks.',
-                    bootLine: 'Decrypting Void Reclaimer kill-sats',
-                    voiceLine: 'Null Regent wreckers bend debris like claws. Don’t let them breathe on the evac lane.'
-                },
-                {
-                    id: 'starway',
-                    type: 'stakes',
-                    heading: 'STAKES // Fractured Starway',
-                    tagline: 'Only Route Off-World',
-                    description:
-                        'Civilian shuttles shadow your wake. Survive long enough to guide them clear and the colony lives to see sunrise.',
-                    image: 'assets/asteroid2.png',
-                    imageAlt: 'Asteroid fragments breaking around a narrow flight corridor.',
-                    bootLine: 'Plotting escape vector through fractured starway',
-                    voiceLine: 'Every second you survive keeps the convoy ahead of the collapse. Hold the line.'
-                }
-            ];
-
-            function createStorySlide(beat, { variant = 'loading' } = {}) {
-                const article = document.createElement('article');
-                const classes = ['story-slide', `story-${beat.type ?? 'beat'}`];
-                if (variant === 'intro') {
-                    classes.push('intro-slide');
-                }
-                article.className = classes.join(' ');
-                article.dataset.type = (beat.type ?? '').toUpperCase();
-
-                const figure = document.createElement('div');
-                figure.className = 'story-figure';
-                if (beat.image) {
-                    const img = document.createElement('img');
-                    img.src = beat.image;
-                    img.alt = beat.imageAlt ?? beat.heading ?? '';
-                    figure.appendChild(img);
-                }
-
-                const copy = document.createElement('div');
-                copy.className = 'story-copy';
-                const heading = document.createElement('h3');
-                heading.textContent = beat.heading;
-                copy.appendChild(heading);
-                if (beat.tagline) {
-                    const tagline = document.createElement('p');
-                    tagline.className = 'story-subtitle';
-                    tagline.textContent = beat.tagline;
-                    copy.appendChild(tagline);
-                }
-                if (beat.description) {
-                    const details = document.createElement('p');
-                    details.className = 'story-text';
-                    details.textContent = beat.description;
-                    copy.appendChild(details);
-                }
-
-                article.appendChild(figure);
-                article.appendChild(copy);
-                return article;
-            }
-
-            const storyboardSlides = [];
-            if (storyboardEl && narrativeBeats.length) {
-                for (const beat of narrativeBeats) {
-                    const slide = createStorySlide(beat);
-                    storyboardEl.appendChild(slide);
-                    storyboardSlides.push(slide);
-                }
-            }
-
-            const introSlides = [];
-            if (introPanelsEl && narrativeBeats.length) {
-                for (const beat of narrativeBeats) {
-                    const slide = createStorySlide(beat, { variant: 'intro' });
-                    introPanelsEl.appendChild(slide);
-                    introSlides.push(slide);
-                }
-            }
-
-            let storyboardActiveIndex = -1;
-            function setActiveStoryboardIndex(index) {
-                if (!storyboardSlides.length) return;
-                const normalized = Math.max(0, Math.min(index, storyboardSlides.length - 1));
-                if (storyboardActiveIndex === normalized) {
-                    return;
-                }
-                storyboardSlides.forEach((slide, slideIndex) => {
-                    slide.classList.toggle('active', slideIndex === normalized);
-                });
-                storyboardActiveIndex = normalized;
-            }
-
-            if (storyboardSlides.length) {
-                setActiveStoryboardIndex(0);
-            }
-
-            const loadingNarrativeSteps = narrativeBeats.map((beat) => beat.bootLine?.toUpperCase?.() ?? '').filter(Boolean);
-            if (!loadingNarrativeSteps.length) {
-                loadingNarrativeSteps.push(
-                    'BOOTING CYBERNETICS KERNEL',
-                    'CALIBRATING OPTIC RELAYS',
-                    'DECRYPTING NAV MATRICES'
-                );
-            }
-            loadingNarrativeSteps.push('AUTHORIZING FLIGHT SEQUENCE');
-
-            const speechSynthesisController = (() => {
-                if (typeof window === 'undefined') {
-                    return null;
-                }
-                const synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
-                const Utterance = typeof window.SpeechSynthesisUtterance === 'function' ? window.SpeechSynthesisUtterance : null;
-                if (!synth || !Utterance) {
-                    return null;
-                }
-                let activeUtterance = null;
-                return {
-                    speak(text) {
-                        if (!synth || !text) return;
-                        try {
-                            if (synth.speaking) {
-                                synth.cancel();
-                            }
-                            const utterance = new Utterance(text);
-                            utterance.rate = 1.03;
-                            utterance.pitch = 0.92;
-                            utterance.volume = 0.82;
-                            activeUtterance = utterance;
-                            synth.speak(utterance);
-                        } catch (error) {
-                            activeUtterance = null;
-                        }
-                    },
-                    cancel() {
-                        if (!synth) return;
-                        try {
-                            synth.cancel();
-                        } catch {
-                            // ignore cancellation errors
-                        }
-                        activeUtterance = null;
-                    }
-                };
-            })();
-
-            function setIntroSlide(index) {
-                if (!introSlides.length) return;
-                const normalized = Math.max(0, Math.min(index, introSlides.length - 1));
-                introSlides.forEach((slide, slideIndex) => {
-                    slide.classList.toggle('active', slideIndex === normalized);
-                });
-                const beat = narrativeBeats[normalized];
-                if (introAdvanceButton) {
-                    introAdvanceButton.textContent = normalized >= introSlides.length - 1 ? 'Launch Flight' : 'Next Brief';
-                }
-                if (speechSynthesisController && beat?.voiceLine) {
-                    speechSynthesisController.speak(beat.voiceLine);
-                }
-            }
-
-            function hideIntroSequence() {
-                if (!introSequenceEl) return;
-                introSequenceEl.classList.remove('visible');
-                introSequenceEl.setAttribute('aria-hidden', 'true');
-                if (speechSynthesisController) {
-                    speechSynthesisController.cancel();
-                }
-            }
-
-            let introSequenceResolver = null;
-            function showIntroSequence(onComplete) {
-                if (!introSequenceEl || !introSlides.length) {
-                    onComplete?.();
-                    return;
-                }
-                introSequenceResolver = onComplete ?? null;
-                introSequenceEl.classList.add('visible');
-                introSequenceEl.setAttribute('aria-hidden', 'false');
-                setIntroSlide(0);
-                if (introAdvanceButton) {
-                    try {
-                        introAdvanceButton.focus({ preventScroll: true });
-                    } catch {
-                        introAdvanceButton.focus();
-                    }
-                }
-            }
-
-            function completeIntroSequence() {
-                hideIntroSequence();
-                const resolver = introSequenceResolver;
-                introSequenceResolver = null;
-                resolver?.();
-            }
-
-            if (introAdvanceButton) {
-                introAdvanceButton.addEventListener('click', () => {
-                    if (!introSlides.length) {
-                        completeIntroSequence();
-                        return;
-                    }
-                    const activeIndex = introSlides.findIndex((slide) => slide.classList.contains('active'));
-                    if (activeIndex >= introSlides.length - 1) {
-                        completeIntroSequence();
-                        return;
-                    }
-                    setIntroSlide(activeIndex + 1);
-                });
-            }
-
-            if (introSkipButton) {
-                introSkipButton.addEventListener('click', () => {
-                    completeIntroSequence();
-                });
-            }
-
-            function updateStoryboardFromProgress(ratio) {
-                if (!storyboardSlides.length || Number.isNaN(ratio)) {
-                    return;
-                }
-                const index = Math.max(0, Math.min(storyboardSlides.length - 1, Math.floor(ratio * storyboardSlides.length)));
-                setActiveStoryboardIndex(index);
-            }
 
             const intelLoreEntries = [
                 {
@@ -2247,7 +1793,6 @@
             }
 
             let storedLoreProgressMs = 0;
-            let introSeen = false;
 
             function updateIntelLore(currentTimeMs) {
                 if (!intelLoreEntries.length) {
@@ -2616,7 +2161,6 @@
                 highScores: 'nyanEscape.highScores',
                 leaderboard: 'nyanEscape.leaderboard',
                 socialFeed: 'nyanEscape.socialFeed',
-                introSeen: 'nyanEscape.introSeen',
                 loreProgress: 'nyanEscape.loreProgress'
             };
 
@@ -2650,7 +2194,6 @@
             }
 
             if (storageAvailable) {
-                introSeen = readStorage(STORAGE_KEYS.introSeen) === '1';
                 const rawLoreProgress = readStorage(STORAGE_KEYS.loreProgress);
                 const parsedLore = rawLoreProgress != null ? Number.parseInt(rawLoreProgress, 10) : NaN;
                 if (!Number.isNaN(parsedLore) && parsedLore > 0) {
@@ -3065,7 +2608,12 @@
                     return;
                 }
 
-                const steps = loadingNarrativeSteps.length ? loadingNarrativeSteps : ['INITIALIZING SYSTEMS'];
+                const steps = [
+                    'BOOTING CYBERNETICS KERNEL',
+                    'CALIBRATING OPTIC RELAYS',
+                    'DECRYPTING NAV MATRICES',
+                    'AUTHORIZING FLIGHT SEQUENCE'
+                ];
 
                 let progress = 0;
                 let stepIndex = 0;
@@ -3080,52 +2628,30 @@
                     `;
                 };
 
+                const hideLoading = () => {
+                    loadingScreen.classList.add('hidden');
+                    setTimeout(() => {
+                        if (loadingScreen.parentElement) {
+                            loadingScreen.parentElement.removeChild(loadingScreen);
+                        }
+                    }, 520);
+                };
+
+                const finishLoading = () => {
+                    fontsReady.catch(() => undefined).then(() => {
+                        hideLoading();
+                        startGame();
+                    });
+                };
+
                 const advance = () => {
                     const increment = Math.floor(Math.random() * 11) + 4;
                     progress = Math.min(progress + increment, 100);
-                    const ratio = progress / 100;
-                    stepIndex = Math.min(maxIndex, Math.floor(ratio * steps.length));
+                    stepIndex = Math.min(maxIndex, Math.floor((progress / 100) * steps.length));
                     updateStatus();
-                    updateStoryboardFromProgress(ratio);
 
                     if (progress >= 100) {
-                        setTimeout(() => {
-                            updateStoryboardFromProgress(1);
-                            fontsReady.catch(() => undefined).then(() => {
-                                const hideLoading = () => {
-                                    loadingScreen.classList.add('hidden');
-                                    setTimeout(() => {
-                                        if (loadingScreen.parentElement) {
-                                            loadingScreen.parentElement.removeChild(loadingScreen);
-                                        }
-                                    }, 520);
-                                };
-
-                                const beginFlight = () => {
-                                    hideLoading();
-                                    startGame();
-                                };
-
-                                if (!introSeen && introSequenceEl && introSlides.length) {
-                                    hideLoading();
-                                    showIntroSequence(() => {
-                                        introSeen = true;
-                                        if (storageAvailable) {
-                                            writeStorage(STORAGE_KEYS.introSeen, '1');
-                                        }
-                                        startGame();
-                                    });
-                                } else {
-                                    if (!introSeen) {
-                                        introSeen = true;
-                                        if (storageAvailable) {
-                                            writeStorage(STORAGE_KEYS.introSeen, '1');
-                                        }
-                                    }
-                                    beginFlight();
-                                }
-                            });
-                        }, 480);
+                        setTimeout(finishLoading, 480);
                         return;
                     }
 
