@@ -2559,12 +2559,12 @@
                 });
             }
 
-            const updateCardMaxHeight = (card, content) => {
+            function updateCardMaxHeight(card, content) {
                 const viewportLimit = Math.max(window.innerHeight * 0.45, 220);
                 const naturalHeight = content.scrollHeight + 1;
                 const capped = Math.min(naturalHeight, viewportLimit, 420);
                 content.style.setProperty('--collapsible-max-height', `${Math.round(capped)}px`);
-            };
+            }
 
             const updateAllCardHeights = () => {
                 collapsibleCards.forEach(card => {
