@@ -33,6 +33,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     enableHighQualitySmoothing(ctx);
+
+    const collectibleGradientCache = new Map();
+    const powerUpGradientCache = new Map();
+
+    function getCachedRadialGradient(cache, context, innerRadius, outerRadius, colorStops) {
+        const normalize = (value) => (typeof value === 'number' ? value.toFixed(4) : String(value));
+        const key = `${normalize(innerRadius)}|${normalize(outerRadius)}|${colorStops
+            .map(([offset, color]) => `${normalize(offset)}:${color}`)
+            .join('|')}`;
+
+        let gradient = cache.get(key);
+
+        if (!gradient) {
+            gradient = context.createRadialGradient(0, 0, innerRadius, 0, 0, outerRadius);
+            for (const [offset, color] of colorStops) {
+                gradient.addColorStop(offset, color);
+            }
+            cache.set(key, gradient);
+        }
+
+        return gradient;
+    }
     const supportsPointerEvents = typeof window !== 'undefined' && 'PointerEvent' in window;
 
     const audioManager = (() => {
@@ -10107,9 +10129,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const outerGlow = glowColors.outer ?? 'rgba(255, 215, 0, 0.2)';
 
             const glowRadius = collectible.width * (0.62 + 0.08 * pulse);
-            const gradient = ctx.createRadialGradient(0, 0, glowRadius * 0.35, 0, 0, glowRadius);
-            gradient.addColorStop(0, innerGlow);
-            gradient.addColorStop(1, outerGlow);
+            const gradient = getCachedRadialGradient(
+                collectibleGradientCache,
+                ctx,
+                glowRadius * 0.35,
+                glowRadius,
+                [
+                    [0, innerGlow],
+                    [1, outerGlow]
+                ]
+            );
             ctx.fillStyle = gradient;
             ctx.beginPath();
             ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
@@ -10120,9 +10149,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.drawImage(sprite, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
             } else {
                 const fallbackRadius = collectible.width * 0.48;
-                const fallbackGradient = ctx.createRadialGradient(0, 0, 4, 0, 0, fallbackRadius);
-                fallbackGradient.addColorStop(0, innerGlow);
-                fallbackGradient.addColorStop(1, outerGlow);
+                const fallbackGradient = getCachedRadialGradient(
+                    collectibleGradientCache,
+                    ctx,
+                    4,
+                    fallbackRadius,
+                    [
+                        [0, innerGlow],
+                        [1, outerGlow]
+                    ]
+                );
                 ctx.fillStyle = fallbackGradient;
                 ctx.beginPath();
                 ctx.arc(0, 0, fallbackRadius, 0, Math.PI * 2);
@@ -10144,10 +10180,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const pulse = 0.15 * Math.sin(time * 0.006 + powerUp.wobbleTime);
             const radius = powerUp.width * (0.36 + pulse);
             const color = powerUpColors[powerUp.type] ?? { r: 220, g: 220, b: 255 };
-            const gradient = ctx.createRadialGradient(0, 0, radius * 0.25, 0, 0, radius);
-            gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.95)`);
-            gradient.addColorStop(0.65, `rgba(${color.r}, ${color.g}, ${color.b}, 0.6)`);
-            gradient.addColorStop(1, 'rgba(255,255,255,0.1)');
+            const gradient = getCachedRadialGradient(
+                powerUpGradientCache,
+                ctx,
+                radius * 0.25,
+                radius,
+                [
+                    [0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.95)`],
+                    [0.65, `rgba(${color.r}, ${color.g}, ${color.b}, 0.6)`],
+                    [1, 'rgba(255,255,255,0.1)']
+                ]
+            );
             ctx.fillStyle = gradient;
             ctx.beginPath();
             ctx.arc(0, 0, radius, 0, Math.PI * 2);
