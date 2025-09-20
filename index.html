@@ -40,7 +40,7 @@
             grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
             gap: clamp(20px, 4vw, 32px);
             align-items: start;
-            width: min(1100px, 100%);
+            width: min(1400px, 100%);
             z-index: 0;
         }
 
@@ -81,6 +81,7 @@
             justify-self: center;
             display: block;
             margin: 0 auto;
+            align-self: center;
         }
 
         #loadingStatus {
@@ -97,6 +98,7 @@
                 0 16px 42px rgba(15, 23, 42, 0.4),
                 inset 0 0 0 1px rgba(15, 23, 42, 0.18);
             min-width: min(360px, 100%);
+            margin: 0 auto;
         }
 
         #loadingStatus .loading-prefix {
@@ -839,10 +841,10 @@
             color: rgba(248, 113, 113, 0.9);
         }
 
-        @media (max-width: 1080px) {
+        @media (max-width: 1250px) {
             #gameShell {
                 grid-template-columns: 1fr;
-                width: min(920px, 100%);
+                width: min(900px, 100%);
             }
 
             #instructions {
