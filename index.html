@@ -272,7 +272,6 @@
 
         #preflightBar {
             width: min(520px, 100%);
-            margin: clamp(18px, 4vw, 32px) auto;
             padding: 0 clamp(16px, 4vw, 24px);
             display: flex;
             flex-direction: column;
@@ -281,6 +280,7 @@
             gap: clamp(12px, 3vw, 16px);
             position: relative;
             z-index: 2;
+            margin: 0 auto;
         }
 
         #gameShell {
@@ -1658,10 +1658,9 @@
             }
 
             #preflightBar {
-                position: sticky;
-                top: clamp(12px, 4vw, 18px);
+                width: 100%;
                 padding: 0 clamp(12px, 6vw, 20px);
-                margin-bottom: clamp(18px, 5vw, 28px);
+                margin: 0 auto;
             }
 
             #preflightPrompt {
@@ -1824,17 +1823,6 @@
         <div class="backgroundLayer visible" id="backgroundLayerA"></div>
         <div class="backgroundLayer" id="backgroundLayerB"></div>
     </div>
-    <div id="preflightBar">
-        <div id="preflightPrompt" role="status" aria-live="polite" hidden>
-            <span class="hud-title" aria-hidden="true">Nyan Ready</span>
-            <span class="prompt-text desktop-only">Press Start (Enter) to launch</span>
-            <button id="mobilePreflightButton" type="button" hidden aria-hidden="true">Tap Start</button>
-        </div>
-        <div id="settingsHint" aria-live="polite">
-            <span class="desktop-only">Press Esc for settings</span>
-            <span class="touch-only">Tap ⚙ for settings</span>
-        </div>
-    </div>
     <button
         id="settingsButton"
         type="button"
@@ -1854,6 +1842,17 @@
                 <div data-debug-line="ratio"></div>
             </div>
             <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
+            <div id="preflightBar">
+                <div id="preflightPrompt" role="status" aria-live="polite" hidden>
+                    <span class="hud-title" aria-hidden="true">Nyan Ready</span>
+                    <span class="prompt-text desktop-only">Press Start (Enter) to launch</span>
+                    <button id="mobilePreflightButton" type="button" hidden aria-hidden="true">Tap Start</button>
+                </div>
+                <div id="settingsHint" aria-live="polite">
+                    <span class="desktop-only">Press Esc for settings</span>
+                    <span class="touch-only">Tap ⚙ for settings</span>
+                </div>
+            </div>
         </div>
         <aside id="instructions" aria-label="Flight telemetry, controls, and mission information">
             <nav id="instructionNav" aria-label="Quick mission links">
