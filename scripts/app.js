@@ -5958,6 +5958,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return Boolean(target.closest(textEntrySelector));
     }
+
+    const canonicalizeSpaceKey = (value) => {
+        if (typeof value !== 'string') {
+            return null;
+        }
+
+        if (value === ' ' || value === '\u00A0') {
+            return 'Space';
+        }
+
+        switch (value) {
+            case 'Space':
+            case 'Spacebar':
+            case 'space':
+            case 'spacebar':
+                return 'Space';
+            default:
+                return null;
+        }
+    };
+
     const keyAliasMap = {
         ArrowUp: 'ArrowUp',
         Up: 'ArrowUp',
@@ -6001,11 +6022,19 @@ document.addEventListener('DOMContentLoaded', () => {
     ]);
     function normalizeKey(event) {
         const { code, key } = event;
+        const canonicalCode = canonicalizeSpaceKey(code);
+        if (canonicalCode) {
+            return canonicalCode;
+        }
         if (code && keyAliasMap[code]) {
             return keyAliasMap[code];
         }
         if (code) {
             return code;
+        }
+        const canonicalKey = canonicalizeSpaceKey(key);
+        if (canonicalKey) {
+            return canonicalKey;
         }
         if (key && keyAliasMap[key]) {
             return keyAliasMap[key];
