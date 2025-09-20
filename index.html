@@ -3490,6 +3490,33 @@
 
             const keys = new Set();
             const dashTapTracker = new Map();
+            const formControlSelector = 'input, textarea, select, button, [role="button"], [contenteditable="true"]';
+            const textEntrySelector = [
+                'textarea',
+                '[contenteditable="true"]',
+                'input:not([type])',
+                'input[type="text"]',
+                'input[type="search"]',
+                'input[type="email"]',
+                'input[type="password"]',
+                'input[type="tel"]',
+                'input[type="url"]',
+                'input[type="number"]'
+            ].join(',');
+
+            function isFormControlTarget(target) {
+                if (!target || typeof target.closest !== 'function') {
+                    return false;
+                }
+                return Boolean(target.closest(formControlSelector));
+            }
+
+            function isTextEntryTarget(target) {
+                if (!target || typeof target.closest !== 'function') {
+                    return false;
+                }
+                return Boolean(target.closest(textEntrySelector));
+            }
             const keyAliasMap = {
                 ArrowUp: 'ArrowUp',
                 Up: 'ArrowUp',
@@ -4748,8 +4775,14 @@
                 if (!normalizedKey) {
                     return;
                 }
-                if (preventDefaultKeys.has(normalizedKey)) {
+                const target = event.target;
+                const isFormControl = isFormControlTarget(target);
+                const isTextEntry = isTextEntryTarget(target);
+                if (preventDefaultKeys.has(normalizedKey) && !isFormControl) {
                     event.preventDefault();
+                }
+                if (isTextEntry && normalizedKey !== 'Enter') {
+                    return;
                 }
                 keys.add(normalizedKey);
                 if (!event.repeat) {
