@@ -851,6 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const overlay = document.getElementById('overlay');
     const overlayMessage = document.getElementById('overlayMessage');
+    const flyNowButton = document.getElementById('flyNowButton');
     const overlayButton = document.getElementById('overlayButton');
     const overlaySecondaryButton = document.getElementById('overlaySecondaryButton');
     const callsignForm = document.getElementById('callsignForm');
@@ -2261,6 +2262,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    refreshFlyNowButton();
+
     if (comicIntro) {
         comicIntro.hidden = !firstRunExperience;
     }
@@ -3400,6 +3403,67 @@ document.addEventListener('DOMContentLoaded', () => {
         return filtered.trim().slice(0, 24);
     }
 
+    const temporaryCallsignPrefixes = [
+        'Rookie',
+        'Nova',
+        'Echo',
+        'Photon',
+        'Lunar',
+        'Comet',
+        'Vector',
+        'Aurora',
+        'Orbit',
+        'Nebula',
+        'Zenith',
+        'Glide'
+    ];
+    const temporaryCallsignSuffixes = [
+        'Wing',
+        'Spark',
+        'Dash',
+        'Scout',
+        'Runner',
+        'Pilot',
+        'Flare',
+        'Pulse',
+        'Glider',
+        'Trail',
+        'Burst',
+        'Rider'
+    ];
+
+    function generateTemporaryCallsign() {
+        const prefix =
+            temporaryCallsignPrefixes[Math.floor(Math.random() * temporaryCallsignPrefixes.length)] || 'Rookie';
+        const suffix =
+            temporaryCallsignSuffixes[Math.floor(Math.random() * temporaryCallsignSuffixes.length)] || 'Pilot';
+        const number = Math.floor(Math.random() * 90) + 10;
+        const raw = `${prefix} ${suffix}${number}`;
+        const sanitized = sanitizePlayerName(raw);
+        return sanitized.length >= 3 ? sanitized : 'Flight Cadet';
+    }
+
+    function refreshFlyNowButton() {
+        if (!flyNowButton) {
+            return;
+        }
+        const shouldShow = firstRunExperience && !quickStartUsed;
+        flyNowButton.hidden = !shouldShow;
+        flyNowButton.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+        flyNowButton.disabled = !shouldShow;
+    }
+
+    function startTutorialFlight() {
+        if (!flyNowButton || state.gameState === 'running') {
+            return;
+        }
+        const generatedCallsign = generateTemporaryCallsign();
+        tutorialCallsign = generatedCallsign;
+        quickStartUsed = true;
+        refreshFlyNowButton();
+        startGame({ skipCommit: true, tutorial: true, tutorialCallsign: generatedCallsign });
+    }
+
     function getPendingPlayerName() {
         if (!playerNameInput) {
             return playerName;
@@ -3444,6 +3508,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingSubmission = null;
     let preflightOverlayDismissed = false;
     let preflightReady = false;
+    let tutorialFlightActive = false;
+    let tutorialCallsign = null;
+    let quickStartUsed = false;
     let activeSummaryTab = summarySections.has('run') ? 'run' : summarySections.keys().next().value ?? null;
 
     function setActiveSummaryTab(tabId, { focusTab = false } = {}) {
@@ -3629,6 +3696,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         firstRunExperience = false;
+        refreshFlyNowButton();
         if (comicIntro) {
             comicIntro.hidden = true;
         }
@@ -6596,6 +6664,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     }
 
+    const tutorialDifficultyTuning = {
+        baseSpeedScale: 0.72,
+        speedRampScale: 0.65,
+        spawnScale: {
+            obstacle: 0.5,
+            collectible: 1.12,
+            powerUp: 1.25
+        },
+        healthScale: 0.6
+    };
+
     function getDifficultyProgress() {
         if (!config.difficulty) return 1;
         return clamp(state.elapsedTime / config.difficulty.rampDuration, 0, 1);
@@ -6604,21 +6683,34 @@ document.addEventListener('DOMContentLoaded', () => {
     function getSpeedRampMultiplier() {
         if (!config.difficulty?.speedRamp) return 1;
         const eased = easeInOutQuad(getDifficultyProgress());
-        return lerp(config.difficulty.speedRamp.start, config.difficulty.speedRamp.end, eased);
+        const base = lerp(config.difficulty.speedRamp.start, config.difficulty.speedRamp.end, eased);
+        if (tutorialFlightActive) {
+            return clamp(base * tutorialDifficultyTuning.speedRampScale, 0.12, base);
+        }
+        return base;
     }
 
     function getSpawnIntensity(type) {
         const settings = config.difficulty?.spawnIntensity?.[type];
         if (!settings) return 1;
         const eased = easeInOutQuad(getDifficultyProgress());
-        return lerp(settings.start, settings.end, eased);
+        const base = lerp(settings.start, settings.end, eased);
+        if (tutorialFlightActive) {
+            const scale = tutorialDifficultyTuning.spawnScale[type] ?? 1;
+            return Math.max(0.12, base * scale);
+        }
+        return base;
     }
 
     function getHealthRampMultiplier() {
         const settings = config.difficulty?.healthRamp;
         if (!settings) return 1;
         const eased = easeInOutQuad(getDifficultyProgress());
-        return lerp(settings.start, settings.end, eased);
+        const base = lerp(settings.start, settings.end, eased);
+        if (tutorialFlightActive) {
+            return Math.max(0.25, base * tutorialDifficultyTuning.healthScale);
+        }
+        return base;
     }
 
     function setPreflightPromptVisibility(visible) {
@@ -6722,6 +6814,7 @@ document.addEventListener('DOMContentLoaded', () => {
             overlay.setAttribute('aria-hidden', 'false');
         }
         refreshHighScorePreview();
+        refreshFlyNowButton();
         window.requestAnimationFrame(() => {
             try {
                 if (playerNameInput) {
@@ -6930,13 +7023,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function startGame() {
+    async function startGame(options = {}) {
+        const { skipCommit = false, tutorial = false, tutorialCallsign: callSignOverride = null } = options;
         hidePreflightPrompt();
         preflightOverlayDismissed = false;
         preflightReady = false;
-        commitPlayerNameInput();
-        completeFirstRunExperience();
+        if (!skipCommit) {
+            commitPlayerNameInput();
+        }
+        if (tutorial) {
+            tutorialFlightActive = true;
+            if (typeof callSignOverride === 'string' && callSignOverride.length) {
+                tutorialCallsign = callSignOverride;
+            }
+        } else {
+            tutorialFlightActive = false;
+            tutorialCallsign = null;
+            completeFirstRunExperience();
+        }
         resetGame();
+        if (tutorial) {
+            state.gameSpeed = config.baseGameSpeed * tutorialDifficultyTuning.baseSpeedScale;
+        }
         pendingSubmission = null;
         invalidateRunToken();
         try {
@@ -6959,6 +7067,16 @@ document.addEventListener('DOMContentLoaded', () => {
         audioManager.unlock();
         audioManager.playGameplayMusic();
         focusGameCanvas();
+    }
+
+    if (flyNowButton) {
+        flyNowButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (flyNowButton.disabled) {
+                return;
+            }
+            startTutorialFlight();
+        });
     }
 
     overlayButton.addEventListener('click', (event) => {
@@ -9284,6 +9402,46 @@ document.addEventListener('DOMContentLoaded', () => {
         audioManager.stopHyperBeam();
         const finalTimeMs = state.elapsedTime;
         const runTimestamp = Date.now();
+        if (tutorialFlightActive) {
+            pendingSubmission = null;
+            const summaryPlayer = tutorialCallsign || playerName;
+            lastRunSummary = {
+                player: summaryPlayer,
+                timeMs: finalTimeMs,
+                score: state.score,
+                nyan: state.nyan,
+                bestStreak: state.bestStreak,
+                placement: null,
+                recordedAt: runTimestamp,
+                runsToday: 0,
+                recorded: false,
+                reason: 'tutorial'
+            };
+            tutorialFlightActive = false;
+            const label = tutorialCallsign
+                ? `Temporary callsign ${tutorialCallsign}`
+                : 'Training flight';
+            setRunSummaryStatus(
+                'Training flight complete. Confirm your callsign to prep for ranked runs.',
+                'info'
+            );
+            updateRunSummaryOverview();
+            updateSharePanel();
+            updateTimerDisplay();
+            const messageLines = [
+                `${label} completed a practice escape.`,
+                'Confirm your callsign to review the full mission briefing and launch a ranked flight.'
+            ];
+            showOverlay(messageLines.join('\n\n'), 'Confirm Callsign', {
+                title: overlayDefaultTitle,
+                enableButton: true,
+                launchMode: 'prepare',
+                showComic: true
+            });
+            tutorialCallsign = null;
+            refreshFlyNowButton();
+            return;
+        }
         const usage = getSubmissionUsage(playerName, runTimestamp);
         const limitReached = usage.count >= SUBMISSION_LIMIT;
         pendingSubmission = {
