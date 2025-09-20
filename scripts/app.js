@@ -5597,6 +5597,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return Boolean(characterSelectModal && characterSelectModal.hidden === false);
     }
 
+    function resolveCharacterSelectAction() {
+        const overlayMode = overlayButton?.dataset.launchMode;
+        if (overlayMode === 'retry') {
+            return 'retry';
+        }
+        if (overlayMode === 'launch') {
+            return 'launch';
+        }
+        return state.gameState === 'ready' ? 'launch' : 'retry';
+    }
+
     function openCharacterSelect(action) {
         if (!characterSelectModal) {
             if (action === 'retry') {
@@ -5658,7 +5669,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (swapPilotButton.disabled) {
                 return;
             }
-            openCharacterSelect('launch');
+            openCharacterSelect(resolveCharacterSelectAction());
         });
     }
     if (pilotPreviewGrid) {
@@ -5671,7 +5682,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!characterId || !characterSelectModal) {
                 return;
             }
-            openCharacterSelect('launch');
+            openCharacterSelect(resolveCharacterSelectAction());
             setPendingCharacter(characterId, { focusCard: true });
         });
     }
