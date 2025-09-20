@@ -67,6 +67,7 @@
                 url('assets/background.png') center / cover no-repeat;
             z-index: 999;
             transition: opacity 400ms ease;
+            text-align: center;
         }
 
         #loadingScreen.hidden {
@@ -78,6 +79,8 @@
             width: clamp(180px, 40vw, 420px);
             max-width: 520px;
             justify-self: center;
+            display: block;
+            margin: 0 auto;
         }
 
         #loadingStatus {
@@ -243,6 +246,7 @@
             max-height: calc(100vh - 160px);
             overflow-y: auto;
             padding-right: 4px;
+            margin-left: 10px;
         }
 
         #instructions .hud-card {
@@ -847,6 +851,7 @@
                 overflow: visible;
                 padding-right: 0;
                 margin: clamp(18px, 4vw, 28px) auto 0;
+                margin-left: 0;
             }
 
             #stats {
