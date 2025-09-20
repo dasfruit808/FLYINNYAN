@@ -20,6 +20,12 @@
             box-sizing: border-box;
         }
 
+        img,
+        canvas {
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
         body {
             margin: 0;
             background: #000;
@@ -241,9 +247,47 @@
             letter-spacing: 0.2em;
             text-transform: uppercase;
             text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(12px, 3vw, 20px);
+            flex-wrap: wrap;
+            pointer-events: auto;
         }
 
         #preflightPrompt[hidden] {
+            display: none;
+        }
+
+        #mobilePreflightButton {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 22px;
+            border-radius: 999px;
+            border: 1px solid rgba(94, 234, 212, 0.45);
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.9), rgba(20, 184, 166, 0.85));
+            color: rgba(15, 23, 42, 0.95);
+            font-size: clamp(13px, 2.6vw, 16px);
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 12px 28px rgba(45, 212, 191, 0.45);
+            transition: transform 140ms ease, box-shadow 140ms ease;
+            touch-action: manipulation;
+        }
+
+        #mobilePreflightButton:active {
+            transform: translateY(1px);
+            box-shadow: 0 8px 18px rgba(45, 212, 191, 0.4);
+        }
+
+        body.touch-enabled #mobilePreflightButton {
+            display: inline-flex;
+        }
+
+        body.touch-enabled #preflightPrompt .desktop-only {
             display: none;
         }
 
@@ -1174,7 +1218,10 @@
         <div id="playfield">
             <canvas id="gameCanvas" width="900" height="600" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
             <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
-            <div id="preflightPrompt" role="status" aria-live="polite" hidden>Press Enter to launch the run</div>
+            <div id="preflightPrompt" role="status" aria-live="polite" hidden>
+                <span class="desktop-only">Press Enter to launch the run</span>
+                <button id="mobilePreflightButton" type="button" hidden aria-hidden="true">Tap to Launch</button>
+            </div>
         </div>
         <aside id="instructions" aria-label="Flight telemetry, controls, and mission information">
             <nav id="instructionNav" aria-label="Quick mission links">
@@ -1312,7 +1359,7 @@
             <label for="playerNameInput">Pilot Callsign</label>
             <div class="input-row">
                 <input id="playerNameInput" name="playerName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Ace Pilot" aria-describedby="callsignHint">
-                <span id="callsignHint">Press Enter or tap Launch to start a run.</span>
+                <span id="callsignHint">Press Enter or click Launch to start a run.</span>
             </div>
         </form>
         <div id="overlayActions">
@@ -2068,7 +2115,9 @@
             const overlaySecondaryButton = document.getElementById('overlaySecondaryButton');
             const callsignForm = document.getElementById('callsignForm');
             const playerNameInput = document.getElementById('playerNameInput');
+            const callsignHint = document.getElementById('callsignHint');
             const preflightPrompt = document.getElementById('preflightPrompt');
+            const mobilePreflightButton = document.getElementById('mobilePreflightButton');
             const comicIntro = document.getElementById('comicIntro');
             const overlayTitle = overlay?.querySelector('h1') ?? null;
             const overlayDefaultTitle = overlayTitle?.textContent ?? '';
@@ -2088,12 +2137,67 @@
             const instructionsEl = document.getElementById('instructions');
             const instructionNavEl = document.getElementById('instructionNav');
             const instructionPanelsEl = document.getElementById('instructionPanels');
+            const bodyElement = document.body;
             const instructionLinks = instructionNavEl
                 ? Array.from(instructionNavEl.querySelectorAll('a[data-panel-target]'))
                 : [];
             const instructionPanelNodes = instructionPanelsEl
                 ? Array.from(instructionPanelsEl.children).filter((node) => node instanceof HTMLElement)
                 : [];
+            const coarsePointerQuery =
+                typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+                    ? window.matchMedia('(pointer: coarse)')
+                    : null;
+            let isTouchInterface = coarsePointerQuery?.matches ?? ('ontouchstart' in window);
+            const TOUCH_SMOOTHING_RATE = 26;
+
+            const getLaunchControlText = () => (isTouchInterface ? 'Tap to Launch' : 'Press Enter to Launch');
+            const getRetryControlText = () => (isTouchInterface ? 'Tap to Retry' : 'Press Enter to Retry');
+
+            function refreshInteractionHints() {
+                if (bodyElement) {
+                    bodyElement.classList.toggle('touch-enabled', isTouchInterface);
+                }
+                if (mobilePreflightButton) {
+                    mobilePreflightButton.hidden = !isTouchInterface;
+                    mobilePreflightButton.setAttribute('aria-hidden', isTouchInterface ? 'false' : 'true');
+                    mobilePreflightButton.textContent = isTouchInterface ? 'Tap to Launch' : 'Start Run';
+                    const promptVisible = preflightPrompt && !preflightPrompt.hidden;
+                    mobilePreflightButton.disabled = !promptVisible || !isTouchInterface;
+                }
+                if (callsignHint) {
+                    callsignHint.textContent = isTouchInterface
+                        ? 'Tap Launch to start a run.'
+                        : 'Press Enter or click Launch to start a run.';
+                }
+            }
+
+            refreshInteractionHints();
+
+            if (coarsePointerQuery) {
+                const handleCoarsePointerChange = (event) => {
+                    if (isTouchInterface !== event.matches) {
+                        isTouchInterface = event.matches;
+                        refreshInteractionHints();
+                    }
+                };
+                if (typeof coarsePointerQuery.addEventListener === 'function') {
+                    coarsePointerQuery.addEventListener('change', handleCoarsePointerChange);
+                } else if (typeof coarsePointerQuery.addListener === 'function') {
+                    coarsePointerQuery.addListener(handleCoarsePointerChange);
+                }
+            } else if (typeof window !== 'undefined') {
+                window.addEventListener(
+                    'touchstart',
+                    () => {
+                        if (!isTouchInterface) {
+                            isTouchInterface = true;
+                            refreshInteractionHints();
+                        }
+                    },
+                    { once: true, passive: true }
+                );
+            }
             const mobileInstructionQuery = window.matchMedia('(max-width: 768px)');
             let isMobileInstructionLayout = mobileInstructionQuery.matches;
 
@@ -3758,7 +3862,9 @@
             const virtualInput = {
                 moveX: 0,
                 moveY: 0,
-                firing: false
+                firing: false,
+                smoothedX: 0,
+                smoothedY: 0
             };
             const joystickState = {
                 pointerId: null,
@@ -4570,6 +4676,9 @@
                 }
                 preflightPrompt.hidden = !visible;
                 preflightPrompt.setAttribute('aria-hidden', visible ? 'false' : 'true');
+                if (mobilePreflightButton) {
+                    mobilePreflightButton.disabled = !visible || !isTouchInterface;
+                }
             }
 
             function showPreflightPrompt() {
@@ -4596,11 +4705,11 @@
                 focusGameCanvas();
             }
 
-            function showOverlay(message, buttonText = 'Press Enter to Launch', options = {}) {
+            function showOverlay(message, buttonText = getLaunchControlText(), options = {}) {
                 hidePreflightPrompt();
                 preflightOverlayDismissed = false;
                 overlayMessage.textContent = message;
-                const resolvedButtonText = buttonText || 'Press Enter to Launch';
+                const resolvedButtonText = buttonText || getLaunchControlText();
                 if (overlayButton) {
                     const enableButton = options.enableButton ?? false;
                     overlayButton.textContent = resolvedButtonText;
@@ -4706,6 +4815,8 @@
                 joystickState.touchId = null;
                 virtualInput.moveX = 0;
                 virtualInput.moveY = 0;
+                virtualInput.smoothedX = 0;
+                virtualInput.smoothedY = 0;
                 setJoystickThumbPosition('0px', '0px');
             }
 
@@ -4898,6 +5009,18 @@
                 }
             }
 
+            if (mobilePreflightButton) {
+                mobilePreflightButton.addEventListener('click', () => {
+                    if (state.gameState === 'ready') {
+                        const mode = overlayButton?.dataset.launchMode || 'launch';
+                        handleOverlayAction(mode);
+                    } else if (state.gameState === 'gameover') {
+                        const mode = overlayButton?.dataset.launchMode || (pendingSubmission ? 'submit' : 'retry');
+                        handleOverlayAction(mode);
+                    }
+                });
+            }
+
             if (canvas) {
                 canvas.addEventListener('pointerdown', () => {
                     focusGameCanvas();
@@ -4912,6 +5035,12 @@
             if (joystickZone) {
                 if (supportsPointerEvents) {
                     joystickZone.addEventListener('pointerdown', (event) => {
+                        if (typeof event.pointerType === 'string' && event.pointerType.toLowerCase() === 'touch') {
+                            if (!isTouchInterface) {
+                                isTouchInterface = true;
+                                refreshInteractionHints();
+                            }
+                        }
                         joystickState.pointerId = event.pointerId;
                         joystickState.touchId = null;
                         focusGameCanvas();
@@ -4965,6 +5094,10 @@
                         if (!touch) {
                             return;
                         }
+                        if (!isTouchInterface) {
+                            isTouchInterface = true;
+                            refreshInteractionHints();
+                        }
                         joystickState.touchId = touch.identifier;
                         joystickState.pointerId = null;
                         focusGameCanvas();
@@ -4981,6 +5114,12 @@
             if (fireButton) {
                 if (supportsPointerEvents) {
                     fireButton.addEventListener('pointerdown', (event) => {
+                        if (typeof event.pointerType === 'string' && event.pointerType.toLowerCase() === 'touch') {
+                            if (!isTouchInterface) {
+                                isTouchInterface = true;
+                                refreshInteractionHints();
+                            }
+                        }
                         focusGameCanvas();
                         event.preventDefault();
                         engageFireControl(event);
@@ -5016,6 +5155,10 @@
                         const touch = event.changedTouches.item(0);
                         if (!touch) {
                             return;
+                        }
+                        if (!isTouchInterface) {
+                            isTouchInterface = true;
+                            refreshInteractionHints();
                         }
                         focusGameCanvas();
                         event.preventDefault();
@@ -5246,8 +5389,20 @@
                 const deltaSeconds = delta / 1000;
                 const keyboardX = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
                 const keyboardY = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
-                const inputX = clamp(keyboardX + virtualInput.moveX, -1, 1);
-                const inputY = clamp(keyboardY + virtualInput.moveY, -1, 1);
+                let virtualX = virtualInput.moveX;
+                let virtualY = virtualInput.moveY;
+                if (isTouchInterface) {
+                    const smoothingFactor = clamp(deltaSeconds * TOUCH_SMOOTHING_RATE, 0, 1);
+                    virtualInput.smoothedX += (virtualInput.moveX - virtualInput.smoothedX) * smoothingFactor;
+                    virtualInput.smoothedY += (virtualInput.moveY - virtualInput.smoothedY) * smoothingFactor;
+                    virtualX = virtualInput.smoothedX;
+                    virtualY = virtualInput.smoothedY;
+                } else {
+                    virtualInput.smoothedX = virtualInput.moveX;
+                    virtualInput.smoothedY = virtualInput.moveY;
+                }
+                const inputX = clamp(keyboardX + virtualX, -1, 1);
+                const inputY = clamp(keyboardY + virtualY, -1, 1);
 
                 const accel = config.player.acceleration;
                 const drag = config.player.drag;
@@ -6939,7 +7094,7 @@
                     runsToday,
                     success: true
                 });
-                showOverlay(message, 'Press Enter to Retry', { title: '', enableButton: true, launchMode: 'retry' });
+                showOverlay(message, getRetryControlText(), { title: '', enableButton: true, launchMode: 'retry' });
             }
 
             function handleOverlayAction(mode) {
