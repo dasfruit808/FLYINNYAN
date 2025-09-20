@@ -22,7 +22,13 @@ FLYINNYAN/
 │   ├── villain1.png
 │   ├── villain2.png
 │   └── villain3.png
+├── backend/
+│   └── leaderboard-function.ts
 ├── index.html
+├── scripts/
+│   └── app.js
+├── styles/
+│   └── main.css
 └── README.md
 ```
 
