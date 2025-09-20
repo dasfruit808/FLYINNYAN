@@ -334,12 +334,15 @@
             max-height: 0;
             overflow: hidden;
             transition: max-height 220ms ease, padding 220ms ease;
+            background: linear-gradient(180deg, rgba(12, 20, 40, 0.9), rgba(6, 10, 24, 0.88));
+            border-top: 1px solid rgba(148, 210, 255, 0.16);
         }
 
         #instructions .hud-card.collapsible.open .card-content {
             padding: 14px 20px 18px;
             max-height: var(--collapsible-max-height, clamp(220px, 32vh, 420px));
             overflow-y: auto;
+            color: rgba(226, 232, 240, 0.94);
         }
 
         #instructions .hud-card.collapsible .card-content::-webkit-scrollbar {
@@ -410,7 +413,7 @@
         #instructions .mission-list li {
             position: relative;
             padding-left: 18px;
-            color: rgba(226, 232, 240, 0.82);
+            color: rgba(226, 232, 240, 0.92);
         }
 
         #instructions .mission-list li::before {
@@ -428,8 +431,9 @@
 
         #instructions .card-body {
             margin: 0;
-            color: rgba(148, 199, 255, 0.86);
-            font-size: 0.86rem;
+            color: rgba(224, 231, 255, 0.9);
+            font-size: 0.88rem;
+            line-height: 1.65;
         }
 
         #socialFeed {
@@ -445,9 +449,25 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            color: rgba(226, 232, 240, 0.9);
+            color: rgba(226, 232, 240, 0.92);
             padding-left: 12px;
             border-left: 2px solid rgba(96, 165, 250, 0.35);
+        }
+
+        #socialFeed li.type-score {
+            border-left-color: rgba(129, 230, 217, 0.55);
+        }
+
+        #socialFeed li.type-leaderboard {
+            border-left-color: rgba(249, 168, 212, 0.6);
+        }
+
+        #socialFeed li.type-limit {
+            border-left-color: rgba(248, 113, 113, 0.6);
+        }
+
+        #socialFeed li.type-combo {
+            border-left-color: rgba(165, 180, 252, 0.6);
         }
 
         #socialFeed li .timestamp {
@@ -484,7 +504,7 @@
         .intel-log li {
             position: relative;
             padding-left: 18px;
-            color: rgba(226, 232, 240, 0.86);
+            color: rgba(226, 232, 240, 0.94);
         }
 
         .intel-log li::before {
@@ -518,8 +538,8 @@
 
         .intel-log .intel-text {
             margin: 0;
-            font-size: 0.82rem;
-            line-height: 1.6;
+            font-size: 0.84rem;
+            line-height: 1.7;
         }
 
         #touchControls {
@@ -602,19 +622,18 @@
         }
 
         #overlay {
-            position: absolute;
+            position: fixed;
             inset: 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            backdrop-filter: blur(6px);
-            background: rgba(9, 11, 31, 0.6);
+            background: linear-gradient(rgba(5, 8, 25, 0.92), rgba(1, 3, 12, 0.94));
             text-align: center;
-            padding: 24px;
-            gap: 18px;
+            padding: clamp(32px, 6vw, 64px);
+            gap: clamp(18px, 4vw, 32px);
             transition: opacity 200ms ease;
-            z-index: 2;
+            z-index: 4;
         }
 
         #overlay.hidden {
@@ -623,50 +642,153 @@
         }
 
         #overlay h1 {
-            font-size: 2.2rem;
+            font-size: clamp(2.6rem, 7vw, 4.6rem);
             margin: 0;
-            letter-spacing: 4px;
-            color: #ff8ad4;
-            text-shadow: 0 0 12px rgba(255, 138, 212, 0.6);
+            letter-spacing: clamp(0.35rem, 1.4vw, 0.85rem);
+            color: #f9a8d4;
+            text-shadow: 0 0 18px rgba(249, 168, 212, 0.55);
         }
 
         #overlay h1:empty {
             display: none;
         }
 
+        #comicIntro {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: clamp(16px, 3vw, 28px);
+            width: min(880px, 100%);
+            margin: 0;
+        }
+
+        #comicIntro[hidden] {
+            display: none;
+        }
+
+        .comic-panel {
+            flex: 1 1 clamp(220px, 28%, 280px);
+            min-height: 180px;
+            border-radius: 18px;
+            padding: clamp(16px, 2vw, 22px);
+            position: relative;
+            overflow: hidden;
+            box-shadow:
+                0 18px 36px rgba(5, 8, 25, 0.6),
+                inset 0 0 0 1px rgba(148, 210, 255, 0.22);
+            background:
+                linear-gradient(135deg, rgba(56, 189, 248, 0.85), rgba(99, 102, 241, 0.72));
+            color: #0b1220;
+            text-align: left;
+        }
+
+        .comic-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at top left, rgba(226, 232, 240, 0.35), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(14, 116, 144, 0.4), transparent 60%);
+            mix-blend-mode: screen;
+            pointer-events: none;
+        }
+
+        .comic-panel h3 {
+            font-size: 0.95rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            margin: 0 0 12px;
+        }
+
+        .comic-panel p {
+            margin: 0;
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
+
+        #callsignForm {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            width: min(420px, 100%);
+        }
+
+        #callsignForm label {
+            font-size: 0.82rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(148, 210, 255, 0.82);
+        }
+
+        #callsignForm .input-row {
+            position: relative;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        #playerNameInput {
+            width: 100%;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 210, 255, 0.35);
+            background: rgba(8, 16, 32, 0.86);
+            color: rgba(226, 232, 240, 0.95);
+            padding: 12px 16px;
+            font: inherit;
+            letter-spacing: 0.04em;
+            box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.15);
+        }
+
+        #playerNameInput:focus-visible {
+            outline: 2px solid rgba(148, 210, 255, 0.75);
+            outline-offset: 3px;
+        }
+
+        #callsignHint {
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(148, 210, 255, 0.6);
+        }
+
         #overlay p {
             margin: 0;
-            font-size: 1rem;
-            max-width: 360px;
-            color: rgba(255, 255, 255, 0.82);
+            font-size: 1.02rem;
+            max-width: min(560px, 90vw);
+            color: rgba(224, 231, 255, 0.88);
             white-space: pre-line;
         }
 
         #overlay button {
-            background: linear-gradient(90deg, #ff6bd6, #ff4081);
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.92), rgba(99, 102, 241, 0.92));
             border: none;
             border-radius: 999px;
-            padding: 12px 32px;
+            padding: 14px 32px;
             color: #fff;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
             cursor: pointer;
-            box-shadow: 0 12px 30px rgba(255, 105, 180, 0.45);
-            transition: transform 150ms ease, box-shadow 150ms ease;
+            box-shadow: 0 18px 36px rgba(37, 99, 235, 0.45);
+            transition: transform 160ms ease, box-shadow 160ms ease;
         }
 
         #overlay button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 15px 36px rgba(255, 105, 180, 0.6);
+            box-shadow: 0 22px 46px rgba(37, 99, 235, 0.52);
         }
 
         #overlay button:active {
-            transform: translateY(0);
+            transform: translateY(1px);
+            box-shadow: 0 14px 28px rgba(37, 99, 235, 0.48);
         }
 
         #overlay button[disabled] {
-            cursor: not-allowed;
-            opacity: 0.6;
+            cursor: default;
+            opacity: 0.65;
             box-shadow: none;
         }
 
@@ -1014,8 +1136,29 @@
     </div>
     <div id="overlay">
         <h1>NYAN ESCAPE</h1>
+        <div id="comicIntro" class="comic-panels" hidden>
+            <article class="comic-panel">
+                <h3>Inciting Incident</h3>
+                <p>Space Station Meowprise is under siege by neon asteroids. Only your star-kitted reflexes can cut a path to safety.</p>
+            </article>
+            <article class="comic-panel">
+                <h3>Assemble the Crew</h3>
+                <p>Power cores, Nova Pulses, and the Radiant Shield await. Stack boosts, chain streaks, and bend the odds in your favor.</p>
+            </article>
+            <article class="comic-panel">
+                <h3>Broadcast the Escape</h3>
+                <p>Every logged flight inspires the squadron. Chronicle your best three runs each cycle and rally the galaxy.</p>
+            </article>
+        </div>
         <p id="overlayMessage">Thread the cosmic needle, gather Points, and charge Nova Pulses to vaporize space junk. Ready to glide?</p>
-        <button id="overlayButton">Start Flight</button>
+        <form id="callsignForm" autocomplete="off" novalidate>
+            <label for="playerNameInput">Pilot Callsign</label>
+            <div class="input-row">
+                <input id="playerNameInput" name="playerName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Ace Pilot" aria-describedby="callsignHint">
+                <span id="callsignHint">Press Enter to launch a run.</span>
+            </div>
+        </form>
+        <button id="overlayButton" type="button" disabled aria-disabled="true">Press Enter to Launch</button>
         <div id="overlayPanels">
             <div id="highScorePanel">
                 <div id="highScoreTitle">Top Flight Times</div>
@@ -1746,6 +1889,9 @@
             const overlay = document.getElementById('overlay');
             const overlayMessage = document.getElementById('overlayMessage');
             const overlayButton = document.getElementById('overlayButton');
+            const callsignForm = document.getElementById('callsignForm');
+            const playerNameInput = document.getElementById('playerNameInput');
+            const comicIntro = document.getElementById('comicIntro');
             const overlayTitle = overlay?.querySelector('h1') ?? null;
             const overlayDefaultTitle = overlayTitle?.textContent ?? '';
             const loadingScreen = document.getElementById('loadingScreen');
@@ -2220,7 +2366,8 @@
                 highScores: 'nyanEscape.highScores',
                 leaderboard: 'nyanEscape.leaderboard',
                 socialFeed: 'nyanEscape.socialFeed',
-                loreProgress: 'nyanEscape.loreProgress'
+                loreProgress: 'nyanEscape.loreProgress',
+                firstRunComplete: 'nyanEscape.firstRunComplete'
             };
 
             let storageAvailable = false;
@@ -2232,6 +2379,8 @@
             } catch (error) {
                 storageAvailable = false;
             }
+
+            let firstRunExperience = true;
 
             function readStorage(key) {
                 if (!storageAvailable) return null;
@@ -2253,12 +2402,18 @@
             }
 
             if (storageAvailable) {
+                const storedFirstRun = readStorage(STORAGE_KEYS.firstRunComplete);
+                firstRunExperience = storedFirstRun !== 'true';
                 const rawLoreProgress = readStorage(STORAGE_KEYS.loreProgress);
                 const parsedLore = rawLoreProgress != null ? Number.parseInt(rawLoreProgress, 10) : NaN;
                 if (!Number.isNaN(parsedLore) && parsedLore > 0) {
                     storedLoreProgressMs = parsedLore;
                     updateIntelLore(storedLoreProgressMs);
                 }
+            }
+
+            if (comicIntro) {
+                comicIntro.hidden = !firstRunExperience;
             }
 
             function loadHighScores() {
@@ -2309,25 +2464,103 @@
                 writeStorage(STORAGE_KEYS.socialFeed, JSON.stringify(entries));
             }
 
-            function requestPlayerName() {
-                const defaultName = 'Ace Pilot';
-                const storedName = readStorage(STORAGE_KEYS.playerName);
-                if (storedName) {
-                    return storedName;
+            const DEFAULT_PLAYER_NAME = 'Ace Pilot';
+
+            function sanitizePlayerName(value) {
+                if (typeof value !== 'string') {
+                    return '';
                 }
-                const canPrompt = typeof prompt === 'function';
-                const prompted = canPrompt ? prompt('Choose your pilot callsign to track high scores:', defaultName) : null;
-                const name = (prompted ?? '').trim() || defaultName;
-                writeStorage(STORAGE_KEYS.playerName, name);
-                return name;
+                const condensed = value.replace(/\s+/g, ' ');
+                const filtered = condensed.replace(/[^A-Za-z0-9 _\-]/g, '');
+                return filtered.trim().slice(0, 24);
+            }
+
+            function loadStoredPlayerName() {
+                const storedName = readStorage(STORAGE_KEYS.playerName);
+                const sanitized = sanitizePlayerName(storedName);
+                if (sanitized) {
+                    return sanitized;
+                }
+                return DEFAULT_PLAYER_NAME;
             }
 
             let highScoreData = loadHighScores();
-            let playerName = requestPlayerName();
+            let playerName = loadStoredPlayerName();
+            if (!highScoreData[playerName]) {
+                highScoreData[playerName] = [];
+            }
+            writeStorage(STORAGE_KEYS.playerName, playerName);
             let leaderboardEntries = loadLeaderboard();
             let socialFeedData = loadSocialFeed();
             const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
             let lastRunSummary = null;
+
+            function updatePlayerName(nextName) {
+                const sanitized = sanitizePlayerName(nextName) || DEFAULT_PLAYER_NAME;
+                if (sanitized === playerName) {
+                    if (playerNameInput && playerNameInput.value !== sanitized) {
+                        playerNameInput.value = sanitized;
+                    }
+                    return playerName;
+                }
+                playerName = sanitized;
+                if (!highScoreData[playerName]) {
+                    highScoreData[playerName] = [];
+                }
+                persistHighScores(highScoreData);
+                writeStorage(STORAGE_KEYS.playerName, playerName);
+                if (playerNameInput && playerNameInput.value !== sanitized) {
+                    playerNameInput.value = sanitized;
+                }
+                updateHighScorePanel();
+                if (lastRunSummary) {
+                    lastRunSummary.player = playerName;
+                    updateSharePanel();
+                }
+                return playerName;
+            }
+
+            function commitPlayerNameInput() {
+                if (!playerNameInput) {
+                    return updatePlayerName(playerName);
+                }
+                const sanitized = sanitizePlayerName(playerNameInput.value);
+                const finalName = sanitized || DEFAULT_PLAYER_NAME;
+                if (playerNameInput.value !== finalName) {
+                    playerNameInput.value = finalName;
+                }
+                return updatePlayerName(finalName);
+            }
+
+            if (playerNameInput) {
+                playerNameInput.value = playerName;
+                playerNameInput.addEventListener('blur', () => {
+                    commitPlayerNameInput();
+                });
+                playerNameInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        commitPlayerNameInput();
+                    }
+                });
+            }
+
+            if (callsignForm) {
+                callsignForm.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    commitPlayerNameInput();
+                });
+            }
+
+            function completeFirstRunExperience() {
+                if (!firstRunExperience) {
+                    return;
+                }
+                firstRunExperience = false;
+                if (comicIntro) {
+                    comicIntro.hidden = true;
+                }
+                writeStorage(STORAGE_KEYS.firstRunComplete, 'true');
+            }
 
             function formatTime(milliseconds) {
                 const totalSeconds = Math.floor(milliseconds / 1000);
@@ -2361,7 +2594,9 @@
             }
 
             function recordHighScore(durationMs, score, metadata = {}) {
-                if (!playerName || durationMs <= 0) return null;
+                if (!playerName || durationMs <= 0) {
+                    return { accepted: false, placement: null, runsToday: 0, reason: 'invalid' };
+                }
                 const entry = {
                     timeMs: durationMs,
                     score,
@@ -2370,6 +2605,11 @@
                     nyan: metadata.nyan ?? 0
                 };
                 const userScores = highScoreData[playerName] ? [...highScoreData[playerName]] : [];
+                const dayWindowMs = 24 * 60 * 60 * 1000;
+                const recentRuns = userScores.filter((existing) => entry.recordedAt - existing.recordedAt < dayWindowMs);
+                if (recentRuns.length >= 3) {
+                    return { accepted: false, placement: null, runsToday: recentRuns.length, reason: 'limit' };
+                }
                 userScores.push(entry);
                 userScores.sort((a, b) => {
                     if (b.timeMs !== a.timeMs) return b.timeMs - a.timeMs;
@@ -2386,7 +2626,7 @@
                     nyan: entry.nyan,
                     recordedAt: entry.recordedAt
                 });
-                return placement;
+                return { accepted: true, placement, runsToday: recentRuns.length + 1, reason: null };
             }
 
             function updateHighScorePanel() {
@@ -2481,6 +2721,10 @@
                 const visibleEntries = socialFeedData.slice(0, 8);
                 for (const entry of visibleEntries) {
                     const item = document.createElement('li');
+                    const entryType = entry.type === 'run' ? 'score' : entry.type;
+                    if (entryType) {
+                        item.classList.add(`type-${entryType}`);
+                    }
                     const textSpan = document.createElement('span');
                     textSpan.textContent = entry.message;
                     const timeSpan = document.createElement('span');
@@ -2495,7 +2739,7 @@
                 }
             }
 
-            function addSocialMoment(message, { type = 'run', timestamp = Date.now() } = {}) {
+            function addSocialMoment(message, { type = 'score', timestamp = Date.now() } = {}) {
                 if (!message) return;
                 socialFeedData.unshift({ message, type, timestamp });
                 const limit = 12;
@@ -2509,10 +2753,11 @@
                 const formattedTime = formatTime(summary.timeMs);
                 const streakText = summary.bestStreak ? ` x${summary.bestStreak}` : '';
                 const core = `${summary.player} survived ${formattedTime} for ${summary.score.toLocaleString()} pts${streakText} in Nyan Escape.`;
+                const quotaText = summary.recorded !== false && summary.runsToday ? ` Run ${summary.runsToday}/3 logged today.` : '';
                 const pickups = summary.nyan ? ` Pickups: ${summary.nyan.toLocaleString()} energy.` : '';
                 const placementText = summary.placement ? ` Ranked #${summary.placement} on the local galaxy board.` : '';
                 const locationUrl = typeof window !== 'undefined' && window.location ? ` Play: ${window.location.href}` : '';
-                return `${core}${pickups}${placementText}${locationUrl}`.trim();
+                return `${core}${quotaText}${pickups}${placementText}${locationUrl}`.trim();
             }
 
             function showShareStatus(message, type = 'info') {
@@ -2536,6 +2781,8 @@
                 }
                 if (!lastRunSummary) {
                     showShareStatus('Complete a run to generate a broadcast log.');
+                } else if (lastRunSummary.recorded === false && lastRunSummary.reason === 'limit') {
+                    showShareStatus('Daily log limit reached. Share this flight manually to hype the squadron.');
                 } else {
                     showShareStatus('Flight log ready. Share to X or copy it for later.');
                 }
@@ -2624,23 +2871,15 @@
 
             if (highScoreTitleEl && typeof highScoreTitleEl.addEventListener === 'function') {
                 highScoreTitleEl.addEventListener('click', () => {
-                    if (typeof prompt !== 'function') return;
-                    const nextName = prompt('Update your pilot callsign:', playerName);
-                    const trimmed = (nextName ?? '').trim();
-                    if (!trimmed || trimmed === playerName) {
+                    if (!playerNameInput) {
                         return;
                     }
-                    playerName = trimmed;
-                    writeStorage(STORAGE_KEYS.playerName, playerName);
-                    if (!highScoreData[playerName]) {
-                        highScoreData[playerName] = [];
+                    try {
+                        playerNameInput.focus({ preventScroll: true });
+                    } catch {
+                        playerNameInput.focus();
                     }
-                    persistHighScores(highScoreData);
-                    updateHighScorePanel();
-                    if (lastRunSummary) {
-                        lastRunSummary.player = playerName;
-                        updateSharePanel();
-                    }
+                    playerNameInput.select?.();
                 });
             }
 
@@ -3874,27 +4113,39 @@
                 return lerp(settings.start, settings.end, eased);
             }
 
-            function showOverlay(message, buttonText, options = {}) {
+            function showOverlay(message, buttonText = 'Press Enter to Launch', options = {}) {
                 overlayMessage.textContent = message;
-                overlayButton.textContent = buttonText;
+                const resolvedButtonText = buttonText || 'Press Enter to Launch';
+                if (overlayButton) {
+                    overlayButton.textContent = resolvedButtonText;
+                    overlayButton.setAttribute('aria-disabled', 'true');
+                    overlayButton.disabled = true;
+                }
                 if (overlayTitle) {
                     const titleText = options.title ?? overlayDefaultTitle;
                     overlayTitle.textContent = titleText;
+                }
+                const shouldShowComic = options.showComic ?? firstRunExperience;
+                if (comicIntro) {
+                    comicIntro.hidden = !shouldShowComic;
                 }
                 resetVirtualControls();
                 if (overlay) {
                     overlay.classList.remove('hidden');
                     overlay.setAttribute('aria-hidden', 'false');
                 }
-                if (overlayButton) {
-                    window.requestAnimationFrame(() => {
-                        try {
+                window.requestAnimationFrame(() => {
+                    try {
+                        if (playerNameInput) {
+                            playerNameInput.focus({ preventScroll: true });
+                            playerNameInput.select?.();
+                        } else if (overlayButton) {
                             overlayButton.focus({ preventScroll: true });
-                        } catch {
-                            // Ignore focus errors (e.g., if element is detached)
                         }
-                    });
-                }
+                    } catch {
+                        // Ignore focus errors (e.g., if element is detached)
+                    }
+                });
             }
 
             function hideOverlay() {
@@ -3907,6 +4158,9 @@
                     if (activeElement === overlayButton) {
                         overlayButton.blur();
                     }
+                }
+                if (playerNameInput && document.activeElement === playerNameInput) {
+                    playerNameInput.blur();
                 }
             }
 
@@ -4055,6 +4309,8 @@
             }
 
             function startGame() {
+                commitPlayerNameInput();
+                completeFirstRunExperience();
                 resetGame();
                 state.gameState = 'running';
                 lastTime = null;
@@ -4065,17 +4321,20 @@
                 focusGameCanvas();
             }
 
-            overlayButton.addEventListener('click', () => {
-                if (state.gameState === 'ready' || state.gameState === 'gameover') {
-                    startGame();
+            overlayButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                if (playerNameInput) {
+                    playerNameInput.focus({ preventScroll: true });
+                    playerNameInput.select?.();
                 }
             });
 
             if (!supportsPointerEvents && overlayButton) {
                 overlayButton.addEventListener('touchstart', (event) => {
-                    if (state.gameState === 'ready' || state.gameState === 'gameover') {
-                        event.preventDefault();
-                        startGame();
+                    event.preventDefault();
+                    if (playerNameInput) {
+                        playerNameInput.focus({ preventScroll: true });
+                        playerNameInput.select?.();
                     }
                 }, { passive: false });
             }
@@ -4232,6 +4491,7 @@
                     }
                 }
                 if (normalizedKey === 'Enter' && (state.gameState === 'ready' || state.gameState === 'gameover')) {
+                    commitPlayerNameInput();
                     startGame();
                 }
             });
@@ -5739,7 +5999,7 @@
                 audioManager.stopHyperBeam();
                 const finalTimeMs = state.elapsedTime;
                 const runTimestamp = Date.now();
-                const placement = recordHighScore(finalTimeMs, state.score, {
+                const recordResult = recordHighScore(finalTimeMs, state.score, {
                     bestStreak: state.bestStreak,
                     nyan: state.nyan,
                     recordedAt: runTimestamp
@@ -5747,6 +6007,10 @@
                 updateHighScorePanel();
                 updateTimerDisplay();
                 const formattedTime = formatTime(finalTimeMs);
+                const placement = recordResult?.placement ?? null;
+                const recorded = Boolean(recordResult?.accepted);
+                const runsToday = recordResult?.runsToday ?? 0;
+                const recordReason = recordResult?.reason ?? null;
                 lastRunSummary = {
                     player: playerName,
                     timeMs: finalTimeMs,
@@ -5754,24 +6018,47 @@
                     nyan: state.nyan,
                     bestStreak: state.bestStreak,
                     placement,
-                    recordedAt: runTimestamp
+                    recordedAt: runTimestamp,
+                    runsToday,
+                    recorded,
+                    reason: recordReason
                 };
                 updateSharePanel();
                 const placementLine = placement ? `\nGalaxy Standings: #${placement}` : '';
-                if (placement && placement <= 7) {
-                    addSocialMoment(`${playerName} entered the galaxy standings at #${placement}!`, {
-                        type: 'leaderboard',
+                let quotaLine = '';
+                if (runsToday && (recorded || recordReason === 'limit')) {
+                    const used = Math.min(runsToday, 3);
+                    quotaLine = `\nDaily Log: ${used}/3 submissions used.`;
+                }
+                let limitLine = '';
+                if (recorded) {
+                    const runDescriptor = runsToday ? ` (${runsToday}/3 today)` : '';
+                    if (placement && placement <= 7) {
+                        addSocialMoment(`${playerName} entered the galaxy standings at #${placement}!${runDescriptor}`, {
+                            type: 'leaderboard',
+                            timestamp: runTimestamp
+                        });
+                    } else {
+                        addSocialMoment(`${playerName} logged ${formattedTime} for ${state.score.toLocaleString()} pts${runDescriptor}.`, {
+                            type: 'score',
+                            timestamp: runTimestamp
+                        });
+                    }
+                } else if (recordReason === 'limit') {
+                    limitLine = '\nDaily flight log limit reached. Try again after the cooldown.';
+                    addSocialMoment(`${playerName} maxed out their daily flight logs for now.`, {
+                        type: 'limit',
                         timestamp: runTimestamp
                     });
                 } else {
                     addSocialMoment(`${playerName} survived ${formattedTime} for ${state.score.toLocaleString()} pts.`, {
-                        type: 'run',
+                        type: 'score',
                         timestamp: runTimestamp
                     });
                 }
                 showOverlay(
-                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — Points collected: ${state.nyan.toLocaleString()}${placementLine}`,
-                    'Run It Back',
+                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — Points collected: ${state.nyan.toLocaleString()}${placementLine}${quotaLine}${limitLine}`,
+                    'Press Enter to Retry',
                     { title: '' }
                 );
             }
