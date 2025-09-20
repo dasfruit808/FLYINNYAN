@@ -796,6 +796,10 @@
             border-left-color: rgba(165, 180, 252, 0.6);
         }
 
+        #socialFeed li.type-challenge {
+            border-left-color: rgba(56, 189, 248, 0.65);
+        }
+
         #socialFeed li .timestamp {
             font-size: 0.7rem;
             letter-spacing: 0.12em;
@@ -812,6 +816,199 @@
 
         #intelCard .card-body {
             transition: opacity 220ms ease;
+        }
+
+        .challenge-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .challenge-section h3,
+        .cosmetic-section h3 {
+            margin: 0;
+            font-size: 0.78rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(148, 210, 255, 0.82);
+        }
+
+        .challenge-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .challenge-item {
+            background: rgba(30, 41, 59, 0.55);
+            border: 1px solid rgba(94, 234, 212, 0.08);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.35);
+        }
+
+        .challenge-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+        }
+
+        .challenge-title {
+            margin: 0;
+            font-size: 0.95rem;
+            color: rgba(226, 232, 240, 0.95);
+        }
+
+        .challenge-reset {
+            font-size: 0.68rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.7);
+        }
+
+        .challenge-description {
+            margin: 0;
+            color: rgba(226, 232, 240, 0.82);
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .challenge-progress {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .challenge-progress-track {
+            height: 8px;
+            width: 100%;
+            background: rgba(15, 23, 42, 0.65);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .challenge-progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(99, 102, 241, 0.9));
+            border-radius: inherit;
+            width: 0;
+            transition: width 180ms ease;
+        }
+
+        .challenge-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.74rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.82);
+        }
+
+        .challenge-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.76rem;
+            color: rgba(148, 210, 255, 0.8);
+        }
+
+        .challenge-status {
+            color: rgba(226, 232, 240, 0.92);
+        }
+
+        .challenge-claim {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: none;
+            font-size: 0.72rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.85), rgba(129, 140, 248, 0.85));
+            color: rgba(15, 23, 42, 0.92);
+            cursor: pointer;
+            transition: transform 140ms ease, box-shadow 140ms ease;
+        }
+
+        .challenge-claim:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 18px rgba(37, 99, 235, 0.35);
+        }
+
+        .challenge-claim:disabled {
+            opacity: 0.5;
+            cursor: default;
+            box-shadow: none;
+        }
+
+        .cosmetic-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .cosmetic-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .cosmetic-group-label {
+            font-size: 0.72rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.78);
+        }
+
+        .cosmetic-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .cosmetic-option {
+            border: 1px solid rgba(148, 210, 255, 0.18);
+            background: rgba(15, 23, 42, 0.45);
+            color: rgba(226, 232, 240, 0.9);
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+        }
+
+        .cosmetic-option:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 18px rgba(15, 23, 42, 0.45);
+        }
+
+        .cosmetic-option.equipped {
+            border-color: rgba(56, 189, 248, 0.75);
+            box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.45), 0 12px 24px rgba(37, 99, 235, 0.25);
+        }
+
+        .cosmetic-option:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
+        .cosmetic-option.locked {
+            border-style: dashed;
         }
 
         .intel-log {
@@ -1654,6 +1851,21 @@
                 <section class="hud-card" id="intelCard" aria-labelledby="intelCardTitle">
                     <h2 class="card-title" id="intelCardTitle">Tactical Intel</h2>
                     <div class="card-body">
+                        <div class="challenge-section" aria-live="polite">
+                            <h3>Active Challenges</h3>
+                            <ul class="challenge-list" id="challengeList" role="list"></ul>
+                        </div>
+                        <div class="cosmetic-section" aria-live="polite">
+                            <h3>Cosmetic Loadout</h3>
+                            <div class="cosmetic-group" role="group" aria-label="Ship skins">
+                                <span class="cosmetic-group-label">Ship</span>
+                                <div class="cosmetic-options" id="skinOptions"></div>
+                            </div>
+                            <div class="cosmetic-group" role="group" aria-label="Trail styles">
+                                <span class="cosmetic-group-label">Trail</span>
+                                <div class="cosmetic-options" id="trailOptions"></div>
+                            </div>
+                        </div>
                         <ul class="intel-log" id="intelLog" role="list" aria-live="polite"></ul>
                     </div>
                 </section>
@@ -2505,6 +2717,10 @@
                 typeof window !== 'undefined' && window.NYAN_GAMEPLAY_OVERRIDES && typeof window.NYAN_GAMEPLAY_OVERRIDES === 'object'
                     ? window.NYAN_GAMEPLAY_OVERRIDES
                     : null;
+            const cosmeticOverrides =
+                assetOverrides.cosmetics && typeof assetOverrides.cosmetics === 'object'
+                    ? assetOverrides.cosmetics
+                    : {};
 
             const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
 
@@ -2650,6 +2866,9 @@
             const shareStatusEl = document.getElementById('shareStatus');
             const socialFeedEl = document.getElementById('socialFeed');
             const intelLogEl = document.getElementById('intelLog');
+            const challengeListEl = document.getElementById('challengeList');
+            const skinOptionsEl = document.getElementById('skinOptions');
+            const trailOptionsEl = document.getElementById('trailOptions');
             const instructionsEl = document.getElementById('instructions');
             const instructionNavEl = document.getElementById('instructionNav');
             const instructionPanelsEl = document.getElementById('instructionPanels');
@@ -3455,6 +3674,72 @@
                 });
             }
 
+            function createPlayerVariantDataUrl(variant) {
+                const width = 160;
+                const height = 120;
+                const palettes = {
+                    default: {
+                        baseStart: '#38bdf8',
+                        baseEnd: '#6366f1',
+                        accent: '#fdf4ff',
+                        visor: 'rgba(15, 23, 42, 0.65)',
+                        glow: 'rgba(125, 211, 252, 0.35)'
+                    },
+                    midnight: {
+                        baseStart: '#0f172a',
+                        baseEnd: '#4338ca',
+                        accent: '#c7d2fe',
+                        visor: 'rgba(12, 19, 38, 0.75)',
+                        glow: 'rgba(147, 197, 253, 0.28)'
+                    },
+                    sunrise: {
+                        baseStart: '#fb7185',
+                        baseEnd: '#f97316',
+                        accent: '#fff7ed',
+                        visor: 'rgba(88, 28, 28, 0.6)',
+                        glow: 'rgba(252, 211, 77, 0.3)'
+                    }
+                };
+                const palette = palettes[variant] ?? palettes.default;
+                return createCanvasTexture(width, height, (context) => {
+                    const gradient = context.createLinearGradient(0, 0, width, height);
+                    gradient.addColorStop(0, palette.baseStart);
+                    gradient.addColorStop(1, palette.baseEnd);
+                    context.fillStyle = gradient;
+                    context.fillRect(0, 0, width, height);
+
+                    context.fillStyle = palette.visor;
+                    context.beginPath();
+                    context.moveTo(width * 0.22, height * 0.78);
+                    context.lineTo(width * 0.5, height * 0.18);
+                    context.lineTo(width * 0.78, height * 0.78);
+                    context.closePath();
+                    context.fill();
+
+                    if (palette.glow) {
+                        const glowGradient = context.createRadialGradient(
+                            width * 0.5,
+                            height * 0.52,
+                            height * 0.12,
+                            width * 0.5,
+                            height * 0.52,
+                            height * 0.4
+                        );
+                        glowGradient.addColorStop(0, palette.glow);
+                        glowGradient.addColorStop(1, 'rgba(15, 23, 42, 0)');
+                        context.fillStyle = glowGradient;
+                        context.beginPath();
+                        context.ellipse(width * 0.5, height * 0.58, width * 0.32, height * 0.26, 0, 0, Math.PI * 2);
+                        context.fill();
+                    }
+
+                    context.fillStyle = palette.accent;
+                    context.beginPath();
+                    context.ellipse(width * 0.5, height * 0.58, width * 0.28, height * 0.2, 0, 0, Math.PI * 2);
+                    context.fill();
+                });
+            }
+
             const villainFallbackPalette = ['#f472b6', '#34d399', '#fde68a'];
             function createVillainFallbackDataUrl(index = 0) {
                 const size = 128;
@@ -3502,7 +3787,8 @@
                 submissionLog: 'nyanEscape.submissionLog',
                 loreProgress: 'nyanEscape.loreProgress',
                 firstRunComplete: 'nyanEscape.firstRunComplete',
-                settings: 'nyanEscape.settings'
+                settings: 'nyanEscape.settings',
+                challenges: 'nyanEscape.challenges'
             };
 
             let storageAvailable = false;
@@ -3707,6 +3993,701 @@
                     reducedEffects: settingsState.reducedEffects
                 };
                 writeStorage(STORAGE_KEYS.settings, JSON.stringify(payload));
+            }
+
+            const CHALLENGE_STATE_VERSION = 1;
+
+            function createDefaultCosmeticsState() {
+                return {
+                    ownedSkins: ['default'],
+                    ownedTrails: ['rainbow'],
+                    equipped: { skin: 'default', trail: 'rainbow' }
+                };
+            }
+
+            function createDefaultChallengeState() {
+                return {
+                    version: CHALLENGE_STATE_VERSION,
+                    slots: {},
+                    history: [],
+                    cosmetics: createDefaultCosmeticsState()
+                };
+            }
+
+            function sanitizeChallengeGoal(goal) {
+                if (!goal || typeof goal !== 'object') {
+                    return { metric: 'score', target: 0, mode: 'sum' };
+                }
+                const metric = typeof goal.metric === 'string' ? goal.metric : 'score';
+                const rawTarget = Number(goal.target);
+                const target = Number.isFinite(rawTarget) && rawTarget > 0 ? rawTarget : 0;
+                let mode = goal.mode === 'max' ? 'max' : 'sum';
+                if (metric === 'time' || metric === 'score') {
+                    mode = 'max';
+                }
+                const normalized = { metric, target, mode };
+                if (goal.filter && typeof goal.filter === 'object') {
+                    normalized.filter = { ...goal.filter };
+                }
+                return normalized;
+            }
+
+            function sanitizeChallengeSlot(slotKey, entry) {
+                if (!entry || typeof entry !== 'object') {
+                    return null;
+                }
+                const challengeId = typeof entry.challengeId === 'string' ? entry.challengeId : null;
+                const rotation = typeof entry.rotation === 'string' ? entry.rotation : null;
+                if (!challengeId || !rotation) {
+                    return null;
+                }
+                const goal = sanitizeChallengeGoal(entry.goal);
+                const progressValue = Number.isFinite(entry.progressValue) ? entry.progressValue : 0;
+                return {
+                    slot: slotKey,
+                    challengeId,
+                    rotation,
+                    goal,
+                    progressValue,
+                    completedAt: typeof entry.completedAt === 'number' ? entry.completedAt : null,
+                    claimedAt: typeof entry.claimedAt === 'number' ? entry.claimedAt : null,
+                    createdAt: typeof entry.createdAt === 'number' ? entry.createdAt : Date.now(),
+                    updatedAt: typeof entry.updatedAt === 'number' ? entry.updatedAt : Date.now()
+                };
+            }
+
+            function migrateChallengeState(raw) {
+                const base = createDefaultChallengeState();
+                if (!isPlainObject(raw)) {
+                    return base;
+                }
+                const state = {
+                    version: Number.isInteger(raw.version) ? raw.version : 0,
+                    slots: {},
+                    history: Array.isArray(raw.history)
+                        ? raw.history
+                              .filter((entry) => isPlainObject(entry))
+                              .slice(-24)
+                              .map((entry) => ({ ...entry }))
+                        : [],
+                    cosmetics: isPlainObject(raw.cosmetics) ? { ...raw.cosmetics } : createDefaultCosmeticsState()
+                };
+                const slots = isPlainObject(raw.slots) ? raw.slots : {};
+                for (const [slotKey, entry] of Object.entries(slots)) {
+                    const normalized = sanitizeChallengeSlot(slotKey, entry);
+                    if (normalized) {
+                        state.slots[slotKey] = normalized;
+                    }
+                }
+                const defaultCosmetics = createDefaultCosmeticsState();
+                if (!Array.isArray(state.cosmetics.ownedSkins)) {
+                    state.cosmetics.ownedSkins = [...defaultCosmetics.ownedSkins];
+                } else {
+                    state.cosmetics.ownedSkins = Array.from(
+                        new Set(state.cosmetics.ownedSkins.map((value) => String(value)))
+                    );
+                    if (!state.cosmetics.ownedSkins.includes('default')) {
+                        state.cosmetics.ownedSkins.unshift('default');
+                    }
+                }
+                if (!Array.isArray(state.cosmetics.ownedTrails)) {
+                    state.cosmetics.ownedTrails = [...defaultCosmetics.ownedTrails];
+                } else {
+                    state.cosmetics.ownedTrails = Array.from(
+                        new Set(state.cosmetics.ownedTrails.map((value) => String(value)))
+                    );
+                    if (!state.cosmetics.ownedTrails.includes('rainbow')) {
+                        state.cosmetics.ownedTrails.unshift('rainbow');
+                    }
+                }
+                if (!isPlainObject(state.cosmetics.equipped)) {
+                    state.cosmetics.equipped = { ...defaultCosmetics.equipped };
+                } else {
+                    const equippedSkin =
+                        typeof state.cosmetics.equipped.skin === 'string'
+                            ? state.cosmetics.equipped.skin
+                            : defaultCosmetics.equipped.skin;
+                    const equippedTrail =
+                        typeof state.cosmetics.equipped.trail === 'string'
+                            ? state.cosmetics.equipped.trail
+                            : defaultCosmetics.equipped.trail;
+                    state.cosmetics.equipped = {
+                        skin: state.cosmetics.ownedSkins.includes(equippedSkin)
+                            ? equippedSkin
+                            : defaultCosmetics.equipped.skin,
+                        trail: state.cosmetics.ownedTrails.includes(equippedTrail)
+                            ? equippedTrail
+                            : defaultCosmetics.equipped.trail
+                    };
+                }
+                state.version = Math.max(state.version, 1);
+                if (state.version !== CHALLENGE_STATE_VERSION) {
+                    state.version = CHALLENGE_STATE_VERSION;
+                }
+                return state;
+            }
+
+            function loadChallengeState() {
+                if (!storageAvailable) {
+                    return createDefaultChallengeState();
+                }
+                const raw = readStorage(STORAGE_KEYS.challenges);
+                if (!raw) {
+                    return createDefaultChallengeState();
+                }
+                try {
+                    const parsed = JSON.parse(raw);
+                    return migrateChallengeState(parsed);
+                } catch (error) {
+                    return createDefaultChallengeState();
+                }
+            }
+
+            function persistChallengeState(state) {
+                if (!storageAvailable) {
+                    return;
+                }
+                try {
+                    writeStorage(STORAGE_KEYS.challenges, JSON.stringify(state));
+                } catch (error) {
+                    // Ignore write failures for challenge data
+                }
+            }
+
+            function getDayIndex(date) {
+                const start = new Date(date.getFullYear(), 0, 1);
+                start.setHours(0, 0, 0, 0);
+                const diff = date - start;
+                return Math.floor(diff / 86400000);
+            }
+
+            function getWeekIndex(date) {
+                const reference = new Date(date.getFullYear(), 0, 1);
+                reference.setHours(0, 0, 0, 0);
+                const day = reference.getDay();
+                const offset = day === 0 ? 1 : day <= 1 ? 0 : 7 - day + 1;
+                reference.setDate(reference.getDate() + offset);
+                const diff = date - reference;
+                return Math.max(0, Math.floor(diff / (86400000 * 7)));
+            }
+
+            function computeRotationId(slot, date) {
+                if (slot === 'weekly') {
+                    const week = getWeekIndex(date);
+                    return `${date.getFullYear()}-W${week}`;
+                }
+                const day = getDayIndex(date);
+                return `${date.getFullYear()}-${day}`;
+            }
+
+            function parseRotationId(slot, rotationId) {
+                if (slot === 'weekly') {
+                    const match = /^([0-9]{4})-W([0-9]+)$/.exec(rotationId ?? '');
+                    if (match) {
+                        const year = Number(match[1]);
+                        const week = Number(match[2]);
+                        if (Number.isFinite(year) && Number.isFinite(week)) {
+                            const reference = new Date(year, 0, 1);
+                            reference.setHours(0, 0, 0, 0);
+                            const day = reference.getDay();
+                            const offset = day === 0 ? 1 : day <= 1 ? 0 : 7 - day + 1;
+                            reference.setDate(reference.getDate() + offset + week * 7);
+                            return reference;
+                        }
+                    }
+                } else {
+                    const match = /^([0-9]{4})-([0-9]+)$/.exec(rotationId ?? '');
+                    if (match) {
+                        const year = Number(match[1]);
+                        const day = Number(match[2]);
+                        if (Number.isFinite(year) && Number.isFinite(day)) {
+                            const reference = new Date(year, 0, 1);
+                            reference.setHours(0, 0, 0, 0);
+                            reference.setDate(reference.getDate() + day);
+                            return reference;
+                        }
+                    }
+                }
+                return new Date();
+            }
+
+            function getRotationEnd(slot, rotationId, referenceDate = new Date()) {
+                const base = parseRotationId(slot, rotationId) ?? referenceDate;
+                if (slot === 'weekly') {
+                    const end = new Date(base.getTime());
+                    const day = end.getDay();
+                    let daysUntilMonday = (8 - day) % 7;
+                    if (daysUntilMonday === 0) {
+                        daysUntilMonday = 7;
+                    }
+                    end.setDate(end.getDate() + daysUntilMonday);
+                    end.setHours(0, 0, 0, 0);
+                    return end.getTime();
+                }
+                const end = new Date(base.getTime());
+                end.setHours(24, 0, 0, 0);
+                return end.getTime();
+            }
+
+            function formatDurationShort(milliseconds) {
+                const totalSeconds = Math.floor(milliseconds / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                if (minutes > 0) {
+                    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+                }
+                return `${totalSeconds}s`;
+            }
+
+            function describeReward(reward) {
+                if (!reward || typeof reward !== 'object') {
+                    return '—';
+                }
+                if (typeof reward.label === 'string' && reward.label) {
+                    return reward.label;
+                }
+                if (reward.type === 'cosmetic') {
+                    if (reward.category === 'skin') {
+                        return 'Hull skin unlock';
+                    }
+                    if (reward.category === 'trail') {
+                        return 'Trail effect unlock';
+                    }
+                }
+                return 'Reward ready';
+            }
+
+            const CHALLENGE_DEFINITIONS = {
+                daily: [
+                    {
+                        id: 'daily-survive-90',
+                        slot: 'daily',
+                        title: 'Hold the Lane',
+                        description: 'Survive 90 seconds in a single run.',
+                        goal: { metric: 'time', target: 90000, mode: 'max' },
+                        reward: { type: 'cosmetic', category: 'trail', id: 'aurora', label: 'Aurora Wake Trail' }
+                    },
+                    {
+                        id: 'daily-core-collector',
+                        slot: 'daily',
+                        title: 'Core Collector',
+                        description: 'Secure 5 power-ups in a day.',
+                        goal: { metric: 'powerUp', target: 5, mode: 'sum' },
+                        reward: { type: 'cosmetic', category: 'trail', id: 'ember', label: 'Ember Wake Trail' }
+                    }
+                ],
+                weekly: [
+                    {
+                        id: 'weekly-villain-hunter',
+                        slot: 'weekly',
+                        title: 'Villain Hunter',
+                        description: 'Neutralize 30 villains this week.',
+                        goal: { metric: 'villain', target: 30, mode: 'sum' },
+                        reward: { type: 'cosmetic', category: 'skin', id: 'midnight', label: 'Midnight Mirage Hull' }
+                    },
+                    {
+                        id: 'weekly-score-champion',
+                        slot: 'weekly',
+                        title: 'Score Champion',
+                        description: 'Reach 75,000 score in a single run.',
+                        goal: { metric: 'score', target: 75000, mode: 'max' },
+                        reward: { type: 'cosmetic', category: 'skin', id: 'sunrise', label: 'Sunrise Shimmer Hull' }
+                    }
+                ]
+            };
+
+            function createChallengeManager(config = {}) {
+                const {
+                    definitions = CHALLENGE_DEFINITIONS,
+                    cosmeticsCatalog = null,
+                    onChallengeCompleted,
+                    onRewardClaimed
+                } = config ?? {};
+                let state = loadChallengeState();
+                const listeners = new Set();
+                const definitionIndex = new Map();
+                const cosmetics = cosmeticsCatalog ?? { skins: {}, trails: {} };
+                let cachedSnapshot = null;
+
+                function indexDefinitions() {
+                    definitionIndex.clear();
+                    for (const [slotKey, list] of Object.entries(definitions ?? {})) {
+                        if (!Array.isArray(list)) {
+                            continue;
+                        }
+                        for (const definition of list) {
+                            if (definition && typeof definition === 'object' && typeof definition.id === 'string') {
+                                definitionIndex.set(definition.id, { ...definition, slot: slotKey });
+                            }
+                        }
+                    }
+                }
+
+                function selectDefinition(slot, date) {
+                    const list = Array.isArray(definitions?.[slot]) ? definitions[slot] : [];
+                    if (!list.length) {
+                        return null;
+                    }
+                    const index = slot === 'weekly' ? getWeekIndex(date) : getDayIndex(date);
+                    return list[index % list.length];
+                }
+
+                function formatProgress(goal, value, target) {
+                    if (!goal || typeof goal !== 'object') {
+                        return `${value} / ${target}`;
+                    }
+                    if (goal.metric === 'time') {
+                        return `${formatDurationShort(value)} / ${formatDurationShort(target)}`;
+                    }
+                    if (goal.metric === 'score') {
+                        return `${value.toLocaleString()} / ${target.toLocaleString()}`;
+                    }
+                    return `${value} / ${target}`;
+                }
+
+                function formatCountdown(slot, rotationId, now) {
+                    const resetAt = getRotationEnd(slot, rotationId, new Date(now));
+                    if (!resetAt) {
+                        return '';
+                    }
+                    const remaining = Math.max(0, resetAt - now);
+                    const totalSeconds = Math.ceil(remaining / 1000);
+                    const days = Math.floor(totalSeconds / 86400);
+                    const hours = Math.floor((totalSeconds % 86400) / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    if (days > 0) {
+                        return `Resets in ${days}d ${hours}h`;
+                    }
+                    if (hours > 0) {
+                        return `Resets in ${hours}h ${minutes}m`;
+                    }
+                    return `Resets in ${Math.max(1, minutes)}m`;
+                }
+
+                function computeActiveChallenges(snapshot) {
+                    const list = [];
+                    const now = Date.now();
+                    for (const [slotKey, entry] of Object.entries(snapshot.slots)) {
+                        if (!entry) continue;
+                        const definition = definitionIndex.get(entry.challengeId) ?? {};
+                        const goal = entry.goal ?? { metric: 'score', target: 0, mode: 'sum' };
+                        const target = Math.max(0, Math.round(goal.target ?? 0));
+                        const value = Math.max(0, Math.floor(entry.progressValue ?? 0));
+                        const percent = target > 0 ? Math.min(100, Math.round((value / target) * 100)) : entry.completedAt ? 100 : 0;
+                        const reward = definition.reward ?? null;
+                        const completed = Boolean(entry.completedAt) || (target > 0 && value >= target);
+                        const claimed = Boolean(entry.claimedAt);
+                        const readyToClaim = completed && !claimed && Boolean(reward);
+                        list.push({
+                            id: definition.id ?? entry.challengeId,
+                            slot: slotKey,
+                            slotLabel: slotKey === 'daily' ? 'Daily' : slotKey === 'weekly' ? 'Weekly' : slotKey,
+                            title: definition.title ?? entry.challengeId,
+                            description: definition.description ?? '',
+                            reward,
+                            rewardLabel: describeReward(reward),
+                            completed,
+                            claimed,
+                            readyToClaim,
+                            progressValue: value,
+                            target,
+                            progressPercent: percent,
+                            progressText: formatProgress(goal, value, target),
+                            statusText: claimed
+                                ? 'Reward claimed'
+                                : readyToClaim
+                                    ? 'Reward ready'
+                                    : `${percent}% complete`,
+                            buttonLabel: claimed ? 'Claimed' : readyToClaim ? 'Claim Reward' : 'Locked',
+                            rotation: entry.rotation,
+                            timeRemainingLabel: formatCountdown(slotKey, entry.rotation, now)
+                        });
+                    }
+                    return list;
+                }
+
+                function buildSnapshot() {
+                    const snapshot = {
+                        version: CHALLENGE_STATE_VERSION,
+                        slots: {},
+                        history: Array.isArray(state.history)
+                            ? state.history.slice(-24).map((entry) => ({ ...entry }))
+                            : [],
+                        cosmetics: {
+                            ownedSkins: [...state.cosmetics.ownedSkins],
+                            ownedTrails: [...state.cosmetics.ownedTrails],
+                            equipped: { ...state.cosmetics.equipped }
+                        }
+                    };
+                    for (const [slotKey, entry] of Object.entries(state.slots)) {
+                        snapshot.slots[slotKey] = { ...entry, goal: { ...entry.goal }, slot: slotKey };
+                    }
+                    snapshot.activeChallenges = computeActiveChallenges(snapshot);
+                    return snapshot;
+                }
+
+                function unlockReward(reward) {
+                    if (!reward || reward.type !== 'cosmetic') {
+                        return false;
+                    }
+                    if (reward.category === 'skin') {
+                        if (cosmetics?.skins && !cosmetics.skins[reward.id]) {
+                            return false;
+                        }
+                        let changed = false;
+                        if (!state.cosmetics.ownedSkins.includes(reward.id)) {
+                            state.cosmetics.ownedSkins.push(reward.id);
+                            changed = true;
+                        }
+                        if (state.cosmetics.equipped.skin === 'default') {
+                            state.cosmetics.equipped.skin = reward.id;
+                            changed = true;
+                        }
+                        return changed;
+                    }
+                    if (reward.category === 'trail') {
+                        if (cosmetics?.trails && !cosmetics.trails[reward.id]) {
+                            return false;
+                        }
+                        let changed = false;
+                        if (!state.cosmetics.ownedTrails.includes(reward.id)) {
+                            state.cosmetics.ownedTrails.push(reward.id);
+                            changed = true;
+                        }
+                        if (state.cosmetics.equipped.trail === 'rainbow') {
+                            state.cosmetics.equipped.trail = reward.id;
+                            changed = true;
+                        }
+                        return changed;
+                    }
+                    return false;
+                }
+
+                function ensureActive(date = new Date()) {
+                    let mutated = false;
+                    for (const slotKey of Object.keys(definitions ?? {})) {
+                        const definition = selectDefinition(slotKey, date);
+                        const rotationId = computeRotationId(slotKey, date);
+                        if (!definition) {
+                            if (state.slots[slotKey]) {
+                                delete state.slots[slotKey];
+                                mutated = true;
+                            }
+                            continue;
+                        }
+                        const current = state.slots[slotKey];
+                        if (!current || current.challengeId !== definition.id || current.rotation !== rotationId) {
+                            if (current) {
+                                state.history.push({ ...current, archivedAt: Date.now(), slot: slotKey });
+                                state.history = state.history.slice(-24);
+                            }
+                            state.slots[slotKey] = {
+                                slot: slotKey,
+                                challengeId: definition.id,
+                                rotation: rotationId,
+                                goal: sanitizeChallengeGoal(definition.goal),
+                                progressValue: 0,
+                                completedAt: null,
+                                claimedAt: null,
+                                createdAt: Date.now(),
+                                updatedAt: Date.now()
+                            };
+                            mutated = true;
+                        } else {
+                            const normalizedGoal = sanitizeChallengeGoal(definition.goal);
+                            if (
+                                current.goal.metric !== normalizedGoal.metric ||
+                                current.goal.mode !== normalizedGoal.mode ||
+                                current.goal.target !== normalizedGoal.target
+                            ) {
+                                current.goal = normalizedGoal;
+                                current.progressValue = Math.min(
+                                    current.progressValue ?? 0,
+                                    normalizedGoal.target ?? current.progressValue
+                                );
+                                if (current.completedAt && current.progressValue < normalizedGoal.target) {
+                                    current.completedAt = null;
+                                    current.claimedAt = null;
+                                }
+                                current.updatedAt = Date.now();
+                                mutated = true;
+                            }
+                        }
+                    }
+                    return mutated;
+                }
+
+                function notifyListeners() {
+                    for (const listener of listeners) {
+                        try {
+                            listener(cachedSnapshot);
+                        } catch (error) {
+                            console.error('challenge listener error', error);
+                        }
+                    }
+                }
+
+                function commitState({ notify = true, completions = [], rewardClaim = null } = {}) {
+                    persistChallengeState(state);
+                    cachedSnapshot = buildSnapshot();
+                    if (notify) {
+                        notifyListeners();
+                    }
+                    if (completions.length && typeof onChallengeCompleted === 'function') {
+                        for (const completion of completions) {
+                            try {
+                                onChallengeCompleted(completion.definition, {
+                                    slot: completion.slot,
+                                    progress: { ...completion.entry },
+                                    reward: completion.definition?.reward ?? null
+                                });
+                            } catch (error) {
+                                console.error('challenge completion hook error', error);
+                            }
+                        }
+                    }
+                    if (rewardClaim && typeof onRewardClaimed === 'function') {
+                        try {
+                            onRewardClaimed(rewardClaim.definition, rewardClaim.reward);
+                        } catch (error) {
+                            console.error('challenge reward hook error', error);
+                        }
+                    }
+                }
+
+                function recordEvent(event, payload = {}) {
+                    const date = new Date();
+                    let mutated = ensureActive(date);
+                    const completions = [];
+                    for (const [slotKey, entry] of Object.entries(state.slots)) {
+                        if (!entry) continue;
+                        const goal = entry.goal ?? { metric: 'score', target: 0, mode: 'sum' };
+                        const before = entry.progressValue ?? 0;
+                        let after = before;
+                        if (goal.metric === 'time' && event === 'time') {
+                            const totalMs = Number(payload.totalMs ?? 0);
+                            if (Number.isFinite(totalMs) && totalMs > after) {
+                                after = totalMs;
+                            }
+                        } else if (goal.metric === 'score' && event === 'score') {
+                            const totalScore = Number(payload.totalScore ?? 0);
+                            if (Number.isFinite(totalScore) && totalScore > after) {
+                                after = totalScore;
+                            }
+                        } else if (goal.metric === 'villain' && event === 'villain') {
+                            const count = Number(payload.count ?? 1);
+                            if (Number.isFinite(count) && count > 0) {
+                                after = before + count;
+                            }
+                        } else if (goal.metric === 'powerUp' && event === 'powerUp') {
+                            const allowedTypes = Array.isArray(goal.filter?.types) ? goal.filter.types : null;
+                            if (!allowedTypes || allowedTypes.includes(payload.type)) {
+                                after = before + 1;
+                            }
+                        }
+                        if (after !== before) {
+                            entry.progressValue = after;
+                            entry.updatedAt = Date.now();
+                            mutated = true;
+                        }
+                        const target = goal.target ?? 0;
+                        if (target > 0 && entry.progressValue >= target && !entry.completedAt) {
+                            entry.completedAt = Date.now();
+                            mutated = true;
+                            const definition = definitionIndex.get(entry.challengeId) ?? {
+                                id: entry.challengeId,
+                                slot: slotKey
+                            };
+                            completions.push({ slot: slotKey, entry: { ...entry }, definition });
+                        }
+                    }
+                    if (mutated) {
+                        commitState({ notify: true, completions });
+                    }
+                }
+
+                function claimReward(challengeId) {
+                    const date = new Date();
+                    let mutated = ensureActive(date);
+                    for (const [slotKey, entry] of Object.entries(state.slots)) {
+                        if (!entry || entry.challengeId !== challengeId) {
+                            continue;
+                        }
+                        if (!entry.completedAt || entry.claimedAt) {
+                            return false;
+                        }
+                        const definition = definitionIndex.get(entry.challengeId) ?? { id: challengeId, slot: slotKey };
+                        const reward = definition.reward ?? null;
+                        if (reward) {
+                            unlockReward(reward);
+                        }
+                        entry.claimedAt = Date.now();
+                        entry.updatedAt = Date.now();
+                        mutated = true;
+                        commitState({ notify: true, rewardClaim: { definition, reward } });
+                        return true;
+                    }
+                    if (mutated) {
+                        commitState({ notify: true });
+                    }
+                    return false;
+                }
+
+                function equipCosmetic(category, id) {
+                    let mutated = ensureActive(new Date());
+                    if (category === 'skin') {
+                        if (!state.cosmetics.ownedSkins.includes(id) || state.cosmetics.equipped.skin === id) {
+                            return false;
+                        }
+                        if (cosmetics?.skins && !cosmetics.skins[id]) {
+                            return false;
+                        }
+                        state.cosmetics.equipped.skin = id;
+                        mutated = true;
+                    } else if (category === 'trail') {
+                        if (!state.cosmetics.ownedTrails.includes(id) || state.cosmetics.equipped.trail === id) {
+                            return false;
+                        }
+                        if (cosmetics?.trails && !cosmetics.trails[id]) {
+                            return false;
+                        }
+                        state.cosmetics.equipped.trail = id;
+                        mutated = true;
+                    } else {
+                        return false;
+                    }
+                    if (mutated) {
+                        commitState({ notify: true });
+                    }
+                    return true;
+                }
+
+                function subscribe(listener) {
+                    if (typeof listener !== 'function') {
+                        return () => {};
+                    }
+                    listeners.add(listener);
+                    listener(cachedSnapshot);
+                    return () => {
+                        listeners.delete(listener);
+                    };
+                }
+
+                indexDefinitions();
+                const initialMutated = ensureActive(new Date());
+                cachedSnapshot = buildSnapshot();
+                if (initialMutated) {
+                    persistChallengeState(state);
+                    cachedSnapshot = buildSnapshot();
+                }
+
+                return {
+                    recordEvent,
+                    claimReward,
+                    equipCosmetic,
+                    subscribe,
+                    getSnapshot: () => cachedSnapshot
+                };
             }
 
             function applyReducedEffectsFlag(enabled) {
@@ -4248,6 +5229,220 @@
                 updateSocialFeedPanel();
             }
 
+            function applyEquippedCosmetics(equipped = {}) {
+                const skinId =
+                    equipped && typeof equipped.skin === 'string' && playerSkins[equipped.skin]
+                        ? equipped.skin
+                        : 'default';
+                const trailId =
+                    equipped && typeof equipped.trail === 'string' && trailStyles[equipped.trail]
+                        ? equipped.trail
+                        : 'rainbow';
+                activePlayerImage = playerSkins[skinId]?.image ?? playerBaseImage;
+                activeTrailStyle = trailStyles[trailId] ?? trailStyles.rainbow;
+            }
+
+            function renderChallengeList(snapshot = {}) {
+                if (!challengeListEl) {
+                    return;
+                }
+                challengeListEl.innerHTML = '';
+                const activeChallenges = Array.isArray(snapshot.activeChallenges) ? snapshot.activeChallenges : [];
+                if (!activeChallenges.length) {
+                    const emptyItem = document.createElement('li');
+                    emptyItem.className = 'challenge-item';
+                    const message = document.createElement('p');
+                    message.className = 'challenge-description';
+                    message.textContent = 'Challenges are calibrating. Check back soon!';
+                    emptyItem.appendChild(message);
+                    challengeListEl.appendChild(emptyItem);
+                    return;
+                }
+                for (const challenge of activeChallenges) {
+                    const item = document.createElement('li');
+                    item.className = 'challenge-item';
+                    if (challenge?.id) {
+                        item.dataset.challengeId = challenge.id;
+                    }
+
+                    const heading = document.createElement('div');
+                    heading.className = 'challenge-heading';
+                    const title = document.createElement('h4');
+                    title.className = 'challenge-title';
+                    const slotLabel = challenge?.slotLabel ?? 'Challenge';
+                    title.textContent = `${slotLabel}: ${challenge?.title ?? 'Objective'}`;
+                    heading.appendChild(title);
+                    if (challenge?.timeRemainingLabel) {
+                        const reset = document.createElement('span');
+                        reset.className = 'challenge-reset';
+                        reset.textContent = challenge.timeRemainingLabel;
+                        heading.appendChild(reset);
+                    }
+                    item.appendChild(heading);
+
+                    if (challenge?.description) {
+                        const description = document.createElement('p');
+                        description.className = 'challenge-description';
+                        description.textContent = challenge.description;
+                        item.appendChild(description);
+                    }
+
+                    const progress = document.createElement('div');
+                    progress.className = 'challenge-progress';
+                    const track = document.createElement('div');
+                    track.className = 'challenge-progress-track';
+                    const fill = document.createElement('div');
+                    fill.className = 'challenge-progress-fill';
+                    const percent = Math.min(100, Math.max(0, challenge?.progressPercent ?? 0));
+                    fill.style.width = `${percent}%`;
+                    track.appendChild(fill);
+                    progress.appendChild(track);
+                    const label = document.createElement('div');
+                    label.className = 'challenge-progress-label';
+                    const progressText = document.createElement('span');
+                    progressText.textContent = challenge?.progressText ?? '';
+                    label.appendChild(progressText);
+                    const percentText = document.createElement('span');
+                    percentText.textContent = `${percent}%`;
+                    label.appendChild(percentText);
+                    progress.appendChild(label);
+                    item.appendChild(progress);
+
+                    const meta = document.createElement('div');
+                    meta.className = 'challenge-meta';
+                    const reward = document.createElement('span');
+                    reward.textContent = `Reward: ${challenge?.rewardLabel ?? '—'}`;
+                    meta.appendChild(reward);
+                    const status = document.createElement('span');
+                    status.className = 'challenge-status';
+                    status.textContent = challenge?.statusText ?? '';
+                    meta.appendChild(status);
+                    item.appendChild(meta);
+
+                    const claimButton = document.createElement('button');
+                    claimButton.type = 'button';
+                    claimButton.className = 'challenge-claim';
+                    if (challenge?.id) {
+                        claimButton.dataset.challengeId = challenge.id;
+                    }
+                    claimButton.textContent = challenge?.buttonLabel ?? 'Claim Reward';
+                    if (!challenge?.readyToClaim || challenge?.claimed) {
+                        claimButton.disabled = true;
+                    }
+                    item.appendChild(claimButton);
+
+                    challengeListEl.appendChild(item);
+                }
+            }
+
+            function renderCosmeticOptions(snapshot = {}) {
+                const cosmetics = snapshot?.cosmetics ?? {};
+                const ownedSkins = new Set(Array.isArray(cosmetics.ownedSkins) ? cosmetics.ownedSkins : []);
+                const ownedTrails = new Set(Array.isArray(cosmetics.ownedTrails) ? cosmetics.ownedTrails : []);
+                const equipped = cosmetics.equipped ?? {};
+
+                if (skinOptionsEl) {
+                    skinOptionsEl.innerHTML = '';
+                    const skinOrder = ['default', 'midnight', 'sunrise'];
+                    for (const skinId of skinOrder) {
+                        const skin = playerSkins[skinId];
+                        if (!skin) {
+                            continue;
+                        }
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'cosmetic-option';
+                        button.dataset.skinId = skin.id;
+                        button.textContent = skin.label;
+                        const owned = ownedSkins.has(skin.id);
+                        if (!owned) {
+                            button.disabled = true;
+                            button.classList.add('locked');
+                            button.setAttribute('title', 'Unlock by completing challenges');
+                        } else {
+                            button.removeAttribute('title');
+                        }
+                        if (equipped?.skin === skin.id) {
+                            button.classList.add('equipped');
+                            button.setAttribute('aria-pressed', 'true');
+                        } else {
+                            button.setAttribute('aria-pressed', 'false');
+                        }
+                        skinOptionsEl.appendChild(button);
+                    }
+                }
+
+                if (trailOptionsEl) {
+                    trailOptionsEl.innerHTML = '';
+                    const trailOrder = ['rainbow', 'aurora', 'ember'];
+                    for (const trailId of trailOrder) {
+                        const trail = trailStyles[trailId];
+                        if (!trail) {
+                            continue;
+                        }
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'cosmetic-option';
+                        button.dataset.trailId = trail.id;
+                        button.textContent = trail.label;
+                        const owned = ownedTrails.has(trail.id);
+                        if (!owned) {
+                            button.disabled = true;
+                            button.classList.add('locked');
+                            button.setAttribute('title', 'Unlock by completing challenges');
+                        } else {
+                            button.removeAttribute('title');
+                        }
+                        if (equipped?.trail === trail.id) {
+                            button.classList.add('equipped');
+                            button.setAttribute('aria-pressed', 'true');
+                        } else {
+                            button.setAttribute('aria-pressed', 'false');
+                        }
+                        trailOptionsEl.appendChild(button);
+                    }
+                }
+            }
+
+            if (challengeListEl) {
+                challengeListEl.addEventListener('click', (event) => {
+                    const target = event.target instanceof HTMLElement ? event.target.closest('.challenge-claim') : null;
+                    if (!target || target.disabled) {
+                        return;
+                    }
+                    const challengeId = target.dataset.challengeId;
+                    if (challengeId && challengeManager) {
+                        challengeManager.claimReward(challengeId);
+                    }
+                });
+            }
+
+            if (skinOptionsEl) {
+                skinOptionsEl.addEventListener('click', (event) => {
+                    const target = event.target instanceof HTMLElement ? event.target.closest('[data-skin-id]') : null;
+                    if (!target || target.disabled) {
+                        return;
+                    }
+                    const skinId = target.dataset.skinId;
+                    if (skinId && challengeManager) {
+                        challengeManager.equipCosmetic('skin', skinId);
+                    }
+                });
+            }
+
+            if (trailOptionsEl) {
+                trailOptionsEl.addEventListener('click', (event) => {
+                    const target = event.target instanceof HTMLElement ? event.target.closest('[data-trail-id]') : null;
+                    if (!target || target.disabled) {
+                        return;
+                    }
+                    const trailId = target.dataset.trailId;
+                    if (trailId && challengeManager) {
+                        challengeManager.equipCosmetic('trail', trailId);
+                    }
+                });
+            }
+
             function getShareText(summary) {
                 if (!summary) return '';
                 const formattedTime = formatTime(summary.timeMs);
@@ -4540,10 +5735,82 @@
                 }
             });
 
-            const playerImage = loadImageWithFallback(
+            const skinOverrides =
+                cosmeticOverrides.skins && typeof cosmeticOverrides.skins === 'object'
+                    ? cosmeticOverrides.skins
+                    : {};
+            const playerBaseImage = loadImageWithFallback(
                 resolveAssetConfig(assetOverrides.player, 'assets/player.png'),
                 createPlayerFallbackDataUrl
             );
+            const playerSkins = {
+                default: {
+                    id: 'default',
+                    label: 'Standard Hull',
+                    image: playerBaseImage
+                },
+                midnight: {
+                    id: 'midnight',
+                    label: 'Midnight Mirage',
+                    image: loadImageWithFallback(resolveAssetConfig(skinOverrides.midnight, null), () =>
+                        createPlayerVariantDataUrl('midnight')
+                    )
+                },
+                sunrise: {
+                    id: 'sunrise',
+                    label: 'Sunrise Shimmer',
+                    image: loadImageWithFallback(resolveAssetConfig(skinOverrides.sunrise, null), () =>
+                        createPlayerVariantDataUrl('sunrise')
+                    )
+                }
+            };
+            const trailStyles = {
+                rainbow: { id: 'rainbow', label: 'Prismatic Stream', type: 'spectrum' },
+                aurora: {
+                    id: 'aurora',
+                    label: 'Aurora Wake',
+                    type: 'palette',
+                    colors: ['#38bdf8', '#8b5cf6', '#ec4899', '#22d3ee']
+                },
+                ember: {
+                    id: 'ember',
+                    label: 'Ember Wake',
+                    type: 'palette',
+                    colors: ['#f97316', '#fb7185', '#fde047']
+                }
+            };
+            const cosmeticsCatalog = {
+                skins: playerSkins,
+                trails: {
+                    rainbow: trailStyles.rainbow,
+                    aurora: trailStyles.aurora,
+                    ember: trailStyles.ember
+                }
+            };
+            let activePlayerImage = playerBaseImage;
+            let activeTrailStyle = trailStyles.rainbow;
+            const challengeManager = createChallengeManager({
+                definitions: CHALLENGE_DEFINITIONS,
+                cosmeticsCatalog,
+                onChallengeCompleted: (definition) => {
+                    const title = definition?.title ?? 'Challenge';
+                    addSocialMoment(`${title} complete!`, { type: 'challenge' });
+                },
+                onRewardClaimed: (definition, reward) => {
+                    const rewardLabel = describeReward(reward);
+                    const title = definition?.title ?? 'Challenge';
+                    addSocialMoment(`${title}: ${rewardLabel}`, { type: 'challenge' });
+                }
+            });
+            if (challengeManager && typeof challengeManager.subscribe === 'function') {
+                challengeManager.subscribe((snapshot) => {
+                    renderChallengeList(snapshot);
+                    renderCosmeticOptions(snapshot);
+                    applyEquippedCosmetics(snapshot?.cosmetics?.equipped);
+                });
+            } else {
+                applyEquippedCosmetics();
+            }
 
             const asteroidImageSources =
                 Array.isArray(assetOverrides.asteroids) && assetOverrides.asteroids.length
@@ -7316,6 +8583,9 @@
                     if (rectOverlap(player, powerUp)) {
                         powerUps.splice(i, 1);
                         activatePowerUp(powerUp.type);
+                        if (challengeManager) {
+                            challengeManager.recordEvent('powerUp', { type: powerUp.type });
+                        }
                         const color = powerUpColors[powerUp.type] ?? { r: 200, g: 200, b: 255 };
                         createParticles({
                             x: powerUp.x + powerUp.width * 0.5,
@@ -8164,6 +9434,12 @@
                     color: '#f9a8d4'
                 });
                 triggerScreenShake(12, 300);
+                if (challengeManager) {
+                    challengeManager.recordEvent('villain', {
+                        count: 1,
+                        type: obstacle?.villainType?.key ?? null
+                    });
+                }
                 if (isBossObstacle(obstacle)) {
                     completeBossBattle();
                     spawnFloatingText({
@@ -8237,6 +9513,9 @@
                 const multiplier = 1 + state.streak * config.comboMultiplierStep;
                 const finalPoints = Math.floor(basePoints * multiplier);
                 state.score += finalPoints;
+                if (challengeManager) {
+                    challengeManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
+                }
                 const originX = source.x ?? player.x + player.width * 0.5;
                 const originY = source.y ?? player.y;
                 const text = `+${finalPoints.toLocaleString()}${multiplier > 1.01 ? ` x${multiplier.toFixed(2)}` : ''}`;
@@ -8545,13 +9824,27 @@
                     return;
                 }
                 if (trail.length < 2) return;
-                for (let i = 0; i < trail.length; i++) {
-                    const t = trail[i];
-                    const alpha = i / trail.length;
-                    const hue = (alpha * 300 + performance.now() * 0.05) % 360;
-                    ctx.fillStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
-                    ctx.fillRect(t.x - 36, t.y - 6, 72, 12);
+                const style = activeTrailStyle ?? trailStyles.rainbow;
+                ctx.save();
+                if (style.type === 'palette' && Array.isArray(style.colors) && style.colors.length) {
+                    for (let i = 0; i < trail.length; i++) {
+                        const t = trail[i];
+                        const alpha = i / trail.length;
+                        const colorIndex = Math.min(style.colors.length - 1, Math.floor(alpha * style.colors.length));
+                        ctx.globalAlpha = alpha;
+                        ctx.fillStyle = style.colors[colorIndex] ?? '#7dd3fc';
+                        ctx.fillRect(t.x - 36, t.y - 6, 72, 12);
+                    }
+                } else {
+                    for (let i = 0; i < trail.length; i++) {
+                        const t = trail[i];
+                        const alpha = i / trail.length;
+                        const hue = (alpha * 300 + performance.now() * 0.05) % 360;
+                        ctx.fillStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
+                        ctx.fillRect(t.x - 36, t.y - 6, 72, 12);
+                    }
                 }
+                ctx.restore();
             }
 
             function drawShieldAura(drawX, drawY, time = performance.now()) {
@@ -8612,8 +9905,8 @@
                 const drawX = player.x;
                 const drawY = player.y + bob;
                 drawShieldAura(drawX, drawY, now);
-                if (playerImage.complete && playerImage.naturalWidth !== 0) {
-                    ctx.drawImage(playerImage, drawX, drawY, player.width, player.height);
+                if (activePlayerImage.complete && activePlayerImage.naturalWidth !== 0) {
+                    ctx.drawImage(activePlayerImage, drawX, drawY, player.width, player.height);
                 } else {
                     const gradient = ctx.createLinearGradient(drawX, drawY, drawX + player.width, drawY + player.height);
                     gradient.addColorStop(0, '#ff9a9e');
@@ -9114,6 +10407,9 @@
 
             function stepRunning(delta) {
                 state.elapsedTime += delta;
+                if (challengeManager) {
+                    challengeManager.recordEvent('time', { totalMs: state.elapsedTime });
+                }
                 updateIntelLore(state.elapsedTime);
                 state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (delta / 1000);
                 if (state.bossBattle.alertTimer > 0) {
