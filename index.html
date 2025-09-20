@@ -64,6 +64,28 @@
             outline-offset: 3px;
         }
 
+        @media (prefers-reduced-motion: reduce) {
+            html:focus-within {
+                scroll-behavior: auto;
+            }
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important;
+            }
+        }
+
+        body.reduced-effects *,
+        body.reduced-effects *::before,
+        body.reduced-effects *::after {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001ms !important;
+        }
+
         #settingsButton {
             position: fixed;
             top: clamp(18px, 4vw, 28px);
@@ -2472,6 +2494,14 @@
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
 
+            const supportsResizeObserver =
+                typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
+            const reducedMotionQuery =
+                typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+                    ? window.matchMedia('(prefers-reduced-motion: reduce)')
+                    : null;
+            const systemPrefersReducedEffects = () => Boolean(reducedMotionQuery?.matches);
+
             function enableHighQualitySmoothing(context) {
                 if (!context) {
                     return;
@@ -3364,6 +3394,7 @@
             const reducedEffectsStatus = document.getElementById('reducedEffectsStatus');
             const bodyElement = document.body;
             let reducedEffectsMode = false;
+            let reducedMotionListenerCleanup = null;
             const instructionLinks = instructionNavEl
                 ? Array.from(instructionNavEl.querySelectorAll('a[data-panel-target]'))
                 : [];
@@ -3398,6 +3429,7 @@
 
             let pendingResizeFrame = null;
             let devicePixelRatioQuery = null;
+            let resizeObserver = null;
 
             function measureElementSize(element) {
                 if (!element) {
@@ -3574,12 +3606,14 @@
                     cssWidth = cssHeight * TARGET_ASPECT_RATIO;
                 }
 
+                const displayWidth = Math.max(1, Math.round(cssWidth));
+                const displayHeight = Math.max(1, Math.round(cssHeight));
                 const dpr = Math.max(1, Math.min(4, window.devicePixelRatio || 1));
-                const physicalWidth = Math.max(1, Math.round(cssWidth * dpr));
-                const physicalHeight = Math.max(1, Math.round(cssHeight * dpr));
+                const physicalWidth = Math.max(1, Math.round(displayWidth * dpr));
+                const physicalHeight = Math.max(1, Math.round(displayHeight * dpr));
 
-                canvas.style.width = `${cssWidth}px`;
-                canvas.style.height = `${cssHeight}px`;
+                canvas.style.width = `${displayWidth}px`;
+                canvas.style.height = `${displayHeight}px`;
 
                 if (canvas.width !== physicalWidth) {
                     canvas.width = physicalWidth;
@@ -3588,10 +3622,10 @@
                     canvas.height = physicalHeight;
                 }
 
-                viewport.width = cssWidth;
-                viewport.height = cssHeight;
-                viewport.cssWidth = cssWidth;
-                viewport.cssHeight = cssHeight;
+                viewport.width = displayWidth;
+                viewport.height = displayHeight;
+                viewport.cssWidth = displayWidth;
+                viewport.cssHeight = displayHeight;
                 viewport.physicalWidth = physicalWidth;
                 viewport.physicalHeight = physicalHeight;
                 viewport.dpr = dpr;
@@ -3600,7 +3634,7 @@
                 enableHighQualitySmoothing(ctx);
 
                 if (preserveEntities) {
-                    rescaleWorld(previousWidth, previousHeight, cssWidth, cssHeight);
+                    rescaleWorld(previousWidth, previousHeight, displayWidth, displayHeight);
                 }
 
                 updateTouchControlsLayout();
@@ -3627,6 +3661,20 @@
                     devicePixelRatioQuery.removeListener(handleDevicePixelRatioChange);
                 }
                 devicePixelRatioQuery = null;
+            }
+
+            function cleanupResizeObserver() {
+                if (resizeObserver) {
+                    resizeObserver.disconnect();
+                    resizeObserver = null;
+                }
+            }
+
+            function cleanupReducedMotionPreferenceWatcher() {
+                if (typeof reducedMotionListenerCleanup === 'function') {
+                    reducedMotionListenerCleanup();
+                    reducedMotionListenerCleanup = null;
+                }
             }
 
             function handleDevicePixelRatioChange() {
@@ -3660,6 +3708,27 @@
                 window.visualViewport.addEventListener('resize', requestViewportUpdate);
                 window.visualViewport.addEventListener('scroll', requestViewportUpdate);
             }
+
+            if (supportsResizeObserver && canvas?.parentElement) {
+                resizeObserver = new ResizeObserver(() => {
+                    requestViewportUpdate();
+                });
+                resizeObserver.observe(canvas.parentElement);
+            }
+
+            const teardownViewportWatchers = () => {
+                cleanupResizeObserver();
+                cleanupDevicePixelRatioWatcher();
+                cleanupReducedMotionPreferenceWatcher();
+            };
+
+            window.addEventListener('beforeunload', teardownViewportWatchers);
+            window.addEventListener('pagehide', (event) => {
+                if (event?.persisted) {
+                    return;
+                }
+                teardownViewportWatchers();
+            });
 
             const getLaunchControlText = () => (isTouchInterface ? 'Tap Start' : 'Press Start (Enter)');
             const getRetryControlText = () => (isTouchInterface ? 'Tap Start Again' : 'Press Start (Enter) Again');
@@ -4820,6 +4889,8 @@
 
             let submissionLog = loadSubmissionLog();
 
+            let hasStoredSettings = false;
+
             const DEFAULT_SETTINGS = {
                 masterVolume: typeof audioManager.getMasterVolume === 'function'
                     ? audioManager.getMasterVolume()
@@ -4830,7 +4901,7 @@
                 sfxEnabled: typeof audioManager.isSfxEnabled === 'function'
                     ? audioManager.isSfxEnabled()
                     : true,
-                reducedEffects: false
+                reducedEffects: systemPrefersReducedEffects()
             };
 
             let settingsState = { ...DEFAULT_SETTINGS };
@@ -4868,6 +4939,7 @@
             }
 
             function loadSettingsPreferences() {
+                hasStoredSettings = false;
                 if (!storageAvailable) {
                     return { ...DEFAULT_SETTINGS };
                 }
@@ -4877,8 +4949,11 @@
                 }
                 try {
                     const parsed = JSON.parse(raw);
-                    return coerceSettings(parsed, DEFAULT_SETTINGS);
+                    const coerced = coerceSettings(parsed, DEFAULT_SETTINGS);
+                    hasStoredSettings = true;
+                    return coerced;
                 } catch (error) {
+                    hasStoredSettings = false;
                     return { ...DEFAULT_SETTINGS };
                 }
             }
@@ -5637,12 +5712,36 @@
                 updateSettingsUI();
                 if (persist) {
                     persistSettingsPreferences();
+                    hasStoredSettings = true;
                 }
                 return settingsState;
             }
 
             settingsState = loadSettingsPreferences();
             applySettingsPreferences(settingsState, { persist: false });
+
+            if (reducedMotionQuery) {
+                const handleReducedMotionPreferenceChange = (event) => {
+                    if (hasStoredSettings) {
+                        return;
+                    }
+                    applySettingsPreferences({ reducedEffects: event.matches }, { persist: false });
+                };
+                if (!hasStoredSettings && settingsState.reducedEffects !== systemPrefersReducedEffects()) {
+                    applySettingsPreferences({ reducedEffects: systemPrefersReducedEffects() }, { persist: false });
+                }
+                if (typeof reducedMotionQuery.addEventListener === 'function') {
+                    reducedMotionQuery.addEventListener('change', handleReducedMotionPreferenceChange);
+                    reducedMotionListenerCleanup = () => {
+                        reducedMotionQuery.removeEventListener('change', handleReducedMotionPreferenceChange);
+                    };
+                } else if (typeof reducedMotionQuery.addListener === 'function') {
+                    reducedMotionQuery.addListener(handleReducedMotionPreferenceChange);
+                    reducedMotionListenerCleanup = () => {
+                        reducedMotionQuery.removeListener(handleReducedMotionPreferenceChange);
+                    };
+                }
+            }
 
             const isSettingsDrawerOpen = () => Boolean(settingsDrawer && !settingsDrawer.hasAttribute('hidden'));
 
