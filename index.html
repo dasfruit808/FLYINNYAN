@@ -2884,6 +2884,7 @@
             const reducedEffectsToggle = document.getElementById('reducedEffectsToggle');
             const reducedEffectsStatus = document.getElementById('reducedEffectsStatus');
             const bodyElement = document.body;
+            let reducedEffectsMode = false;
             const instructionLinks = instructionNavEl
                 ? Array.from(instructionNavEl.querySelectorAll('a[data-panel-target]'))
                 : [];
@@ -4689,8 +4690,6 @@
                     getSnapshot: () => cachedSnapshot
                 };
             }
-
-            let reducedEffectsMode = false;
 
             function applyReducedEffectsFlag(enabled) {
                 reducedEffectsMode = Boolean(enabled);
