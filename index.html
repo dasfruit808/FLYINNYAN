@@ -1452,6 +1452,69 @@
             color: rgba(148, 163, 184, 0.95);
         }
 
+        #leaderboardPanel .panel-header {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .panel-tabs {
+            display: inline-flex;
+            gap: 6px;
+        }
+
+        .panel-tabs .leaderboard-tab {
+            background: rgba(30, 41, 59, 0.65);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: rgba(226, 232, 240, 0.88);
+            border-radius: 999px;
+            font-size: 0.58rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            cursor: pointer;
+            transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+        }
+
+        .panel-tabs .leaderboard-tab.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(129, 140, 248, 0.85));
+            color: #e0f2fe;
+            border-color: rgba(96, 165, 250, 0.4);
+        }
+
+        .panel-tabs .leaderboard-tab:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .panel-status {
+            font-size: 0.58rem;
+            letter-spacing: 0.04em;
+            color: rgba(148, 163, 184, 0.85);
+            margin: 0;
+        }
+
+        .panel-status.success {
+            color: rgba(134, 239, 172, 0.9);
+        }
+
+        .panel-status.loading {
+            color: rgba(125, 211, 252, 0.88);
+        }
+
+        .panel-status.error {
+            color: rgba(248, 113, 113, 0.92);
+        }
+
+        .panel-status.warning {
+            color: rgba(251, 191, 36, 0.92);
+        }
+
+        .panel-status[hidden] {
+            display: none;
+        }
+
         #highScoreList {
             list-style: decimal inside;
             margin: 0;
@@ -1962,7 +2025,34 @@
                 <ol id="highScoreList"></ol>
             </div>
             <div id="leaderboardPanel">
-                <div class="panel-title">Galaxy Standings</div>
+                <div class="panel-header">
+                    <div class="panel-title" id="leaderboardTitle">Galaxy Standings</div>
+                    <div class="panel-tabs" role="tablist" aria-label="Leaderboard scope">
+                        <button
+                            type="button"
+                            class="leaderboard-tab active"
+                            data-leaderboard-scope="global"
+                            aria-pressed="true"
+                        >
+                            Global
+                        </button>
+                        <button
+                            type="button"
+                            class="leaderboard-tab"
+                            data-leaderboard-scope="weekly"
+                            aria-pressed="false"
+                        >
+                            Weekly
+                        </button>
+                    </div>
+                </div>
+                <p
+                    id="leaderboardStatus"
+                    class="panel-status"
+                    role="status"
+                    aria-live="polite"
+                    hidden
+                ></p>
                 <ol id="leaderboardList"></ol>
             </div>
         </div>
@@ -2903,7 +2993,12 @@
             const timerValueEl = document.getElementById('timerValue');
             const highScoreListEl = document.getElementById('highScoreList');
             const highScoreTitleEl = document.getElementById('highScoreTitle');
+            const leaderboardTitleEl = document.getElementById('leaderboardTitle');
             const leaderboardListEl = document.getElementById('leaderboardList');
+            const leaderboardStatusEl = document.getElementById('leaderboardStatus');
+            const leaderboardTabButtons = Array.from(
+                document.querySelectorAll('[data-leaderboard-scope]')
+            );
             const shareButton = document.getElementById('shareButton');
             const copyShareButton = document.getElementById('copyShareButton');
             const shareStatusEl = document.getElementById('shareStatus');
@@ -3835,7 +3930,8 @@
                 loreProgress: 'nyanEscape.loreProgress',
                 firstRunComplete: 'nyanEscape.firstRunComplete',
                 settings: 'nyanEscape.settings',
-                challenges: 'nyanEscape.challenges'
+                challenges: 'nyanEscape.challenges',
+                deviceId: 'nyanEscape.deviceId'
             };
 
             let storageAvailable = false;
@@ -3866,6 +3962,124 @@
                     localStorage.setItem(key, value);
                 } catch (error) {
                     storageAvailable = false;
+                }
+            }
+
+            const API_CONFIG = (() => {
+                if (typeof window === 'undefined') {
+                    return {
+                        baseUrl: '',
+                        timeoutMs: 8000,
+                        cacheTtlMs: 120000,
+                        scopes: ['global', 'weekly']
+                    };
+                }
+                const rootDataset = document.documentElement?.dataset ?? {};
+                const bodyDataset = document.body?.dataset ?? {};
+                const rawBase =
+                    window.NYAN_ESCAPE_API_BASE_URL ??
+                    rootDataset.nyanApiBase ??
+                    bodyDataset.nyanApiBase ??
+                    '';
+                const baseUrl = typeof rawBase === 'string' ? rawBase.trim() : '';
+                return {
+                    baseUrl: baseUrl ? baseUrl.replace(/\/+$/, '') : '',
+                    timeoutMs: 8000,
+                    cacheTtlMs: 120000,
+                    scopes: ['global', 'weekly']
+                };
+            })();
+
+            function generateUuid() {
+                if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+                    return crypto.randomUUID();
+                }
+                const bytes = new Uint8Array(16);
+                if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+                    crypto.getRandomValues(bytes);
+                } else {
+                    for (let i = 0; i < bytes.length; i++) {
+                        bytes[i] = Math.floor(Math.random() * 256);
+                    }
+                }
+                bytes[6] = (bytes[6] & 0x0f) | 0x40;
+                bytes[8] = (bytes[8] & 0x3f) | 0x80;
+                const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0'));
+                return (
+                    `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-` +
+                    `${hex[4]}${hex[5]}-` +
+                    `${hex[6]}${hex[7]}-` +
+                    `${hex[8]}${hex[9]}-` +
+                    `${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`
+                );
+            }
+
+            let cachedDeviceId = null;
+
+            function getDeviceIdentifier() {
+                if (cachedDeviceId) {
+                    return cachedDeviceId;
+                }
+                const stored = readStorage(STORAGE_KEYS.deviceId);
+                if (stored && typeof stored === 'string') {
+                    cachedDeviceId = stored;
+                    return stored;
+                }
+                const generated = generateUuid();
+                cachedDeviceId = generated;
+                writeStorage(STORAGE_KEYS.deviceId, generated);
+                return generated;
+            }
+
+            function buildApiUrl(path = '') {
+                if (!API_CONFIG.baseUrl) {
+                    return null;
+                }
+                const normalizedPath = String(path ?? '').replace(/^\/+/, '');
+                const base = API_CONFIG.baseUrl.endsWith('/') ? API_CONFIG.baseUrl : `${API_CONFIG.baseUrl}/`;
+                try {
+                    return new URL(normalizedPath, base).toString();
+                } catch (error) {
+                    console.error('Invalid leaderboard API base URL', error);
+                    return null;
+                }
+            }
+
+            async function fetchWithTimeout(resource, options = {}) {
+                const { timeout = API_CONFIG.timeoutMs, signal, ...rest } = options ?? {};
+                if (typeof AbortController === 'undefined' || !timeout || timeout <= 0) {
+                    return fetch(resource, { signal, ...rest });
+                }
+                const controller = new AbortController();
+                const timers = setTimeout(() => {
+                    controller.abort();
+                }, timeout);
+                const abortListener = () => {
+                    controller.abort();
+                };
+                if (signal) {
+                    if (signal.aborted) {
+                        clearTimeout(timers);
+                        throw new DOMException('Aborted', 'AbortError');
+                    }
+                    signal.addEventListener('abort', abortListener, { once: true });
+                }
+                try {
+                    const combinedSignal = controller.signal;
+                    return await fetch(resource, { ...rest, signal: combinedSignal });
+                } finally {
+                    clearTimeout(timers);
+                    if (signal) {
+                        signal.removeEventListener('abort', abortListener);
+                    }
+                }
+            }
+
+            async function parseJsonSafely(response) {
+                try {
+                    return await response.json();
+                } catch (error) {
+                    return null;
                 }
             }
 
@@ -3900,20 +4114,93 @@
                 writeStorage(STORAGE_KEYS.highScores, JSON.stringify(data));
             }
 
+            const DEFAULT_PLAYER_NAME = 'Ace Pilot';
+
+            function sanitizeLeaderboardEntries(entries = []) {
+                if (!Array.isArray(entries)) {
+                    return [];
+                }
+                return entries
+                    .filter((entry) => entry && typeof entry === 'object')
+                    .map((entry) => {
+                        const playerName = sanitizePlayerName(entry.player ?? entry.playerName ?? '') || DEFAULT_PLAYER_NAME;
+                        const score = Number.isFinite(entry.score) ? Math.max(0, Math.floor(entry.score)) : 0;
+                        const timeMs = Number.isFinite(entry.timeMs) ? Math.max(0, Math.floor(entry.timeMs)) : 0;
+                        const bestStreak = Number.isFinite(entry.bestStreak)
+                            ? Math.max(0, Math.floor(entry.bestStreak))
+                            : 0;
+                        const nyan = Number.isFinite(entry.nyan) ? Math.max(0, Math.floor(entry.nyan)) : 0;
+                        const rawTimestamp = entry.recordedAt ?? entry.createdAt ?? entry.timestamp ?? Date.now();
+                        let recordedAt = Date.now();
+                        if (typeof rawTimestamp === 'string') {
+                            const parsed = Date.parse(rawTimestamp);
+                            recordedAt = Number.isFinite(parsed) ? parsed : Date.now();
+                        } else {
+                            const numeric = Number(rawTimestamp);
+                            recordedAt = Number.isFinite(numeric) ? numeric : Date.now();
+                        }
+                        return {
+                            player: playerName,
+                            score,
+                            timeMs,
+                            bestStreak,
+                            nyan,
+                            recordedAt
+                        };
+                    })
+                    .sort((a, b) => {
+                        if (b.score !== a.score) return b.score - a.score;
+                        if (b.timeMs !== a.timeMs) return b.timeMs - a.timeMs;
+                        return a.recordedAt - b.recordedAt;
+                    })
+                    .slice(0, 50);
+            }
+
+            function sanitizeLeaderboardSnapshot(snapshot = {}) {
+                if (Array.isArray(snapshot)) {
+                    return {
+                        global: sanitizeLeaderboardEntries(snapshot),
+                        weekly: [],
+                        fetchedAt: Date.now()
+                    };
+                }
+                if (!snapshot || typeof snapshot !== 'object') {
+                    return { global: [], weekly: [], fetchedAt: 0 };
+                }
+                const fetchedRaw = snapshot.fetchedAt ?? snapshot.updatedAt ?? Date.now();
+                let fetchedAt = Date.now();
+                if (typeof fetchedRaw === 'string') {
+                    const parsed = Date.parse(fetchedRaw);
+                    fetchedAt = Number.isFinite(parsed) ? parsed : Date.now();
+                } else {
+                    const numeric = Number(fetchedRaw);
+                    fetchedAt = Number.isFinite(numeric) ? numeric : Date.now();
+                }
+                return {
+                    global: sanitizeLeaderboardEntries(snapshot.global ?? snapshot.entries ?? []),
+                    weekly: sanitizeLeaderboardEntries(snapshot.weekly ?? snapshot.week ?? []),
+                    fetchedAt
+                };
+            }
+
             function loadLeaderboard() {
                 const raw = readStorage(STORAGE_KEYS.leaderboard);
-                if (!raw) return [];
+                if (!raw) {
+                    return { global: [], weekly: [], fetchedAt: 0 };
+                }
                 try {
                     const parsed = JSON.parse(raw);
-                    return Array.isArray(parsed) ? parsed : [];
+                    return sanitizeLeaderboardSnapshot(parsed);
                 } catch (error) {
-                    return [];
+                    console.warn('Failed to parse cached leaderboard snapshot', error);
+                    return { global: [], weekly: [], fetchedAt: 0 };
                 }
             }
 
-            function persistLeaderboard(entries) {
+            function persistLeaderboard(snapshot) {
                 if (!storageAvailable) return;
-                writeStorage(STORAGE_KEYS.leaderboard, JSON.stringify(entries));
+                const sanitized = sanitizeLeaderboardSnapshot(snapshot);
+                writeStorage(STORAGE_KEYS.leaderboard, JSON.stringify(sanitized));
             }
 
             function loadSocialFeed() {
@@ -4907,8 +5194,6 @@
                 return recent.length;
             }
 
-            const DEFAULT_PLAYER_NAME = 'Ace Pilot';
-
             function sanitizePlayerName(value) {
                 if (typeof value !== 'string') {
                     return '';
@@ -4942,7 +5227,20 @@
             }
             ensureSubmissionLogEntry(playerName);
             writeStorage(STORAGE_KEYS.playerName, playerName);
-            let leaderboardEntries = loadLeaderboard();
+            const cachedLeaderboards = loadLeaderboard();
+            const leaderboardState = {
+                scopes: {
+                    global: cachedLeaderboards.global ?? [],
+                    weekly: cachedLeaderboards.weekly ?? []
+                },
+                fetchedAt: cachedLeaderboards.fetchedAt ?? 0,
+                source: cachedLeaderboards.fetchedAt ? 'cache' : 'empty',
+                error: null
+            };
+            let activeLeaderboardScope = 'global';
+            let leaderboardEntries = leaderboardState.scopes[activeLeaderboardScope] ?? [];
+            const leaderboardStatusState = { message: '', type: 'info' };
+            let leaderboardFetchPromise = null;
             let socialFeedData = loadSocialFeed();
             const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
             let lastRunSummary = null;
@@ -5017,6 +5315,37 @@
                 });
             }
 
+            if (leaderboardTabButtons.length) {
+                leaderboardTabButtons.forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const scope = button?.dataset?.leaderboardScope ?? 'global';
+                        setActiveLeaderboardScope(scope);
+                    });
+                });
+            }
+
+            applyLeaderboardSnapshot(cachedLeaderboards, {
+                source: cachedLeaderboards.fetchedAt ? 'cache' : 'empty',
+                persist: false
+            });
+
+            if (API_CONFIG.baseUrl) {
+                refreshLeaderboardsFromApi({ force: true });
+            } else {
+                setLeaderboardStatus(
+                    'Leaderboard sync unavailable — set NYAN_ESCAPE_API_BASE_URL to enable syncing.',
+                    'warning'
+                );
+            }
+
+            if (typeof window !== 'undefined') {
+                window.addEventListener('online', () => {
+                    if (API_CONFIG.baseUrl) {
+                        refreshLeaderboardsFromApi({ force: true });
+                    }
+                });
+            }
+
             function completeFirstRunExperience() {
                 if (!firstRunExperience) {
                     return;
@@ -5042,7 +5371,10 @@
                 limitReached = false,
                 prompt = false,
                 success = false,
-                skipped = false
+                skipped = false,
+                offline = false,
+                conflict = false,
+                errorMessage = null
             } = {}) {
                 const lines = [
                     baseMessage,
@@ -5066,6 +5398,15 @@
                 }
                 if (skipped) {
                     lines.push('Submission skipped. Run not recorded.');
+                }
+                if (conflict) {
+                    lines.push('Submission ignored — your best run is already on the board.');
+                }
+                if (offline) {
+                    lines.push('Offline mode: storing this flight log locally until the next sync.');
+                }
+                if (errorMessage) {
+                    lines.push(errorMessage);
                 }
                 return lines.join('\n');
             }
@@ -5093,10 +5434,10 @@
                 }
             }
 
-            function recordHighScore(durationMs, score, metadata = {}) {
+            async function recordHighScore(durationMs, score, metadata = {}) {
                 const baseName = sanitizePlayerName(metadata.player) || playerName;
                 if (!baseName || durationMs <= 0) {
-                    return { accepted: false, placement: null, runsToday: 0, reason: 'invalid' };
+                    return { recorded: false, placement: null, runsToday: 0, reason: 'invalid' };
                 }
                 ensureSubmissionLogEntry(baseName);
                 if (!highScoreData[baseName]) {
@@ -5105,7 +5446,7 @@
                 const recordedAt = metadata.recordedAt ?? Date.now();
                 const usage = getSubmissionUsage(baseName, recordedAt);
                 if (usage.count >= SUBMISSION_LIMIT) {
-                    return { accepted: false, placement: null, runsToday: usage.count, reason: 'limit' };
+                    return { recorded: false, placement: null, runsToday: usage.count, reason: 'limit' };
                 }
                 const entry = {
                     timeMs: durationMs,
@@ -5123,16 +5464,73 @@
                 });
                 highScoreData[baseName] = userScores.slice(0, 3);
                 persistHighScores(highScoreData);
-                const runsToday = trackSubmissionUsage(baseName, recordedAt);
-                const placement = recordLeaderboardEntry({
-                    player: baseName,
-                    timeMs: entry.timeMs,
+
+                let runsToday = usage.count;
+                let placement = null;
+                let reason = null;
+                let message = null;
+                let source = 'remote';
+                let recorded = false;
+
+                const deviceId = getDeviceIdentifier();
+                const submissionPayload = {
+                    playerName: baseName,
+                    deviceId,
                     score: entry.score,
+                    timeMs: entry.timeMs,
                     bestStreak: entry.bestStreak,
                     nyan: entry.nyan,
-                    recordedAt: entry.recordedAt
-                });
-                return { accepted: true, placement, runsToday, reason: null };
+                    recordedAt: entry.recordedAt,
+                    clientSubmissionId: `${deviceId}:${entry.recordedAt}:${Math.max(0, Math.floor(entry.score))}`
+                };
+
+                const apiResult = await submitScoreToApi(submissionPayload);
+                if (apiResult?.success) {
+                    recorded = true;
+                    placement = apiResult.placement ?? null;
+                    reason = null;
+                    message = apiResult.message ?? null;
+                    if (apiResult.leaderboards) {
+                        applyLeaderboardSnapshot(apiResult.leaderboards, { source: 'remote', persist: true, error: null });
+                    } else {
+                        await refreshLeaderboardsFromApi({ force: true });
+                    }
+                    runsToday = trackSubmissionUsage(baseName, recordedAt);
+                } else if (apiResult?.reason === 'conflict') {
+                    recorded = false;
+                    source = 'remote';
+                    reason = 'conflict';
+                    placement = apiResult.placement ?? null;
+                    message = apiResult.message ?? 'Existing submission already recorded for this device.';
+                    if (apiResult.leaderboards) {
+                        applyLeaderboardSnapshot(apiResult.leaderboards, { source: 'remote', persist: true, error: null });
+                    } else {
+                        await refreshLeaderboardsFromApi({ force: true });
+                    }
+                    setLeaderboardStatus(message, 'warning');
+                } else if (apiResult?.reason === 'rateLimit' || apiResult?.reason === 'validation') {
+                    recorded = false;
+                    source = 'remote';
+                    reason = apiResult.reason;
+                    message = apiResult.message ?? 'Submission rejected by the leaderboard service.';
+                    setLeaderboardStatus(message, 'error');
+                } else {
+                    recorded = true;
+                    source = 'offline';
+                    reason = apiResult?.reason ?? 'offline';
+                    message = apiResult?.message ?? 'Unable to reach leaderboard service. Stored locally.';
+                    placement = recordLeaderboardEntry({
+                        player: baseName,
+                        timeMs: entry.timeMs,
+                        score: entry.score,
+                        bestStreak: entry.bestStreak,
+                        nyan: entry.nyan,
+                        recordedAt: entry.recordedAt
+                    });
+                    runsToday = trackSubmissionUsage(baseName, recordedAt);
+                }
+
+                return { recorded, placement, runsToday, reason, message, source };
             }
 
             function renderHighScorePanelForName(name) {
@@ -5186,40 +5584,22 @@
                 renderHighScorePanelForName(getPendingPlayerName());
             }
 
-            function recordLeaderboardEntry(entry) {
-                if (!entry || !entry.player) return null;
-                const normalized = {
-                    player: entry.player,
-                    timeMs: entry.timeMs ?? 0,
-                    score: entry.score ?? 0,
-                    bestStreak: entry.bestStreak ?? 0,
-                    nyan: entry.nyan ?? 0,
-                    recordedAt: entry.recordedAt ?? Date.now()
-                };
-                leaderboardEntries.push(normalized);
-                leaderboardEntries.sort((a, b) => {
-                    if (b.score !== a.score) return b.score - a.score;
-                    if (b.timeMs !== a.timeMs) return b.timeMs - a.timeMs;
-                    return a.recordedAt - b.recordedAt;
-                });
-                const limit = 7;
-                const placementIndex = leaderboardEntries.indexOf(normalized);
-                leaderboardEntries = leaderboardEntries.slice(0, limit);
-                persistLeaderboard(leaderboardEntries);
-                updateLeaderboardPanel();
-                if (placementIndex >= 0 && placementIndex < limit) {
-                    return placementIndex + 1;
-                }
-                return null;
-            }
-
             function updateLeaderboardPanel() {
                 if (!leaderboardListEl) return;
+                refreshLeaderboardTabState();
+                leaderboardEntries = getLeaderboardEntriesForScope(activeLeaderboardScope);
+                if (leaderboardTitleEl) {
+                    leaderboardTitleEl.textContent =
+                        activeLeaderboardScope === 'weekly' ? 'Weekly Standings' : 'Galaxy Standings';
+                }
                 leaderboardListEl.innerHTML = '';
                 if (!leaderboardEntries.length) {
                     const empty = document.createElement('li');
                     empty.className = 'empty';
-                    empty.textContent = 'No galaxy standings yet. Finish a run to seed the board!';
+                    empty.textContent =
+                        activeLeaderboardScope === 'weekly'
+                            ? 'No weekly standings yet. Finish a run this week to seed the board!'
+                            : 'No galaxy standings yet. Finish a run to seed the board!';
                     leaderboardListEl.appendChild(empty);
                     return;
                 }
@@ -5274,6 +5654,287 @@
                 socialFeedData = socialFeedData.slice(0, limit);
                 persistSocialFeed(socialFeedData);
                 updateSocialFeedPanel();
+            }
+
+            function getLeaderboardEntriesForScope(scope = activeLeaderboardScope) {
+                const normalized = scope === 'weekly' ? 'weekly' : 'global';
+                return leaderboardState.scopes[normalized] ?? [];
+            }
+
+            function refreshLeaderboardTabState() {
+                if (!Array.isArray(leaderboardTabButtons) || !leaderboardTabButtons.length) {
+                    return;
+                }
+                leaderboardTabButtons.forEach((button) => {
+                    const scope = button?.dataset?.leaderboardScope === 'weekly' ? 'weekly' : 'global';
+                    const isActive = scope === activeLeaderboardScope;
+                    button.classList.toggle('active', isActive);
+                    button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                });
+            }
+
+            function setLeaderboardStatus(message, type = 'info') {
+                leaderboardStatusState.message = message ?? '';
+                leaderboardStatusState.type = type ?? 'info';
+                if (!leaderboardStatusEl) {
+                    return;
+                }
+                const statusTypes = ['success', 'error', 'warning', 'loading', 'info'];
+                leaderboardStatusEl.classList.remove(...statusTypes);
+                if (!message) {
+                    leaderboardStatusEl.textContent = '';
+                    leaderboardStatusEl.hidden = true;
+                    return;
+                }
+                leaderboardStatusEl.hidden = false;
+                leaderboardStatusEl.textContent = message;
+                if (type && statusTypes.includes(type)) {
+                    leaderboardStatusEl.classList.add(type);
+                } else {
+                    leaderboardStatusEl.classList.add('info');
+                }
+            }
+
+            function updateLeaderboardStatus() {
+                const entries = getLeaderboardEntriesForScope();
+                if (!entries.length && (!leaderboardState.fetchedAt || leaderboardState.source === 'empty')) {
+                    setLeaderboardStatus('', 'info');
+                    return;
+                }
+                const scopeLabel = activeLeaderboardScope === 'weekly' ? 'Weekly' : 'Global';
+                if (!leaderboardState.fetchedAt) {
+                    setLeaderboardStatus(`${scopeLabel} standings ready.`, 'info');
+                    return;
+                }
+                const relative = formatRelativeTime(leaderboardState.fetchedAt);
+                if (leaderboardState.source === 'remote') {
+                    const text = relative === 'Just now' ? 'just now' : relative;
+                    setLeaderboardStatus(`${scopeLabel} standings synced ${text}.`, 'success');
+                    return;
+                }
+                if (leaderboardState.source === 'offline') {
+                    setLeaderboardStatus(
+                        `${scopeLabel} standings stored offline — last sync ${relative}.`,
+                        'warning'
+                    );
+                    return;
+                }
+                setLeaderboardStatus(`${scopeLabel} standings cached — last sync ${relative}.`, 'info');
+            }
+
+            function setActiveLeaderboardScope(scope) {
+                const normalized = scope === 'weekly' ? 'weekly' : 'global';
+                activeLeaderboardScope = normalized;
+                leaderboardEntries = getLeaderboardEntriesForScope(normalized);
+                refreshLeaderboardTabState();
+                updateLeaderboardPanel();
+                updateLeaderboardStatus();
+            }
+
+            function applyLeaderboardSnapshot(snapshot, { source = 'cache', persist = true, error = null } = {}) {
+                const sanitized = sanitizeLeaderboardSnapshot(snapshot);
+                leaderboardState.scopes.global = sanitized.global;
+                leaderboardState.scopes.weekly = sanitized.weekly;
+                leaderboardState.fetchedAt = sanitized.fetchedAt;
+                leaderboardState.source = source;
+                leaderboardState.error = error ?? null;
+                if (persist) {
+                    persistLeaderboard({
+                        global: leaderboardState.scopes.global,
+                        weekly: leaderboardState.scopes.weekly,
+                        fetchedAt: leaderboardState.fetchedAt
+                    });
+                }
+                if (
+                    activeLeaderboardScope === 'weekly' &&
+                    !leaderboardState.scopes.weekly.length &&
+                    leaderboardState.scopes.global.length
+                ) {
+                    activeLeaderboardScope = 'global';
+                }
+                leaderboardEntries = getLeaderboardEntriesForScope(activeLeaderboardScope);
+                refreshLeaderboardTabState();
+                updateLeaderboardPanel();
+                updateLeaderboardStatus();
+            }
+
+            function recordLeaderboardEntry(entry, { scope = 'global', persist = true } = {}) {
+                if (!entry || !entry.player) return null;
+                const normalized = {
+                    player: sanitizePlayerName(entry.player) || DEFAULT_PLAYER_NAME,
+                    timeMs: Number.isFinite(entry.timeMs) ? Math.max(0, Math.floor(entry.timeMs)) : 0,
+                    score: Number.isFinite(entry.score) ? Math.max(0, Math.floor(entry.score)) : 0,
+                    bestStreak: Number.isFinite(entry.bestStreak) ? Math.max(0, Math.floor(entry.bestStreak)) : 0,
+                    nyan: Number.isFinite(entry.nyan) ? Math.max(0, Math.floor(entry.nyan)) : 0,
+                    recordedAt: Number.isFinite(entry.recordedAt) ? entry.recordedAt : Date.now()
+                };
+                const targetScope = scope === 'weekly' ? 'weekly' : 'global';
+                const entries = [...getLeaderboardEntriesForScope(targetScope), normalized];
+                entries.sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    if (b.timeMs !== a.timeMs) return b.timeMs - a.timeMs;
+                    return a.recordedAt - b.recordedAt;
+                });
+                const limit = 7;
+                const placementIndex = entries.indexOf(normalized);
+                const trimmed = entries.slice(0, limit);
+                leaderboardState.scopes[targetScope] = trimmed;
+                if (targetScope === 'global' && !leaderboardState.scopes.weekly.length) {
+                    leaderboardState.scopes.weekly = trimmed;
+                }
+                leaderboardState.fetchedAt = Date.now();
+                leaderboardState.source = 'offline';
+                leaderboardState.error = null;
+                if (persist) {
+                    persistLeaderboard({
+                        global: leaderboardState.scopes.global,
+                        weekly: leaderboardState.scopes.weekly,
+                        fetchedAt: leaderboardState.fetchedAt
+                    });
+                }
+                leaderboardEntries = getLeaderboardEntriesForScope(activeLeaderboardScope);
+                refreshLeaderboardTabState();
+                updateLeaderboardPanel();
+                updateLeaderboardStatus();
+                setLeaderboardStatus('Offline — storing standings locally until sync resumes.', 'warning');
+                if (placementIndex >= 0 && placementIndex < limit) {
+                    return placementIndex + 1;
+                }
+                return null;
+            }
+
+            async function refreshLeaderboardsFromApi({ force = false } = {}) {
+                if (!API_CONFIG.baseUrl) {
+                    return null;
+                }
+                if (leaderboardFetchPromise) {
+                    return leaderboardFetchPromise;
+                }
+                const now = Date.now();
+                if (
+                    !force &&
+                    leaderboardState.source === 'remote' &&
+                    leaderboardState.fetchedAt &&
+                    now - leaderboardState.fetchedAt < API_CONFIG.cacheTtlMs
+                ) {
+                    return null;
+                }
+                const endpoint = buildApiUrl('leaderboards');
+                if (!endpoint) {
+                    return null;
+                }
+                const url = new URL(endpoint);
+                url.searchParams.set('scopes', API_CONFIG.scopes.join(','));
+                leaderboardFetchPromise = (async () => {
+                    try {
+                        setLeaderboardStatus('Syncing standings…', 'loading');
+                        const response = await fetchWithTimeout(url.toString(), {
+                            method: 'GET',
+                            headers: { Accept: 'application/json' }
+                        });
+                        const payload = await parseJsonSafely(response);
+                        if (!response.ok) {
+                            throw new Error(payload?.error || `Leaderboard request failed (${response.status})`);
+                        }
+                        const snapshot = sanitizeLeaderboardSnapshot(payload?.leaderboards ?? payload ?? {});
+                        applyLeaderboardSnapshot(snapshot, { source: 'remote', persist: true, error: null });
+                        return snapshot;
+                    } catch (error) {
+                        console.error('Failed to refresh leaderboard', error);
+                        leaderboardState.error = error;
+                        if (!leaderboardState.scopes.global.length && !leaderboardState.scopes.weekly.length) {
+                            setLeaderboardStatus('Unable to reach leaderboard server.', 'error');
+                        } else {
+                            setLeaderboardStatus('Offline — showing last known standings.', 'warning');
+                        }
+                        return null;
+                    } finally {
+                        leaderboardFetchPromise = null;
+                    }
+                })();
+                return leaderboardFetchPromise;
+            }
+
+            async function submitScoreToApi(payload) {
+                const endpoint = buildApiUrl('scores');
+                if (!endpoint) {
+                    return {
+                        success: false,
+                        reason: 'unconfigured',
+                        placement: null,
+                        leaderboards: null,
+                        message: 'Leaderboard sync not configured.'
+                    };
+                }
+                try {
+                    const response = await fetchWithTimeout(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await parseJsonSafely(response);
+                    const snapshot = data?.leaderboards ? sanitizeLeaderboardSnapshot(data.leaderboards) : null;
+                    if (response.ok) {
+                        return {
+                            success: true,
+                            placement: Number.isFinite(data?.placement) ? Number(data.placement) : null,
+                            leaderboards: snapshot,
+                            reason: null,
+                            message: data?.message ?? null
+                        };
+                    }
+                    const errorMessage = data?.message || data?.error || 'Unable to submit score.';
+                    if (response.status === 409) {
+                        return {
+                            success: false,
+                            reason: 'conflict',
+                            placement: Number.isFinite(data?.placement) ? Number(data.placement) : null,
+                            leaderboards: snapshot,
+                            message: errorMessage
+                        };
+                    }
+                    if (response.status === 429) {
+                        return {
+                            success: false,
+                            reason: 'rateLimit',
+                            placement: null,
+                            leaderboards: snapshot,
+                            message: errorMessage
+                        };
+                    }
+                    if (response.status === 400) {
+                        return {
+                            success: false,
+                            reason: 'validation',
+                            placement: null,
+                            leaderboards: snapshot,
+                            message: errorMessage
+                        };
+                    }
+                    return {
+                        success: false,
+                        reason: 'server',
+                        placement: null,
+                        leaderboards: snapshot,
+                        message: errorMessage
+                    };
+                } catch (error) {
+                    const reason = error?.name === 'AbortError' ? 'timeout' : 'network';
+                    const message =
+                        reason === 'timeout'
+                            ? 'Leaderboard service timed out. Saving locally.'
+                            : 'Unable to reach leaderboard service. Saving locally.';
+                    return {
+                        success: false,
+                        reason,
+                        placement: null,
+                        leaderboards: null,
+                        message
+                    };
+                }
             }
 
             function applyEquippedCosmetics(equipped = {}) {
@@ -7155,6 +7816,29 @@
                         // Ignore focus errors (e.g., if element is detached)
                     }
                 });
+            }
+
+            function setOverlaySubmittingState(isSubmitting) {
+                if (overlayButton) {
+                    if (isSubmitting && !overlayButton.dataset.originalLabel) {
+                        overlayButton.dataset.originalLabel = overlayButton.textContent ?? '';
+                    }
+                    overlayButton.disabled = isSubmitting;
+                    overlayButton.setAttribute('aria-disabled', isSubmitting ? 'true' : 'false');
+                    if (isSubmitting) {
+                        overlayButton.textContent = 'Submitting…';
+                    } else if (overlayButton.dataset.originalLabel) {
+                        if ((overlayButton.textContent ?? '') === 'Submitting…') {
+                            overlayButton.textContent = overlayButton.dataset.originalLabel;
+                        }
+                        delete overlayButton.dataset.originalLabel;
+                    }
+                }
+                if (overlaySecondaryButton) {
+                    const shouldDisable = isSubmitting || overlaySecondaryButton.hidden;
+                    overlaySecondaryButton.disabled = shouldDisable;
+                    overlaySecondaryButton.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
+                }
             }
 
             function hideOverlay() {
@@ -9628,6 +10312,16 @@
                         type: 'score',
                         timestamp
                     });
+                } else if (reason === 'conflict') {
+                    addSocialMoment(`${summary.player} already has a stronger log on the board.`, {
+                        type: 'limit',
+                        timestamp
+                    });
+                } else if (reason === 'error') {
+                    addSocialMoment(`${summary.player}'s log hit turbulence. Retry shortly.`, {
+                        type: 'limit',
+                        timestamp
+                    });
                 }
                 pendingSubmission = null;
                 return { summary, formattedTime, formattedScore };
@@ -9706,45 +10400,77 @@
                 });
             }
 
-            function attemptSubmitScore() {
+            async function attemptSubmitScore() {
                 if (!pendingSubmission) {
                     return;
                 }
                 const submission = { ...pendingSubmission };
                 submission.player = commitPlayerNameInput();
                 pendingSubmission.player = submission.player;
-                const result = recordHighScore(submission.timeMs, submission.score, {
-                    player: submission.player,
-                    bestStreak: submission.bestStreak,
-                    nyan: submission.nyan,
-                    recordedAt: submission.recordedAt
-                });
-                if (!result || !result.accepted) {
-                    const runsToday = result?.runsToday ?? getSubmissionUsage(submission.player, submission.recordedAt).count;
-                    finalizePendingSubmission({ recorded: false, reason: 'limit', runsToday });
+                setOverlaySubmittingState(true);
+                try {
+                    const result = await recordHighScore(submission.timeMs, submission.score, {
+                        player: submission.player,
+                        bestStreak: submission.bestStreak,
+                        nyan: submission.nyan,
+                        recordedAt: submission.recordedAt
+                    });
+                    if (!result || !result.recorded) {
+                        const runsToday = result?.runsToday ?? getSubmissionUsage(submission.player, submission.recordedAt).count;
+                        const reason = result?.reason ?? 'limit';
+                        const placement = result?.placement ?? null;
+                        finalizePendingSubmission({ recorded: false, reason, placement, runsToday });
+                        const message = buildRunSummaryMessage(submission.baseMessage, submission, {
+                            runsToday,
+                            limitReached: reason === 'limit',
+                            conflict: reason === 'conflict',
+                            errorMessage: result?.message ?? null
+                        });
+                        setOverlaySubmittingState(false);
+                        const primaryLabel = reason === 'limit' ? 'Retry Flight' : getRetryControlText();
+                        showOverlay(message, primaryLabel, { title: '', enableButton: true, launchMode: 'retry' });
+                        return;
+                    }
+                    const runsToday = result.runsToday ?? getSubmissionUsage(submission.player, submission.recordedAt).count;
+                    const placement = result.placement ?? null;
+                    finalizePendingSubmission({
+                        recorded: true,
+                        reason: result.reason ?? null,
+                        placement,
+                        runsToday
+                    });
+                    updateHighScorePanel();
+                    const message = buildRunSummaryMessage(submission.baseMessage, submission, {
+                        placement,
+                        runsToday,
+                        success: result.source === 'remote',
+                        offline: result.source === 'offline',
+                        errorMessage: result.message ?? null
+                    });
+                    setOverlaySubmittingState(false);
+                    showOverlay(message, getRetryControlText(), { title: '', enableButton: true, launchMode: 'retry' });
+                } catch (error) {
+                    console.error('Unexpected score submission failure', error);
+                    const runsToday = getSubmissionUsage(submission.player, submission.recordedAt).count;
+                    finalizePendingSubmission({ recorded: false, reason: 'error', runsToday });
                     const message = buildRunSummaryMessage(submission.baseMessage, submission, {
                         runsToday,
-                        limitReached: true
+                        errorMessage: 'Unexpected error while submitting. Try again shortly.'
                     });
+                    setOverlaySubmittingState(false);
                     showOverlay(message, 'Retry Flight', { title: '', enableButton: true, launchMode: 'retry' });
-                    return;
                 }
-                const runsToday = result.runsToday ?? getSubmissionUsage(submission.player, submission.recordedAt).count;
-                const placement = result.placement ?? null;
-                finalizePendingSubmission({ recorded: true, reason: null, placement, runsToday });
-                updateHighScorePanel();
-                const message = buildRunSummaryMessage(submission.baseMessage, submission, {
-                    placement,
-                    runsToday,
-                    success: true
-                });
-                showOverlay(message, getRetryControlText(), { title: '', enableButton: true, launchMode: 'retry' });
             }
 
             function handleOverlayAction(mode) {
                 const action = mode || (state.gameState === 'ready' ? 'launch' : 'retry');
                 if (action === 'submit') {
-                    attemptSubmitScore();
+                    const submissionPromise = attemptSubmitScore();
+                    if (submissionPromise && typeof submissionPromise.catch === 'function') {
+                        submissionPromise.catch((error) => {
+                            console.error('Unhandled submission error', error);
+                        });
+                    }
                     return;
                 }
                 if (action === 'retry') {
