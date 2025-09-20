@@ -4244,6 +4244,87 @@
                 }
             }
 
+            const RUN_TOKEN_BUFFER_MS = 2000;
+            let activeRunToken = null;
+            let activeRunTokenExpiresAt = 0;
+            let runTokenFetchPromise = null;
+
+            function invalidateRunToken() {
+                activeRunToken = null;
+                activeRunTokenExpiresAt = 0;
+            }
+
+            function hasValidRunToken() {
+                return (
+                    typeof activeRunToken === 'string' &&
+                    activeRunToken &&
+                    Number.isFinite(activeRunTokenExpiresAt) &&
+                    activeRunTokenExpiresAt - RUN_TOKEN_BUFFER_MS > Date.now()
+                );
+            }
+
+            async function ensureRunToken(options = {}) {
+                const { forceRefresh = false } = options ?? {};
+                if (forceRefresh) {
+                    invalidateRunToken();
+                }
+                if (hasValidRunToken()) {
+                    return { token: activeRunToken, expiresAt: activeRunTokenExpiresAt };
+                }
+                if (runTokenFetchPromise) {
+                    return runTokenFetchPromise;
+                }
+                const endpoint = buildApiUrl('runs');
+                if (!endpoint) {
+                    const error = new Error('Leaderboard sync not configured.');
+                    error.code = 'unconfigured';
+                    throw error;
+                }
+                const deviceId = getDeviceIdentifier();
+                runTokenFetchPromise = (async () => {
+                    try {
+                        let response;
+                        try {
+                            response = await fetchWithTimeout(endpoint, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    Accept: 'application/json'
+                                },
+                                body: JSON.stringify({ deviceId })
+                            });
+                        } catch (error) {
+                            if (error?.name === 'AbortError') {
+                                error.code = 'timeout';
+                            } else {
+                                error.code = 'network';
+                            }
+                            throw error;
+                        }
+                        const data = await parseJsonSafely(response);
+                        if (!response.ok) {
+                            const message = data?.message || data?.error || `Run token request failed (${response.status})`;
+                            const error = new Error(message);
+                            error.code = response.status === 401 ? 'auth' : 'server';
+                            throw error;
+                        }
+                        const token = typeof data?.runToken === 'string' ? data.runToken : null;
+                        const expiresAt = Number(data?.expiresAt);
+                        if (!token || !Number.isFinite(expiresAt)) {
+                            const error = new Error('Invalid run token response from server.');
+                            error.code = 'server';
+                            throw error;
+                        }
+                        activeRunToken = token;
+                        activeRunTokenExpiresAt = expiresAt;
+                        return { token, expiresAt };
+                    } finally {
+                        runTokenFetchPromise = null;
+                    }
+                })();
+                return runTokenFetchPromise;
+            }
+
             if (storageAvailable) {
                 const storedFirstRun = readStorage(STORAGE_KEYS.firstRunComplete);
                 firstRunExperience = storedFirstRun !== 'true';
@@ -5678,6 +5759,18 @@
                     reason = apiResult.reason;
                     message = apiResult.message ?? 'Submission rejected by the leaderboard service.';
                     setLeaderboardStatus(message, 'error');
+                } else if (apiResult?.reason === 'auth') {
+                    recorded = false;
+                    source = 'remote';
+                    reason = 'auth';
+                    message = apiResult.message ?? 'Run session expired. Retry the submission.';
+                    setLeaderboardStatus(message, 'error');
+                } else if (apiResult?.reason === 'server') {
+                    recorded = false;
+                    source = 'remote';
+                    reason = 'server';
+                    message = apiResult.message ?? 'Leaderboard service rejected the submission. Try again shortly.';
+                    setLeaderboardStatus(message, 'error');
                 } else {
                     recorded = true;
                     source = 'offline';
@@ -6030,17 +6123,98 @@
                         message: 'Leaderboard sync not configured.'
                     };
                 }
+
+                let tokenInfo;
                 try {
-                    const response = await fetchWithTimeout(endpoint, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Accept: 'application/json'
-                        },
-                        body: JSON.stringify(payload)
-                    });
+                    tokenInfo = await ensureRunToken();
+                } catch (error) {
+                    if (error?.code === 'unconfigured') {
+                        return {
+                            success: false,
+                            reason: 'unconfigured',
+                            placement: null,
+                            leaderboards: null,
+                            message: 'Leaderboard sync not configured.'
+                        };
+                    }
+                    const reason =
+                        error?.code === 'timeout'
+                            ? 'timeout'
+                            : error?.code === 'network'
+                                ? 'network'
+                                : 'server';
+                    const fallbackMessage =
+                        reason === 'timeout'
+                            ? 'Run session request timed out. Saving locally.'
+                            : reason === 'network'
+                                ? 'Unable to prepare run session. Saving locally.'
+                                : 'Run session request failed. Try again shortly.';
+                    return {
+                        success: false,
+                        reason,
+                        placement: null,
+                        leaderboards: null,
+                        message: error?.message || fallbackMessage
+                    };
+                }
+
+                const submitWithToken = async (runTokenValue) => {
+                    const requestBody = { ...payload, runToken: runTokenValue };
+                    let response;
+                    try {
+                        response = await fetchWithTimeout(endpoint, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Accept: 'application/json'
+                            },
+                            body: JSON.stringify(requestBody)
+                        });
+                    } catch (error) {
+                        if (error?.name === 'AbortError') {
+                            error.code = 'timeout';
+                        } else {
+                            error.code = 'network';
+                        }
+                        throw error;
+                    }
                     const data = await parseJsonSafely(response);
                     const snapshot = data?.leaderboards ? sanitizeLeaderboardSnapshot(data.leaderboards) : null;
+                    return { response, data, snapshot };
+                };
+
+                try {
+                    let { response, data, snapshot } = await submitWithToken(tokenInfo.token);
+                    if (response.status === 401) {
+                        try {
+                            const refreshed = await ensureRunToken({ forceRefresh: true });
+                            ({ response, data, snapshot } = await submitWithToken(refreshed.token));
+                        } catch (error) {
+                            const reason =
+                                error?.code === 'timeout'
+                                    ? 'timeout'
+                                    : error?.code === 'network'
+                                        ? 'network'
+                                        : 'auth';
+                            const message =
+                                error?.message ||
+                                data?.message ||
+                                data?.error ||
+                                (reason === 'timeout'
+                                    ? 'Run session refresh timed out. Saving locally.'
+                                    : reason === 'network'
+                                        ? 'Run session refresh failed. Saving locally.'
+                                        : 'Run session expired. Retry the submission.');
+                            return {
+                                success: false,
+                                reason,
+                                placement: null,
+                                leaderboards: snapshot,
+                                message
+                            };
+                        }
+                    }
+
                     if (response.ok) {
                         return {
                             success: true,
@@ -6050,6 +6224,7 @@
                             message: data?.message ?? null
                         };
                     }
+
                     const errorMessage = data?.message || data?.error || 'Unable to submit score.';
                     if (response.status === 409) {
                         return {
@@ -6078,15 +6253,27 @@
                             message: errorMessage
                         };
                     }
+                    if (response.status === 401) {
+                        return {
+                            success: false,
+                            reason: 'auth',
+                            placement: Number.isFinite(data?.placement) ? Number(data.placement) : null,
+                            leaderboards: snapshot,
+                            message: errorMessage
+                        };
+                    }
                     return {
                         success: false,
                         reason: 'server',
-                        placement: null,
+                        placement: Number.isFinite(data?.placement) ? Number(data.placement) : null,
                         leaderboards: snapshot,
                         message: errorMessage
                     };
                 } catch (error) {
-                    const reason = error?.name === 'AbortError' ? 'timeout' : 'network';
+                    const reason =
+                        error?.code === 'timeout' || error?.name === 'AbortError'
+                            ? 'timeout'
+                            : 'network';
                     const message =
                         reason === 'timeout'
                             ? 'Leaderboard service timed out. Saving locally.'
@@ -6098,6 +6285,8 @@
                         leaderboards: null,
                         message
                     };
+                } finally {
+                    invalidateRunToken();
                 }
             }
 
@@ -8143,13 +8332,27 @@
                 }
             }
 
-            function startGame() {
+            async function startGame() {
                 hidePreflightPrompt();
                 preflightOverlayDismissed = false;
                 commitPlayerNameInput();
                 completeFirstRunExperience();
                 resetGame();
                 pendingSubmission = null;
+                invalidateRunToken();
+                try {
+                    await ensureRunToken();
+                } catch (error) {
+                    if (error?.code === 'unconfigured') {
+                        // No remote leaderboard configured; continue without a token.
+                    } else if (error?.code === 'timeout') {
+                        console.warn('Run token request timed out before launch', error);
+                    } else if (error?.code === 'network') {
+                        console.warn('Unable to fetch run token before launch', error);
+                    } else {
+                        console.error('Run token request failed before launch', error);
+                    }
+                }
                 state.gameState = 'running';
                 lastTime = null;
                 accumulatedDelta = 0;

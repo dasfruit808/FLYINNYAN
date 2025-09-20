@@ -36,12 +36,16 @@ The game expects a simple REST service with two routes:
 
 | Method | Path              | Description                                                |
 | ------ | ----------------- | ---------------------------------------------------------- |
+| `POST` | `/runs`           | Issue a short-lived signed run token for a device.         |
 | `POST` | `/scores`         | Validate + record a submission, returning updated boards. |
 | `GET`  | `/leaderboards`   | Return cached global/weekly standings.                     |
 
 Requests are JSON and must include the player name, a stable `deviceId`,
-score metadata, and a millisecond `recordedAt` timestamp. The POST handler
-returns HTTP `201` on success with:
+score metadata, a millisecond `recordedAt` timestamp, **and a valid run token**.
+The client requests a token via `POST /runs` before each gameplay session and
+attaches the returned `runToken` when submitting `/scores`. Tokens expire after
+five minutes (configurable) and are invalidated immediately after a successful
+submission. The POST handler returns HTTP `201` on success with:
 
 ```jsonc
 {
@@ -63,10 +67,29 @@ The included Supabase Edge Function implementation lives in
 `backend/leaderboard-function.ts`. It provides:
 
 * JSON validation and sanitisation for names, numeric values, and timestamps.
+* Run session handshakes backed by Deno KV with HMAC-signed tokens.
 * Rate limiting (default: 12 writes per device/IP per minute) backed by Deno KV.
 * Conflict resolution that only upgrades an existing device row when the
   submitted score or survival time improves.
 * Global + rolling weekly leaderboards derived from a single `scores` table.
+
+### Run session handshake
+
+Each call to `POST /runs` expects a JSON body containing `{ "deviceId": "…" }`
+and responds with:
+
+```jsonc
+{
+  "runToken": "<tokenId>.<expiresAt>.<signature>",
+  "expiresAt": 1715020800000
+}
+```
+
+Tokens are stored in Deno KV under the `run-token` namespace alongside the
+requesting device ID. The backend signs each token using an HMAC secret so the
+client cannot forge submissions. When `/scores` verifies the signature and KV
+record it deletes the entry, preventing token reuse. Expired or missing tokens
+return HTTP `401` and prompt the client to fetch a fresh token before retrying.
 
 ### Database schema
 
@@ -102,7 +125,8 @@ table.
 2. Copy `backend/leaderboard-function.ts` into `supabase/functions/leaderboard/index.ts`.
 3. Deploy the function: `supabase functions deploy leaderboard`.
 4. Note the function URL and create a service secret using `supabase secrets set
-   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=...`.
+   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... RUN_TOKEN_SECRET=...` (optionally
+   add `RUN_TOKEN_TTL_MS` to adjust the default 5 minute token lifetime).
 
 If you do not want to host on Supabase, the same function logic can run on
 Cloudflare Workers or Google Cloud Functions with minimal adjustments—replace
@@ -119,5 +143,7 @@ falls back to a cached snapshot stored in `localStorage` and surfaces an offline
 warning in the HUD.
 
 Each submission now sends a deterministic `deviceId`, player name, score, streak
-information, and timestamps. The UI reports errors (conflicts, rate limiting,
-offline storage) directly inside the overlay and leaderboard status banner.
+information, timestamps, and a run token issued before launch. The UI reports
+errors (conflicts, rate limiting, authentication, offline storage) directly
+inside the overlay and leaderboard status banner. Redeploy the client and server
+updates together so the handshake stays in sync.
