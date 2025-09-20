@@ -1942,7 +1942,6 @@
             const socialFeedEl = document.getElementById('socialFeed');
             const socialCard = document.getElementById('socialCard');
             const socialContent = document.getElementById('socialContent');
-            const collapsibleCards = Array.from(document.querySelectorAll('#instructions .hud-card.collapsible'));
             const intelCard = document.getElementById('intelCard');
             const intelContent = document.getElementById('intelContent');
             const intelLogEl = document.getElementById('intelLog');
@@ -2354,39 +2353,61 @@
                 content.style.setProperty('--collapsible-max-height', `${Math.round(capped)}px`);
             }
 
-            const updateAllCardHeights = () => {
-                collapsibleCards.forEach(card => {
-                    const content = card.querySelector('.card-content');
-                    if (!content) return;
-                    if (card.classList.contains('open')) {
-                        updateCardMaxHeight(card, content);
-                    }
-                });
-            };
+            function createCollapsibleController() {
+                const cards = Array.from(document.querySelectorAll('#instructions .hud-card.collapsible'));
+                const entries = cards
+                    .map((card) => {
+                        const toggle = card.querySelector('.card-toggle');
+                        if (!toggle) {
+                            return null;
+                        }
 
-            collapsibleCards.forEach(card => {
-                const toggle = card.querySelector('.card-toggle');
-                const contentId = toggle?.getAttribute('aria-controls') ?? '';
-                const content = contentId ? document.getElementById(contentId) : card.querySelector('.card-content');
-                if (!toggle || !content) return;
+                        const contentId = toggle.getAttribute('aria-controls');
+                        const fallbackContent = card.querySelector('.card-content');
+                        const content = contentId ? document.getElementById(contentId) ?? fallbackContent : fallbackContent;
+                        if (!content) {
+                            return null;
+                        }
 
-                const setState = (isOpen) => {
+                        return { card, toggle, content };
+                    })
+                    .filter(Boolean);
+
+                const setState = (entry, isOpen) => {
+                    const { card, content, toggle } = entry;
                     card.classList.toggle('open', isOpen);
+                    toggle.setAttribute('aria-expanded', String(isOpen));
+                    content.setAttribute('aria-hidden', String(!isOpen));
+
                     if (isOpen) {
                         updateCardMaxHeight(card, content);
                     } else {
                         content.scrollTop = 0;
                         content.style.removeProperty('--collapsible-max-height');
                     }
-                    toggle.setAttribute('aria-expanded', String(isOpen));
                 };
 
-                setState(card.classList.contains('open'));
+                entries.forEach((entry) => {
+                    setState(entry, entry.card.classList.contains('open'));
 
-                toggle.addEventListener('click', () => {
-                    setState(!card.classList.contains('open'));
+                    entry.toggle.addEventListener('click', () => {
+                        setState(entry, !entry.card.classList.contains('open'));
+                    });
                 });
-            });
+
+                return {
+                    updateAll() {
+                        entries.forEach((entry) => {
+                            if (entry.card.classList.contains('open')) {
+                                updateCardMaxHeight(entry.card, entry.content);
+                            }
+                        });
+                    }
+                };
+            }
+
+            const collapsibleController = createCollapsibleController();
+            const updateAllCardHeights = () => collapsibleController.updateAll();
 
             window.addEventListener('resize', updateAllCardHeights);
             requestAnimationFrame(updateAllCardHeights);
