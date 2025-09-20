@@ -3812,7 +3812,9 @@
                     triggered: false,
                     active: false,
                     bossSpawned: false,
-                    defeated: false
+                    defeated: false,
+                    powerUpSpawned: false,
+                    alertTimer: 0
                 }
             };
 
@@ -4000,6 +4002,7 @@
             };
 
             const BOSS_EVENT_TIME_MS = 60000;
+            const BOSS_ALERT_DURATION = 2000;
             const bossVillainType = {
                 key: 'boss',
                 name: 'Celestial Behemoth',
@@ -4007,8 +4010,8 @@
                 width: 220,
                 height: 220,
                 health: 36,
-                rotation: { min: -0.4, max: 0.4 },
-                behavior: { type: 'sine', amplitude: 48, speed: 1.2 }
+                rotation: { min: 0, max: 0 },
+                behavior: { type: 'hover', amplitude: 72, verticalSpeed: 70 }
             };
 
             const villainTypes = [
@@ -4174,6 +4177,8 @@
                 state.bossBattle.active = false;
                 state.bossBattle.bossSpawned = false;
                 state.bossBattle.defeated = false;
+                state.bossBattle.powerUpSpawned = false;
+                state.bossBattle.alertTimer = 0;
                 hyperBeamState.intensity = 0;
                 hyperBeamState.wave = 0;
                 hyperBeamState.sparkTimer = 0;
@@ -5813,6 +5818,27 @@
                         });
                         break;
                     }
+                    case 'hover': {
+                        const amplitude = behavior.amplitude ?? 40;
+                        const center = Math.random() * (canvas.height - size);
+                        const lowerBound = 16;
+                        const upperBound = Math.max(lowerBound, canvas.height - size - lowerBound);
+                        let minY = clamp(center - amplitude, lowerBound, upperBound);
+                        let maxY = clamp(center + amplitude, lowerBound, upperBound);
+                        if (minY > maxY) {
+                            const mid = (minY + maxY) / 2;
+                            minY = mid;
+                            maxY = mid;
+                        }
+                        Object.assign(state, {
+                            minY,
+                            maxY,
+                            speed: behavior.verticalSpeed ?? 60,
+                            direction: Math.random() < 0.5 ? -1 : 1,
+                            initialY: clamp(center, minY, maxY)
+                        });
+                        break;
+                    }
                     case 'drift': {
                         const initialY = Math.random() * (canvas.height - size);
                         const maxVertical = behavior.verticalSpeed ?? 120;
@@ -5850,6 +5876,8 @@
                 state.bossBattle.active = false;
                 state.bossBattle.bossSpawned = false;
                 state.bossBattle.defeated = true;
+                state.bossBattle.powerUpSpawned = false;
+                state.bossBattle.alertTimer = 0;
                 spawnTimers.obstacle = 0;
                 spawnTimers.collectible = 0;
                 spawnTimers.powerUp = 0;
@@ -5863,25 +5891,33 @@
                     32,
                     canvas.height - height - 32
                 );
-                const rotationSpeed = randomBetween(
-                    bossVillainType.rotation.min,
-                    bossVillainType.rotation.max
-                );
+                const hoverAmplitude = bossVillainType.behavior?.amplitude ?? 0;
+                const hoverSpeed = bossVillainType.behavior?.verticalSpeed ?? 60;
+                const lowerBound = 16;
+                const upperBound = Math.max(lowerBound, canvas.height - height - lowerBound);
+                let minY = clamp(spawnY - hoverAmplitude, lowerBound, upperBound);
+                let maxY = clamp(spawnY + hoverAmplitude, lowerBound, upperBound);
+                if (minY > maxY) {
+                    const mid = (minY + maxY) / 2;
+                    minY = mid;
+                    maxY = mid;
+                }
                 const behaviorState = {
-                    phase: 0,
-                    amplitude: bossVillainType.behavior?.amplitude ?? 0,
-                    speed: bossVillainType.behavior?.speed ?? 0,
-                    baseY: spawnY
+                    type: 'hover',
+                    speed: hoverSpeed,
+                    minY,
+                    maxY,
+                    direction: 1
                 };
 
                 obstacles.push({
                     x: canvas.width + width,
-                    y: spawnY,
+                    y: clamp(spawnY, minY, maxY),
                     width,
                     height,
-                    speed: Math.max(80, state.gameSpeed * 0.35),
+                    speed: Math.max(60, state.gameSpeed * 0.22),
                     rotation: 0,
-                    rotationSpeed,
+                    rotationSpeed: 0,
                     health: bossVillainType.health,
                     maxHealth: bossVillainType.health,
                     hitFlash: 0,
@@ -5904,6 +5940,8 @@
                 state.bossBattle.triggered = true;
                 state.bossBattle.active = true;
                 state.bossBattle.bossSpawned = false;
+                state.bossBattle.powerUpSpawned = false;
+                state.bossBattle.alertTimer = BOSS_ALERT_DURATION;
                 obstacles.length = 0;
                 collectibles.length = 0;
                 powerUps.length = 0;
@@ -5911,6 +5949,7 @@
                 spawnTimers.collectible = 0;
                 spawnTimers.powerUp = 0;
                 spawnBoss();
+                spawnBossSupportPowerUp();
             }
 
             function spawnObstacle() {
@@ -6016,6 +6055,18 @@
                     wobbleTime: Math.random() * Math.PI * 2,
                     type
                 });
+                return powerUps[powerUps.length - 1];
+            }
+
+            function spawnBossSupportPowerUp() {
+                if (state.bossBattle.powerUpSpawned) {
+                    return;
+                }
+                const powerUp = spawnPowerUp();
+                if (powerUp) {
+                    powerUp.x = canvas.width - powerUp.width * 0.5;
+                }
+                state.bossBattle.powerUpSpawned = true;
             }
 
             function applyVillainBehavior(obstacle, deltaSeconds) {
@@ -6031,6 +6082,31 @@
                         const amplitude = behaviorState.amplitude ?? villainBehavior.amplitude ?? 40;
                         const targetY = behaviorState.baseY + Math.sin(behaviorState.phase) * amplitude;
                         obstacle.y = clamp(targetY, 0, canvas.height - obstacle.height);
+                        break;
+                    }
+                    case 'hover': {
+                        const speed = behaviorState.speed ?? villainBehavior.verticalSpeed ?? 60;
+                        const minY =
+                            behaviorState.minY ?? clamp(obstacle.y - (villainBehavior.amplitude ?? 0), 16, canvas.height - obstacle.height - 16);
+                        const maxY =
+                            behaviorState.maxY ?? clamp(obstacle.y + (villainBehavior.amplitude ?? 0), 16, canvas.height - obstacle.height - 16);
+                        if (behaviorState.minY === undefined) {
+                            behaviorState.minY = minY;
+                        }
+                        if (behaviorState.maxY === undefined) {
+                            behaviorState.maxY = maxY;
+                        }
+                        const direction = behaviorState.direction ?? 1;
+                        obstacle.y += speed * direction * deltaSeconds;
+                        if (obstacle.y <= behaviorState.minY) {
+                            obstacle.y = behaviorState.minY;
+                            behaviorState.direction = 1;
+                        } else if (obstacle.y >= behaviorState.maxY) {
+                            obstacle.y = behaviorState.maxY;
+                            behaviorState.direction = -1;
+                        } else {
+                            behaviorState.direction = direction;
+                        }
                         break;
                     }
                     case 'drift': {
@@ -6765,6 +6841,41 @@
                     ctx.shadowBlur = 18 * alpha;
                     ctx.fillText(entry.text, entry.x, entry.y);
                 }
+                ctx.restore();
+            }
+
+            function drawBossAlert(time) {
+                const remaining = state.bossBattle.alertTimer;
+                if (!canvas || remaining <= 0) {
+                    return;
+                }
+                const elapsed = BOSS_ALERT_DURATION - remaining;
+                const flashPeriod = 200;
+                const flashOn = Math.floor(elapsed / flashPeriod) % 2 === 0;
+                if (!flashOn) {
+                    return;
+                }
+                const alpha = clamp(remaining / BOSS_ALERT_DURATION, 0, 1);
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const fontSize = 64 + Math.sin(time * 0.008) * 4;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.globalAlpha = alpha;
+                ctx.font = `900 ${fontSize}px ${primaryFontStack}`;
+                const gradient = ctx.createLinearGradient(centerX - 220, centerY, centerX + 220, centerY);
+                gradient.addColorStop(0, '#facc15');
+                gradient.addColorStop(0.5, '#f472b6');
+                gradient.addColorStop(1, '#38bdf8');
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = 6;
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.strokeText('BOSS FIGHT!', centerX, centerY);
+                ctx.shadowColor = 'rgba(248, 250, 252, 0.85)';
+                ctx.shadowBlur = 22;
+                ctx.fillStyle = gradient;
+                ctx.fillText('BOSS FIGHT!', centerX, centerY);
                 ctx.restore();
             }
 
@@ -7972,6 +8083,9 @@
                 state.elapsedTime += delta;
                 updateIntelLore(state.elapsedTime);
                 state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (delta / 1000);
+                if (state.bossBattle.alertTimer > 0) {
+                    state.bossBattle.alertTimer = Math.max(0, state.bossBattle.alertTimer - delta);
+                }
 
                 if (!state.bossBattle.triggered && state.elapsedTime >= BOSS_EVENT_TIME_MS) {
                     startBossBattle();
@@ -8017,6 +8131,7 @@
                 drawPlayer();
                 drawFloatingTexts();
                 ctx.restore();
+                drawBossAlert(timestamp);
             }
 
             let lastTime = null;
