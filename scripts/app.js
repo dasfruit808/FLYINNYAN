@@ -5299,6 +5299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeCharacterId = 'nova';
     let pendingCharacterId = 'nova';
     let pendingLaunchAction = null;
+    let characterSelectSource = 'action';
     let lastEquippedCosmetics = {};
     renderCharacterSelectCards();
     renderPilotPreview();
@@ -5608,15 +5609,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return state.gameState === 'ready' ? 'launch' : 'retry';
     }
 
-    function openCharacterSelect(action) {
+    function openCharacterSelect(action, options = {}) {
         if (!characterSelectModal) {
             if (action === 'retry') {
                 skipScoreSubmission();
+                commitPlayerNameInput();
+                enterPreflightReadyState();
+            } else {
+                configureOverlayForNameEntry();
             }
-            configureOverlayForNameEntry();
             return;
         }
+        const { source = 'action' } = options;
         pendingLaunchAction = action;
+        characterSelectSource = source;
         characterSelectModal.hidden = false;
         characterSelectModal.setAttribute('aria-hidden', 'false');
         document.body?.classList.add('character-select-open');
@@ -5638,6 +5644,7 @@ document.addEventListener('DOMContentLoaded', () => {
         characterSelectModal.setAttribute('aria-hidden', 'true');
         document.body?.classList.remove('character-select-open');
         pendingLaunchAction = null;
+        characterSelectSource = 'action';
         setPendingCharacter(activeCharacterId, { updateSummary: false });
         updateCharacterSummaryDisplay(null);
         try {
@@ -5653,13 +5660,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const action = pendingLaunchAction;
-        if (action === 'retry') {
-            skipScoreSubmission();
-        }
+        const source = characterSelectSource;
+        const overlayVisible = Boolean(overlay && !overlay.classList.contains('hidden'));
         setActiveCharacter(profile);
-        pendingLaunchAction = null;
         closeCharacterSelect();
-        configureOverlayForNameEntry();
+        if (action === 'retry' && source === 'action') {
+            commitPlayerNameInput();
+            enterPreflightReadyState();
+            return;
+        }
+        if (action === 'launch' && source === 'action') {
+            commitPlayerNameInput();
+            if (overlayVisible) {
+                configureOverlayForNameEntry({ focusInput: false });
+            } else {
+                enterPreflightReadyState();
+            }
+            return;
+        }
+        if (overlayVisible) {
+            refreshOverlayLaunchButton();
+            refreshHighScorePreview();
+        }
     }
     let activePlayerImage = playerBaseImage;
     let activeTrailStyle = trailStyles.rainbow;
@@ -5669,7 +5691,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (swapPilotButton.disabled) {
                 return;
             }
-            openCharacterSelect(resolveCharacterSelectAction());
+            openCharacterSelect(resolveCharacterSelectAction(), { source: 'swap' });
         });
     }
     if (pilotPreviewGrid) {
@@ -5682,7 +5704,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!characterId || !characterSelectModal) {
                 return;
             }
-            openCharacterSelect(resolveCharacterSelectAction());
+            openCharacterSelect(resolveCharacterSelectAction(), { source: 'preview' });
             setPendingCharacter(characterId, { focusCard: true });
         });
     }
@@ -6849,6 +6871,21 @@ document.addEventListener('DOMContentLoaded', () => {
         setPreflightPromptVisibility(false);
     }
 
+    function enterPreflightReadyState({ focusCanvas = true } = {}) {
+        preflightOverlayDismissed = true;
+        state.gameState = 'ready';
+        preflightReady = true;
+        if (overlayButton) {
+            overlayButton.dataset.launchMode = 'launch';
+            refreshOverlayLaunchButton();
+        }
+        hideOverlay();
+        showPreflightPrompt();
+        if (focusCanvas) {
+            focusGameCanvas();
+        }
+    }
+
     function revealGameScreenAfterNameEntry() {
         if (preflightOverlayDismissed) {
             return;
@@ -6860,16 +6897,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mode !== 'prepare' && mode !== 'launch') {
             return;
         }
-        preflightOverlayDismissed = true;
-        state.gameState = 'ready';
-        preflightReady = true;
-        if (overlayButton) {
-            overlayButton.dataset.launchMode = 'launch';
-            refreshOverlayLaunchButton();
-        }
-        hideOverlay();
-        showPreflightPrompt();
-        focusGameCanvas();
+        enterPreflightReadyState();
     }
 
     function showOverlay(message, buttonText = getLaunchControlText(), options = {}) {
@@ -9704,7 +9732,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (action === 'retry') {
-            openCharacterSelect('retry');
+            skipScoreSubmission();
+            commitPlayerNameInput();
+            enterPreflightReadyState();
+            return;
+        }
+        if (action === 'launch') {
+            commitPlayerNameInput();
+            if (state.gameState === 'ready' && preflightReady) {
+                startGame();
+            } else {
+                enterPreflightReadyState();
+            }
             return;
         }
         openCharacterSelect('launch');
