@@ -258,15 +258,13 @@
         #instructions .hud-card {
             background: linear-gradient(165deg, rgba(15, 23, 42, 0.85), rgba(8, 16, 32, 0.78));
             border-radius: 16px;
-            padding: 16px 18px;
+            padding: 18px 20px;
             box-shadow: 0 18px 38px rgba(2, 6, 23, 0.45), inset 0 0 0 1px rgba(94, 234, 212, 0.08);
             border: 1px solid rgba(148, 163, 184, 0.18);
             backdrop-filter: blur(12px);
-        }
-
-        #instructions .hud-card.collapsible {
-            padding: 0;
-            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
         }
 
         #instructions .card-title {
@@ -274,84 +272,62 @@
             text-transform: uppercase;
             letter-spacing: 0.18em;
             color: rgba(148, 210, 255, 0.9);
-            margin: 0 0 12px 0;
+            margin: 0 0 12px;
         }
 
-        #instructions .hud-card.collapsible .card-title {
-            margin: 0;
-        }
-
-        #instructions .hud-card.collapsible .card-toggle {
-            width: 100%;
+        #instructionNav {
+            position: sticky;
+            top: 0;
+            z-index: 2;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 16px 20px;
-            background: transparent;
-            border: none;
-            color: inherit;
-            font: inherit;
-            text-align: left;
-            cursor: pointer;
-            transition: background 160ms ease;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 12px 2px 4px;
+            margin: 0 0 12px;
+            background: linear-gradient(165deg, rgba(15, 23, 42, 0.78), rgba(8, 16, 32, 0.74));
+            border-radius: 14px;
+            border: 1px solid rgba(148, 210, 255, 0.18);
+            box-shadow: inset 0 0 0 1px rgba(94, 234, 212, 0.05);
+            backdrop-filter: blur(12px);
         }
 
-        #instructions .hud-card.collapsible .card-toggle:focus-visible {
-            outline: 2px solid rgba(148, 210, 255, 0.75);
-            outline-offset: 4px;
+        #instructions section {
+            scroll-margin-top: clamp(72px, 12vh, 120px);
         }
 
-        #instructions .hud-card.collapsible .card-toggle:hover {
-            background: rgba(15, 23, 42, 0.35);
-        }
-
-        #instructions .hud-card.collapsible .toggle-icon {
-            width: 20px;
-            height: 20px;
-            border-radius: 6px;
-            border: 1px solid rgba(148, 210, 255, 0.45);
+        #instructionNav a {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.9rem;
-            color: rgba(148, 210, 255, 0.9);
-            transition: transform 160ms ease;
-        }
-
-        #instructions .hud-card.collapsible.open .toggle-icon {
-            transform: rotate(180deg);
-        }
-
-        #instructions .hud-card.collapsible .toggle-icon::before {
-            content: '\25BC';
-            display: block;
-            line-height: 1;
-        }
-
-        #instructions .hud-card.collapsible .card-content {
-            padding: 0 20px;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 220ms ease, padding 220ms ease;
-            background: linear-gradient(180deg, rgba(12, 20, 40, 0.9), rgba(6, 10, 24, 0.88));
-            border-top: 1px solid rgba(148, 210, 255, 0.16);
-        }
-
-        #instructions .hud-card.collapsible.open .card-content {
-            padding: 14px 20px 18px;
-            max-height: var(--collapsible-max-height, clamp(220px, 32vh, 420px));
-            overflow-y: auto;
-            color: rgba(226, 232, 240, 0.94);
-        }
-
-        #instructions .hud-card.collapsible .card-content::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        #instructions .hud-card.collapsible .card-content::-webkit-scrollbar-thumb {
-            background: rgba(148, 210, 255, 0.35);
+            padding: 6px 14px;
             border-radius: 999px;
+            font-size: 0.68rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(191, 219, 254, 0.9);
+            text-decoration: none;
+            border: 1px solid rgba(148, 210, 255, 0.28);
+            box-shadow: 0 6px 14px rgba(2, 6, 23, 0.35);
+            transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, color 140ms ease;
+        }
+
+        #instructionNav a:hover,
+        #instructionNav a:focus-visible {
+            background: rgba(56, 189, 248, 0.22);
+            color: rgba(224, 242, 254, 0.95);
+            box-shadow: 0 10px 22px rgba(14, 116, 144, 0.35);
+            transform: translateY(-1px);
+            outline: none;
+        }
+
+        #instructionNav a:focus-visible {
+            outline: 2px solid rgba(148, 210, 255, 0.75);
+            outline-offset: 3px;
+        }
+
+        #instructionNav a:active {
+            transform: translateY(1px);
+            box-shadow: 0 6px 12px rgba(2, 6, 23, 0.5);
         }
 
         #instructions .control-list {
@@ -486,10 +462,6 @@
 
         #intelCard .card-body {
             transition: opacity 220ms ease;
-        }
-
-        #intelCard .card-body.updating {
-            opacity: 0;
         }
 
         .intel-log {
@@ -1054,6 +1026,13 @@
             <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
         </div>
         <aside id="instructions" aria-label="Flight telemetry, controls, and mission information">
+            <nav id="instructionNav" aria-label="Quick mission links">
+                <a href="#stats">Telemetry</a>
+                <a href="#controlsCard">Controls</a>
+                <a href="#missionCard">Mission</a>
+                <a href="#intelCard">Intel</a>
+                <a href="#socialCard">Feed</a>
+            </nav>
             <section id="stats" role="complementary" aria-live="polite">
                 <h2 class="card-title">Flight Telemetry</h2>
                 <div class="stat-list" role="presentation">
@@ -1090,12 +1069,9 @@
                 <div id="comboFill"></div>
             </div>
         </section>
-        <div class="hud-card collapsible open" id="controlsCard">
-            <button class="card-toggle" type="button" id="controlsToggle" aria-expanded="true" aria-controls="controlsContent">
-                <span class="card-title">Flight Controls</span>
-                <span class="toggle-icon" aria-hidden="true"></span>
-            </button>
-            <div class="card-content" id="controlsContent" role="region" aria-labelledby="controlsToggle">
+        <section class="hud-card" id="controlsCard" aria-labelledby="controlsCardTitle">
+            <h2 class="card-title" id="controlsCardTitle">Flight Controls</h2>
+            <div class="card-body">
                 <div class="control-list" role="list">
                     <div class="control-row" role="listitem">
                         <div class="control-keys" aria-label="Movement keys">
@@ -1120,13 +1096,10 @@
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="hud-card collapsible open" id="missionCard">
-            <button class="card-toggle" type="button" id="missionToggle" aria-expanded="true" aria-controls="missionContent">
-                <span class="card-title">Mission Brief</span>
-                <span class="toggle-icon" aria-hidden="true"></span>
-            </button>
-            <div class="card-content" id="missionContent" role="region" aria-labelledby="missionToggle">
+        </section>
+        <section class="hud-card" id="missionCard" aria-labelledby="missionCardTitle">
+            <h2 class="card-title" id="missionCardTitle">Mission Brief</h2>
+            <div class="card-body">
                 <ul class="mission-list">
                     <li>Collect Points to fuel the escape and grow your score.</li>
                     <li>Slip between asteroids and hostile fire to stay in the fight.</li>
@@ -1136,25 +1109,19 @@
                     <li>Keep the combo meter charged to amplify every point.</li>
                 </ul>
             </div>
-        </div>
-        <div class="hud-card collapsible open" id="intelCard">
-            <button class="card-toggle" type="button" id="intelToggle" aria-expanded="true" aria-controls="intelContent">
-                <span class="card-title">Tactical Intel</span>
-                <span class="toggle-icon" aria-hidden="true"></span>
-            </button>
-            <div class="card-content" id="intelContent" role="region" aria-labelledby="intelToggle">
+        </section>
+        <section class="hud-card" id="intelCard" aria-labelledby="intelCardTitle">
+            <h2 class="card-title" id="intelCardTitle">Tactical Intel</h2>
+            <div class="card-body">
                 <ul class="intel-log" id="intelLog" role="list" aria-live="polite"></ul>
             </div>
-        </div>
-        <div class="hud-card collapsible open" id="socialCard">
-            <button class="card-toggle" type="button" id="socialToggle" aria-expanded="true" aria-controls="socialContent">
-                <span class="card-title">Squadron Feed</span>
-                <span class="toggle-icon" aria-hidden="true"></span>
-            </button>
-            <div class="card-content" id="socialContent" role="region" aria-labelledby="socialToggle">
+        </section>
+        <section class="hud-card" id="socialCard" aria-labelledby="socialCardTitle">
+            <h2 class="card-title" id="socialCardTitle">Squadron Feed</h2>
+            <div class="card-body">
                 <ul id="socialFeed" role="list"></ul>
             </div>
-        </div>
+        </section>
         </aside>
     </div>
     <div id="touchControls" aria-hidden="true">
@@ -1216,6 +1183,22 @@
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
+
+            function enableHighQualitySmoothing(context) {
+                if (!context) {
+                    return;
+                }
+
+                if (typeof context.imageSmoothingEnabled !== 'undefined') {
+                    context.imageSmoothingEnabled = true;
+                }
+
+                if (typeof context.imageSmoothingQuality !== 'undefined') {
+                    context.imageSmoothingQuality = 'high';
+                }
+            }
+
+            enableHighQualitySmoothing(ctx);
             const supportsPointerEvents = typeof window !== 'undefined' && 'PointerEvent' in window;
 
             const audioManager = (() => {
@@ -1940,10 +1923,6 @@
             const copyShareButton = document.getElementById('copyShareButton');
             const shareStatusEl = document.getElementById('shareStatus');
             const socialFeedEl = document.getElementById('socialFeed');
-            const socialCard = document.getElementById('socialCard');
-            const socialContent = document.getElementById('socialContent');
-            const intelCard = document.getElementById('intelCard');
-            const intelContent = document.getElementById('intelContent');
             const intelLogEl = document.getElementById('intelLog');
 
             const intelLoreEntries = [
@@ -2025,9 +2004,6 @@
                     item.appendChild(title);
                     item.appendChild(body);
                     intelLogEl.appendChild(item);
-                }
-                if (intelCard?.classList.contains('open') && intelContent) {
-                    updateCardMaxHeight(intelCard, intelContent);
                 }
             }
 
@@ -2135,6 +2111,7 @@
                 if (!context) {
                     return null;
                 }
+                enableHighQualitySmoothing(context);
                 draw(context, width, height);
                 return canvas.toDataURL('image/png');
             }
@@ -2346,183 +2323,12 @@
                 });
             }
 
-            function updateCardMaxHeight(card, content) {
-                const viewportLimit = Math.max(window.innerHeight * 0.45, 220);
-                const naturalHeight = content.scrollHeight + 1;
-                const capped = Math.min(naturalHeight, viewportLimit, 420);
-                content.style.setProperty('--collapsible-max-height', `${Math.round(capped)}px`);
-            }
-
-            function createCollapsibleController() {
-                const cards = Array.from(document.querySelectorAll('#instructions .hud-card.collapsible'));
-                const entries = cards
-                    .map((card) => {
-                        const toggle = card.querySelector('.card-toggle');
-                        if (!toggle) {
-                            return null;
-                        }
-
-                        const contentId = toggle.getAttribute('aria-controls');
-                        const fallbackContent = card.querySelector('.card-content');
-                        const content = contentId ? document.getElementById(contentId) ?? fallbackContent : fallbackContent;
-                        if (!content) {
-                            return null;
-                        }
-
-                        return { card, toggle, content };
-                    })
-                    .filter(Boolean);
-
-                const entryLookup = new Map(entries.map((entry) => [entry.content, entry]));
-                let pendingUpdateHandle = null;
-
-                const runPendingUpdate = () => {
-                    pendingUpdateHandle = null;
-                    entries.forEach((entry) => {
-                        if (entry.card.classList.contains('open')) {
-                            updateCardMaxHeight(entry.card, entry.content);
-                        }
-                    });
-                };
-
-                const scheduleUpdate = () => {
-                    if (pendingUpdateHandle != null) {
-                        return;
-                    }
-                    pendingUpdateHandle = window.requestAnimationFrame(runPendingUpdate);
-                };
-
-                const setState = (entry, shouldOpen, { force = false } = {}) => {
-                    const { card, content, toggle } = entry;
-                    const wasOpen = card.classList.contains('open');
-                    if (!force && wasOpen === shouldOpen) {
-                        return;
-                    }
-
-                    card.classList.toggle('open', shouldOpen);
-                    toggle.setAttribute('aria-expanded', String(shouldOpen));
-                    content.setAttribute('aria-hidden', String(!shouldOpen));
-
-                    if (shouldOpen) {
-                        content.removeAttribute('inert');
-                        scheduleUpdate();
-                    } else {
-                        content.setAttribute('inert', '');
-                        content.scrollTop = 0;
-                        content.style.removeProperty('--collapsible-max-height');
-                    }
-                };
-
-                entries.forEach((entry) => {
-                    const initiallyOpen = entry.card.classList.contains('open');
-                    if (!initiallyOpen) {
-                        entry.content.setAttribute('inert', '');
-                    }
-                    setState(entry, initiallyOpen, { force: true });
-
-                    entry.toggle.addEventListener('click', () => {
-                        setState(entry, !entry.card.classList.contains('open'));
-                    });
-                });
-
-                if (typeof ResizeObserver === 'function') {
-                    const resizeObserver = new ResizeObserver((observerEntries) => {
-                        for (const { target } of observerEntries) {
-                            const entry = entryLookup.get(target);
-                            if (entry?.card.classList.contains('open')) {
-                                scheduleUpdate();
-                                break;
-                            }
-                        }
-                    });
-
-                    entries.forEach((entry) => resizeObserver.observe(entry.content));
-                } else if (typeof MutationObserver === 'function') {
-                    const getElementFromNode = (node) => {
-                        if (!node) {
-                            return null;
-                        }
-
-                        if (node.nodeType === 1) {
-                            return node;
-                        }
-
-                        if ('parentElement' in node && node.parentElement) {
-                            return node.parentElement;
-                        }
-
-                        return null;
-                    };
-
-                    const findContentElement = (element) => {
-                        if (!element) {
-                            return null;
-                        }
-
-                        if (typeof element.closest === 'function') {
-                            return element.closest('.card-content');
-                        }
-
-                        let current = element;
-                        while (current) {
-                            if (current.classList?.contains('card-content')) {
-                                return current;
-                            }
-                            current = current.parentElement;
-                        }
-
-                        return null;
-                    };
-
-                    const mutationObserver = new MutationObserver((mutations) => {
-                        for (const mutation of mutations) {
-                            const element = getElementFromNode(mutation.target);
-                            if (!element) {
-                                continue;
-                            }
-
-                            const contentElement = findContentElement(element);
-                            if (!contentElement) {
-                                continue;
-                            }
-
-                            const entry = entryLookup.get(contentElement);
-                            if (entry?.card.classList.contains('open')) {
-                                scheduleUpdate();
-                                break;
-                            }
-                        }
-                    });
-
-                    entries.forEach((entry) =>
-                        mutationObserver.observe(entry.content, {
-                            childList: true,
-                            subtree: true,
-                            characterData: true
-                        })
-                    );
-                }
-
-                return {
-                    updateAll() {
-                        scheduleUpdate();
-                    }
-                };
-            }
-
-            const collapsibleController = createCollapsibleController();
-            const updateAllCardHeights = () => collapsibleController.updateAll();
-
-            window.addEventListener('resize', updateAllCardHeights);
-            requestAnimationFrame(updateAllCardHeights);
-
             const fallbackFontStack = '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
             const customFontFamily = 'Flight Time';
             const primaryFontStack = customFontFamily
                 ? `"${customFontFamily}", ${fallbackFontStack}`
                 : fallbackFontStack;
             const fontsReady = customFontFamily ? loadCustomFont(customFontFamily) : Promise.resolve();
-            fontsReady.catch(() => undefined).then(updateAllCardHeights);
 
             const STORAGE_KEYS = {
                 playerName: 'nyanEscape.playerName',
@@ -3044,9 +2850,6 @@
                     item.appendChild(textSpan);
                     item.appendChild(timeSpan);
                     socialFeedEl.appendChild(item);
-                }
-                if (socialCard?.classList.contains('open') && socialContent) {
-                    updateCardMaxHeight(socialCard, socialContent);
                 }
             }
 
