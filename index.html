@@ -7403,11 +7403,6 @@
                     }
                 });
             }
-            const initialCharacterProfile = getCharacterProfile(activeCharacterId);
-            if (initialCharacterProfile) {
-                setActiveCharacter(initialCharacterProfile);
-                setPendingCharacter(initialCharacterProfile.id, { updateSummary: false });
-            }
             const challengeManager = createChallengeManager({
                 definitions: CHALLENGE_DEFINITIONS,
                 cosmeticsCatalog,
@@ -7590,6 +7585,11 @@
                 cooldown: config.projectileCooldown,
                 speed: config.projectileSpeed
             };
+            const initialCharacterProfile = getCharacterProfile(activeCharacterId);
+            if (initialCharacterProfile) {
+                setActiveCharacter(initialCharacterProfile);
+                setPendingCharacter(initialCharacterProfile.id, { updateSummary: false });
+            }
             const baseCollectScoreRaw = config?.score?.collect;
             const baseCollectScore = Number.isFinite(Number(baseCollectScoreRaw))
                 ? Math.max(1, Number(baseCollectScoreRaw))
