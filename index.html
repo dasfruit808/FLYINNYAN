@@ -1399,6 +1399,224 @@
             box-shadow: 0 16px 32px rgba(37, 99, 235, 0.3);
         }
 
+        body.character-select-open {
+            overflow: hidden;
+        }
+
+        #characterSelectModal[hidden] {
+            display: none;
+        }
+
+        #characterSelectModal {
+            position: fixed;
+            inset: 0;
+            z-index: 8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: clamp(24px, 5vw, 48px);
+        }
+
+        #characterSelectModal .character-select-backdrop {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.94));
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        #characterSelectModal .character-select-content {
+            position: relative;
+            width: min(960px, 92vw);
+            background: linear-gradient(155deg, rgba(8, 15, 35, 0.95), rgba(2, 6, 23, 0.92));
+            border-radius: 28px;
+            padding: clamp(24px, 4vw, 48px);
+            box-shadow:
+                0 32px 64px rgba(2, 6, 23, 0.65),
+                inset 0 0 0 1px rgba(56, 189, 248, 0.22);
+            color: rgba(226, 232, 240, 0.96);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(16px, 3vw, 28px);
+        }
+
+        #characterSelectModal h2 {
+            margin: 0;
+            font-size: clamp(1.25rem, 3vw, 2.1rem);
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(148, 210, 255, 0.92);
+        }
+
+        #characterSelectSummary {
+            margin: 0;
+            font-size: clamp(0.72rem, 1.9vw, 0.9rem);
+            max-width: 72ch;
+            text-align: center;
+            color: rgba(191, 219, 254, 0.86);
+        }
+
+        .character-grid {
+            display: flex;
+            justify-content: center;
+            gap: clamp(16px, 4vw, 36px);
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .character-card {
+            position: relative;
+            flex: 1 1 clamp(180px, 26%, 240px);
+            max-width: clamp(200px, 28vw, 260px);
+            border: 1px solid rgba(148, 210, 255, 0.32);
+            border-radius: 24px;
+            background: linear-gradient(140deg, rgba(30, 64, 175, 0.22), rgba(15, 118, 110, 0.18));
+            padding: clamp(18px, 2.4vw, 26px);
+            cursor: pointer;
+            transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 20px 36px rgba(5, 8, 25, 0.45);
+        }
+
+        .character-card:hover,
+        .character-card:focus-visible,
+        .character-card.selected {
+            transform: translateY(-6px);
+            border-color: rgba(148, 210, 255, 0.75);
+            box-shadow: 0 28px 48px rgba(5, 8, 25, 0.6);
+            outline: none;
+        }
+
+        .character-card:focus-visible {
+            outline: 3px solid rgba(148, 210, 255, 0.65);
+            outline-offset: 4px;
+        }
+
+        .character-card img {
+            width: 100%;
+            height: clamp(160px, 18vw, 210px);
+            object-fit: contain;
+            filter: drop-shadow(0 12px 24px rgba(14, 165, 233, 0.25));
+            pointer-events: none;
+        }
+
+        .character-name {
+            font-size: clamp(0.85rem, 2.2vw, 1.1rem);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: rgba(244, 114, 182, 0.9);
+        }
+
+        .character-role {
+            font-size: clamp(0.64rem, 1.8vw, 0.78rem);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(148, 210, 255, 0.75);
+        }
+
+        .character-details {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: clamp(12px, 2vw, 18px);
+            padding: clamp(12px, 1.6vw, 16px);
+            border-radius: 18px;
+            background: rgba(8, 15, 35, 0.92);
+            box-shadow: 0 18px 32px rgba(2, 6, 23, 0.55);
+            text-align: left;
+            font-size: clamp(0.62rem, 1.6vw, 0.74rem);
+            line-height: 1.45;
+            color: rgba(226, 232, 240, 0.94);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(10px);
+            transition: opacity 160ms ease, transform 160ms ease;
+        }
+
+        .character-details strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.68rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(96, 165, 250, 0.86);
+        }
+
+        .character-details ul {
+            padding: 0 0 0 16px;
+            margin: 0;
+        }
+
+        .character-details li {
+            margin-bottom: 4px;
+        }
+
+        .character-card:hover .character-details,
+        .character-card:focus-visible .character-details,
+        .character-card:focus .character-details,
+        .character-card.selected .character-details {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .character-select-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        #characterSelectConfirm,
+        #characterSelectCancel {
+            border-radius: 999px;
+            padding: 10px 22px;
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        #characterSelectConfirm {
+            border: none;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.92), rgba(99, 102, 241, 0.92));
+            color: #fff;
+            box-shadow: 0 16px 36px rgba(37, 99, 235, 0.45);
+            transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        #characterSelectConfirm[disabled] {
+            opacity: 0.6;
+            cursor: default;
+            box-shadow: none;
+        }
+
+        #characterSelectConfirm:not([disabled]):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 22px 44px rgba(37, 99, 235, 0.55);
+        }
+
+        #characterSelectConfirm:not([disabled]):active {
+            transform: translateY(1px);
+            box-shadow: 0 14px 28px rgba(37, 99, 235, 0.48);
+        }
+
+        #characterSelectCancel {
+            border: 1px solid rgba(148, 210, 255, 0.4);
+            background: transparent;
+            color: rgba(226, 232, 240, 0.9);
+        }
+
+        #characterSelectCancel:hover {
+            border-color: rgba(148, 210, 255, 0.72);
+            color: rgba(226, 232, 240, 1);
+        }
+
         #overlaySecondaryButton:active {
             transform: translateY(1px);
             box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
@@ -2080,6 +2298,68 @@
                 <button id="shareButton" class="share-button" type="button">Share Flight Log</button>
             </div>
             <p id="shareStatus" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+    <div id="characterSelectModal" hidden aria-hidden="true">
+        <div class="character-select-backdrop" aria-hidden="true"></div>
+        <div
+            class="character-select-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="characterSelectTitle"
+        >
+            <h2 id="characterSelectTitle">Select Your Pilot</h2>
+            <p id="characterSelectSummary">
+                Each pilot tunes the starfighter differently. Hover or focus to reveal their loadout, then lock in the
+                approach that fits this run.
+            </p>
+            <div class="character-grid" role="list">
+                <button type="button" class="character-card" data-character-id="nova" role="listitem">
+                    <img src="assets/player.png" alt="Nova Navigator" loading="lazy" />
+                    <div class="character-name">Nova Navigator</div>
+                    <div class="character-role">Balanced Ace</div>
+                    <div class="character-details">
+                        <strong>Flight Profile</strong>
+                        <ul>
+                            <li>Factory-tuned thrusters for adaptable handling.</li>
+                            <li>Even dash burst and recovery for reliable escapes.</li>
+                            <li>Baseline plasma cadence ready for any mission.</li>
+                        </ul>
+                    </div>
+                </button>
+                <button type="button" class="character-card" data-character-id="comet" role="listitem">
+                    <img src="assets/player2.png" alt="Comet Vanguard" loading="lazy" />
+                    <div class="character-name">Comet Vanguard</div>
+                    <div class="character-role">Speed Specialist</div>
+                    <div class="character-details">
+                        <strong>Flight Profile</strong>
+                        <ul>
+                            <li>High-output engines spike acceleration and top speed.</li>
+                            <li>Shorter dash cooldown built for aggressive weaving.</li>
+                            <li>Rapid-fire bolts keep pressure on debris clusters.</li>
+                        </ul>
+                    </div>
+                </button>
+                <button type="button" class="character-card" data-character-id="nebula" role="listitem">
+                    <img src="assets/player3.png" alt="Nebula Warden" loading="lazy" />
+                    <div class="character-name">Nebula Warden</div>
+                    <div class="character-role">Shielded Scout</div>
+                    <div class="character-details">
+                        <strong>Flight Profile</strong>
+                        <ul>
+                            <li>Compact hull trims the hitbox for precision dodges.</li>
+                            <li>Extended dash window excels at sustained evasions.</li>
+                            <li>Heavy plasma rounds punch through asteroid armor.</li>
+                        </ul>
+                    </div>
+                </button>
+            </div>
+            <div class="character-select-actions">
+                <button id="characterSelectConfirm" type="button" disabled aria-disabled="true">
+                    Select a Pilot
+                </button>
+                <button id="characterSelectCancel" type="button" class="secondary">Back</button>
+            </div>
         </div>
     </div>
     <div
@@ -3004,6 +3284,11 @@
             const overlayTitle = overlay?.querySelector('h1') ?? null;
             const overlayDefaultTitle = overlayTitle?.textContent ?? '';
             const overlayDefaultMessage = overlayMessage?.textContent ?? '';
+            const characterSelectModal = document.getElementById('characterSelectModal');
+            const characterSelectConfirm = document.getElementById('characterSelectConfirm');
+            const characterSelectCancel = document.getElementById('characterSelectCancel');
+            const characterSelectSummary = document.getElementById('characterSelectSummary');
+            const characterCards = Array.from(document.querySelectorAll('[data-character-id]'));
             const loadingScreen = document.getElementById('loadingScreen');
             const loadingStatus = document.getElementById('loadingStatus');
             const loadingImageEl = document.getElementById('loadingImage');
@@ -6291,6 +6576,7 @@
             }
 
             function applyEquippedCosmetics(equipped = {}) {
+                lastEquippedCosmetics = equipped && typeof equipped === 'object' ? { ...equipped } : {};
                 const skinId =
                     equipped && typeof equipped.skin === 'string' && playerSkins[equipped.skin]
                         ? equipped.skin
@@ -6299,7 +6585,12 @@
                     equipped && typeof equipped.trail === 'string' && trailStyles[equipped.trail]
                         ? equipped.trail
                         : 'rainbow';
-                activePlayerImage = playerSkins[skinId]?.image ?? playerBaseImage;
+                const baseImage = selectedCharacterImage ?? playerBaseImage;
+                if (skinId === 'default') {
+                    activePlayerImage = baseImage;
+                } else {
+                    activePlayerImage = playerSkins[skinId]?.image ?? baseImage;
+                }
                 activeTrailStyle = trailStyles[trailId] ?? trailStyles.rainbow;
             }
 
@@ -6792,6 +7083,73 @@
                     )
                 }
             };
+            const characterProfiles = [
+                {
+                    id: 'nova',
+                    name: 'Nova Navigator',
+                    summary:
+                        'Balanced thrusters keep acceleration, dash control, and blaster cadence perfectly aligned for any mission.',
+                    image: playerBaseImage,
+                    overrides: {}
+                },
+                {
+                    id: 'comet',
+                    name: 'Comet Vanguard',
+                    summary:
+                        'Surge thrusters push the frame faster and harder, trading a slightly larger hull and shorter dash window for burst speed and rapid-fire shots.',
+                    image: loadImageWithFallback('assets/player2.png', () => playerBaseImage),
+                    overrides: {
+                        player: {
+                            width: 124,
+                            height: 124,
+                            acceleration: 2450,
+                            drag: 5.6,
+                            maxSpeed: 520,
+                            verticalBleed: 0.055
+                        },
+                        dash: {
+                            boostSpeed: 1050,
+                            duration: 190
+                        },
+                        projectile: {
+                            cooldown: 180,
+                            speed: 950
+                        }
+                    }
+                },
+                {
+                    id: 'nebula',
+                    name: 'Nebula Warden',
+                    summary:
+                        'A compact hull narrows the hitbox and stretches dash uptime, sacrificing raw thrust for control while launching slower, heavy plasma volleys.',
+                    image: loadImageWithFallback('assets/player3.png', () => playerBaseImage),
+                    overrides: {
+                        player: {
+                            width: 110,
+                            height: 110,
+                            acceleration: 1950,
+                            drag: 4.8,
+                            maxSpeed: 460,
+                            verticalBleed: 0.085
+                        },
+                        dash: {
+                            boostSpeed: 900,
+                            duration: 260
+                        },
+                        projectile: {
+                            cooldown: 220,
+                            speed: 880
+                        }
+                    }
+                }
+            ];
+            const characterProfileMap = new Map(characterProfiles.map((profile) => [profile.id, profile]));
+            const defaultCharacterSummaryText = characterSelectSummary?.textContent ?? '';
+            let selectedCharacterImage = playerBaseImage;
+            let activeCharacterId = 'nova';
+            let pendingCharacterId = 'nova';
+            let pendingLaunchAction = null;
+            let lastEquippedCosmetics = {};
             const trailStyles = {
                 rainbow: { id: 'rainbow', label: 'Prismatic Stream', type: 'spectrum' },
                 aurora: {
@@ -6815,8 +7173,241 @@
                     ember: trailStyles.ember
                 }
             };
+            function getCharacterProfile(id) {
+                return characterProfileMap.get(id ?? '') ?? null;
+            }
+
+            function resetCharacterTuning() {
+                config.player.width = basePlayerConfig.width;
+                config.player.height = basePlayerConfig.height;
+                config.player.acceleration = basePlayerConfig.acceleration;
+                config.player.drag = basePlayerConfig.drag;
+                config.player.maxSpeed = basePlayerConfig.maxSpeed;
+                config.player.verticalBleed = basePlayerConfig.verticalBleed;
+                config.player.dash.boostSpeed = baseDashConfig.boostSpeed;
+                config.player.dash.duration = baseDashConfig.duration;
+                config.player.dash.doubleTapWindow = baseDashConfig.doubleTapWindow;
+                config.player.dash.dragMultiplier = baseDashConfig.dragMultiplier;
+                config.projectileCooldown = baseProjectileSettings.cooldown;
+                config.projectileSpeed = baseProjectileSettings.speed;
+            }
+
+            function applyCharacterOverrides(profile) {
+                if (!profile) {
+                    return;
+                }
+                resetCharacterTuning();
+                const overrides = profile.overrides ?? {};
+                if (overrides.player && typeof overrides.player === 'object') {
+                    Object.assign(config.player, overrides.player);
+                }
+                if (overrides.dash && typeof overrides.dash === 'object') {
+                    Object.assign(config.player.dash, overrides.dash);
+                }
+                if (overrides.projectile && typeof overrides.projectile === 'object') {
+                    if (Number.isFinite(overrides.projectile.cooldown)) {
+                        config.projectileCooldown = Math.max(60, Number(overrides.projectile.cooldown));
+                    }
+                    if (Number.isFinite(overrides.projectile.speed)) {
+                        config.projectileSpeed = Math.max(120, Number(overrides.projectile.speed));
+                    }
+                }
+                if (player) {
+                    player.width = config.player.width;
+                    player.height = config.player.height;
+                }
+            }
+
+            function setActiveCharacter(profile) {
+                if (!profile) {
+                    return;
+                }
+                applyCharacterOverrides(profile);
+                selectedCharacterImage = profile.image ?? playerBaseImage;
+                if (playerSkins?.default) {
+                    playerSkins.default.image = selectedCharacterImage;
+                }
+                activeCharacterId = profile.id;
+                pendingCharacterId = profile.id;
+                if (isCharacterSelectOpen()) {
+                    updateCharacterSummaryDisplay(profile);
+                }
+                updateCharacterConfirmState();
+                applyEquippedCosmetics(lastEquippedCosmetics);
+            }
+
+            function updateCharacterSummaryDisplay(profile) {
+                if (!characterSelectSummary) {
+                    return;
+                }
+                if (profile) {
+                    characterSelectSummary.textContent = profile.summary ?? defaultCharacterSummaryText;
+                } else {
+                    characterSelectSummary.textContent = defaultCharacterSummaryText;
+                }
+            }
+
+            function setPendingCharacter(characterId, options = {}) {
+                const { focusCard = false, updateSummary = true } = options;
+                pendingCharacterId = characterId;
+                const profile = getCharacterProfile(characterId);
+                for (const card of characterCards) {
+                    const isSelected = card?.dataset?.characterId === characterId;
+                    card.classList.toggle('selected', isSelected);
+                    if (isSelected && focusCard) {
+                        try {
+                            card.focus({ preventScroll: true });
+                        } catch {
+                            card.focus();
+                        }
+                    }
+                }
+                if (updateSummary) {
+                    updateCharacterSummaryDisplay(profile);
+                }
+                updateCharacterConfirmState();
+            }
+
+            function updateCharacterConfirmState() {
+                if (!characterSelectConfirm) {
+                    return;
+                }
+                const profile = getCharacterProfile(pendingCharacterId);
+                if (!profile) {
+                    characterSelectConfirm.disabled = true;
+                    characterSelectConfirm.setAttribute('aria-disabled', 'true');
+                    characterSelectConfirm.textContent = 'Select a Pilot';
+                    return;
+                }
+                const verb = pendingLaunchAction === 'retry' ? 'Retry Flight' : 'Launch Flight';
+                characterSelectConfirm.disabled = false;
+                characterSelectConfirm.setAttribute('aria-disabled', 'false');
+                characterSelectConfirm.textContent = `${verb} as ${profile.name}`;
+            }
+
+            function isCharacterSelectOpen() {
+                return Boolean(characterSelectModal && characterSelectModal.hidden === false);
+            }
+
+            function openCharacterSelect(action) {
+                if (!characterSelectModal) {
+                    if (action === 'retry') {
+                        skipScoreSubmission();
+                    }
+                    startGame();
+                    return;
+                }
+                pendingLaunchAction = action;
+                characterSelectModal.hidden = false;
+                characterSelectModal.setAttribute('aria-hidden', 'false');
+                document.body?.classList.add('character-select-open');
+                updateCharacterSummaryDisplay(null);
+                setPendingCharacter(activeCharacterId, { updateSummary: false });
+                updateCharacterConfirmState();
+                try {
+                    characterSelectConfirm?.focus?.({ preventScroll: true });
+                } catch {
+                    characterSelectConfirm?.focus?.();
+                }
+            }
+
+            function closeCharacterSelect() {
+                if (!characterSelectModal) {
+                    return;
+                }
+                characterSelectModal.hidden = true;
+                characterSelectModal.setAttribute('aria-hidden', 'true');
+                document.body?.classList.remove('character-select-open');
+                pendingLaunchAction = null;
+                setPendingCharacter(activeCharacterId, { updateSummary: false });
+                updateCharacterSummaryDisplay(null);
+                try {
+                    overlayButton?.focus?.({ preventScroll: true });
+                } catch {
+                    overlayButton?.focus?.();
+                }
+            }
+
+            function confirmCharacterSelection() {
+                const profile = getCharacterProfile(pendingCharacterId);
+                if (!profile) {
+                    return;
+                }
+                const action = pendingLaunchAction;
+                if (action === 'retry') {
+                    skipScoreSubmission();
+                }
+                setActiveCharacter(profile);
+                pendingLaunchAction = null;
+                closeCharacterSelect();
+                startGame();
+            }
             let activePlayerImage = playerBaseImage;
             let activeTrailStyle = trailStyles.rainbow;
+            if (characterCards.length) {
+                for (const card of characterCards) {
+                    card.addEventListener('click', () => {
+                        const characterId = card?.dataset?.characterId;
+                        if (!characterId) {
+                            return;
+                        }
+                        if (pendingCharacterId === characterId && !characterSelectConfirm?.disabled) {
+                            confirmCharacterSelection();
+                        } else {
+                            setPendingCharacter(characterId);
+                        }
+                    });
+                    card.addEventListener('focus', () => {
+                        const characterId = card?.dataset?.characterId;
+                        if (!characterId) {
+                            return;
+                        }
+                        updateCharacterSummaryDisplay(getCharacterProfile(characterId));
+                    });
+                    card.addEventListener('blur', () => {
+                        updateCharacterSummaryDisplay(getCharacterProfile(pendingCharacterId));
+                    });
+                    card.addEventListener('mouseenter', () => {
+                        const characterId = card?.dataset?.characterId;
+                        if (!characterId) {
+                            return;
+                        }
+                        updateCharacterSummaryDisplay(getCharacterProfile(characterId));
+                    });
+                    card.addEventListener('mouseleave', () => {
+                        updateCharacterSummaryDisplay(getCharacterProfile(pendingCharacterId));
+                    });
+                }
+            }
+            if (characterSelectConfirm) {
+                characterSelectConfirm.addEventListener('click', () => {
+                    if (characterSelectConfirm.disabled) {
+                        return;
+                    }
+                    confirmCharacterSelection();
+                });
+            }
+            if (characterSelectCancel) {
+                characterSelectCancel.addEventListener('click', () => {
+                    closeCharacterSelect();
+                });
+            }
+            if (characterSelectModal) {
+                characterSelectModal.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (
+                        target === characterSelectModal ||
+                        (target instanceof HTMLElement && target.classList.contains('character-select-backdrop'))
+                    ) {
+                        closeCharacterSelect();
+                    }
+                });
+            }
+            const initialCharacterProfile = getCharacterProfile(activeCharacterId);
+            if (initialCharacterProfile) {
+                setActiveCharacter(initialCharacterProfile);
+                setPendingCharacter(initialCharacterProfile.id, { updateSummary: false });
+            }
             const challengeManager = createChallengeManager({
                 definitions: CHALLENGE_DEFINITIONS,
                 cosmeticsCatalog,
@@ -6993,6 +7584,12 @@
             };
 
             const config = applyOverrides(cloneConfig(defaultConfig), gameplayOverrides ?? {});
+            const basePlayerConfig = cloneConfig(config.player);
+            const baseDashConfig = cloneConfig(config.player.dash);
+            const baseProjectileSettings = {
+                cooldown: config.projectileCooldown,
+                speed: config.projectileSpeed
+            };
             const baseCollectScoreRaw = config?.score?.collect;
             const baseCollectScore = Number.isFinite(Number(baseCollectScoreRaw))
                 ? Math.max(1, Number(baseCollectScoreRaw))
@@ -8575,6 +9172,13 @@
             window.addEventListener('keydown', (event) => {
                 const normalizedKey = normalizeKey(event);
                 if (!normalizedKey) {
+                    return;
+                }
+                if (isCharacterSelectOpen()) {
+                    if (normalizedKey === 'Escape') {
+                        event.preventDefault();
+                        closeCharacterSelect();
+                    }
                     return;
                 }
                 if (event.ctrlKey && event.shiftKey && normalizedKey === 'KeyD') {
@@ -10808,11 +11412,10 @@
                     return;
                 }
                 if (action === 'retry') {
-                    skipScoreSubmission();
-                    startGame();
+                    openCharacterSelect('retry');
                     return;
                 }
-                startGame();
+                openCharacterSelect('launch');
             }
 
             function updateCombo(delta) {
