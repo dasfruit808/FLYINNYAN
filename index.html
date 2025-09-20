@@ -7173,6 +7173,131 @@
                     ember: trailStyles.ember
                 }
             };
+            const defaultCollectScore = 80;
+
+            const defaultConfig = {
+                baseGameSpeed: 160,
+                speedGrowth: 5,
+                obstacleSpawnInterval: 950,
+                collectibleSpawnInterval: 1400,
+                powerUpSpawnInterval: 11000,
+                trailSpacing: 18,
+                baseTrailLength: 20,
+                trailGrowthPerStreak: 0.4,
+                tailSmoothing: {
+                    growth: 32,
+                    shrink: 64
+                },
+                comboDecayWindow: 3200,
+                projectileCooldown: 200,
+                projectileSpeed: 900,
+                difficulty: {
+                    rampDuration: 90000,
+                    speedRamp: { start: 0.28, end: 0.9 },
+                    spawnIntensity: {
+                        obstacle: { start: 0.38, end: 1.08 },
+                        collectible: { start: 0.68, end: 1.02 },
+                        powerUp: { start: 0.58, end: 0.95 }
+                    },
+                    healthRamp: { start: 0.7, end: 1.25 }
+                },
+                player: {
+                    width: 120,
+                    height: 120,
+                    acceleration: 2100,
+                    drag: 5.2,
+                    maxSpeed: 480,
+                    verticalBleed: 0.069,
+                    dash: {
+                        boostSpeed: 960,
+                        duration: 220,
+                        doubleTapWindow: 260,
+                        dragMultiplier: 0.35
+                    }
+                },
+                obstacle: {
+                    minSize: 42,
+                    maxSize: 128,
+                    minSpeed: -20,
+                    maxSpeed: 70
+                },
+                collectible: {
+                    size: 42,
+                    minSpeed: -30,
+                    maxSpeed: 30,
+                    verticalPadding: 48
+                },
+                powerUp: {
+                    size: 85,
+                    minSpeed: -20,
+                    maxSpeed: 20,
+                    wobbleAmplitude: 28,
+                    wobbleSpeed: 3.4,
+                    duration: {
+                        powerBomb: 5200,
+                        bulletSpread: 6200,
+                        missiles: 5600,
+                        hyperBeam: 5600,
+                        radiantShield: 7200,
+                        pumpDrive: 6200
+                    }
+                },
+                hyperBeam: {
+                    beamHeight: 190,
+                    extraLength: 60,
+                    rampUp: 280,
+                    fadeOut: 220,
+                    damagePerSecond: 24,
+                    asteroidDamagePerSecond: 30,
+                    sparkInterval: 140,
+                    hitSparkRate: 7,
+                    jitterAmplitude: 18,
+                    waveSpeed: 0.006
+                },
+                defensePower: {
+                    clearance: 18,
+                    obstacleBounceDuration: 620,
+                    obstacleKnockback: 520,
+                    obstacleSpeedMultiplier: 1.15,
+                    asteroidKnockback: 460,
+                    hitCooldown: 520,
+                    particleColor: { r: 148, g: 210, b: 255 },
+                    auraColor: { r: 150, g: 214, b: 255 },
+                    auraPulse: 0.18,
+                    bounceDrag: 3.6
+                },
+                star: {
+                    count: 120,
+                    baseSpeed: 120
+                },
+                asteroid: {
+                    initialCount: 4,
+                    maxCount: 6,
+                    spawnInterval: 2600,
+                    clusterRadius: 160,
+                    minSpacing: 14,
+                    scale: 0.4,
+                    bounceRestitution: 0.88,
+                    collisionRadiusMultiplier: 0.88,
+                    sizeRange: [90, 210],
+                    speedRange: [40, 140],
+                    rotationSpeedRange: [-0.6, 0.6],
+                    driftRange: [-18, 18],
+                    depthRange: [0.35, 1],
+                    meteorShowerInterval: 22000,
+                    meteorShowerVariance: 8000,
+                    meteorShowerCount: 5,
+                    meteorShowerSpeedMultiplier: 1.15
+                },
+                comboMultiplierStep: 0.15,
+                score: {
+                    collect: defaultCollectScore,
+                    destroy: 120,
+                    asteroid: 60,
+                    dodge: 18,
+                    villainEscape: 140
+                }
+            };
             const config = applyOverrides(cloneConfig(defaultConfig), gameplayOverrides ?? {});
             const basePlayerConfig = cloneConfig(config.player);
             const baseDashConfig = cloneConfig(config.player.dash);
@@ -7458,132 +7583,6 @@
                     () => defaultSrc
                 );
             }
-
-            const defaultCollectScore = 80;
-
-            const defaultConfig = {
-                baseGameSpeed: 160,
-                speedGrowth: 5,
-                obstacleSpawnInterval: 950,
-                collectibleSpawnInterval: 1400,
-                powerUpSpawnInterval: 11000,
-                trailSpacing: 18,
-                baseTrailLength: 20,
-                trailGrowthPerStreak: 0.4,
-                tailSmoothing: {
-                    growth: 32,
-                    shrink: 64
-                },
-                comboDecayWindow: 3200,
-                projectileCooldown: 200,
-                projectileSpeed: 900,
-                difficulty: {
-                    rampDuration: 90000,
-                    speedRamp: { start: 0.28, end: 0.9 },
-                    spawnIntensity: {
-                        obstacle: { start: 0.38, end: 1.08 },
-                        collectible: { start: 0.68, end: 1.02 },
-                        powerUp: { start: 0.58, end: 0.95 }
-                    },
-                    healthRamp: { start: 0.7, end: 1.25 }
-                },
-                player: {
-                    width: 120,
-                    height: 120,
-                    acceleration: 2100,
-                    drag: 5.2,
-                    maxSpeed: 480,
-                    verticalBleed: 0.069,
-                    dash: {
-                        boostSpeed: 960,
-                        duration: 220,
-                        doubleTapWindow: 260,
-                        dragMultiplier: 0.35
-                    }
-                },
-                obstacle: {
-                    minSize: 42,
-                    maxSize: 128,
-                    minSpeed: -20,
-                    maxSpeed: 70
-                },
-                collectible: {
-                    size: 42,
-                    minSpeed: -30,
-                    maxSpeed: 30,
-                    verticalPadding: 48
-                },
-                powerUp: {
-                    size: 85,
-                    minSpeed: -20,
-                    maxSpeed: 20,
-                    wobbleAmplitude: 28,
-                    wobbleSpeed: 3.4,
-                    duration: {
-                        powerBomb: 5200,
-                        bulletSpread: 6200,
-                        missiles: 5600,
-                        hyperBeam: 5600,
-                        radiantShield: 7200,
-                        pumpDrive: 6200
-                    }
-                },
-                hyperBeam: {
-                    beamHeight: 190,
-                    extraLength: 60,
-                    rampUp: 280,
-                    fadeOut: 220,
-                    damagePerSecond: 24,
-                    asteroidDamagePerSecond: 30,
-                    sparkInterval: 140,
-                    hitSparkRate: 7,
-                    jitterAmplitude: 18,
-                    waveSpeed: 0.006
-                },
-                defensePower: {
-                    clearance: 18,
-                    obstacleBounceDuration: 620,
-                    obstacleKnockback: 520,
-                    obstacleSpeedMultiplier: 1.15,
-                    asteroidKnockback: 460,
-                    hitCooldown: 520,
-                    particleColor: { r: 148, g: 210, b: 255 },
-                    auraColor: { r: 150, g: 214, b: 255 },
-                    auraPulse: 0.18,
-                    bounceDrag: 3.6
-                },
-                star: {
-                    count: 120,
-                    baseSpeed: 120
-                },
-                asteroid: {
-                    initialCount: 4,
-                    maxCount: 6,
-                    spawnInterval: 2600,
-                    clusterRadius: 160,
-                    minSpacing: 14,
-                    scale: 0.4,
-                    bounceRestitution: 0.88,
-                    collisionRadiusMultiplier: 0.88,
-                    sizeRange: [90, 210],
-                    speedRange: [40, 140],
-                    rotationSpeedRange: [-0.6, 0.6],
-                    driftRange: [-18, 18],
-                    depthRange: [0.35, 1],
-                    meteorShowerInterval: 22000,
-                    meteorShowerVariance: 8000,
-                    meteorShowerCount: 5,
-                    meteorShowerSpeedMultiplier: 1.15
-                },
-                comboMultiplierStep: 0.15,
-                score: {
-                    collect: defaultCollectScore,
-                    destroy: 120,
-                    asteroid: 60,
-                    dodge: 18,
-                    villainEscape: 140
-                }
-            };
 
             const initialCharacterProfile = getCharacterProfile(activeCharacterId);
             if (initialCharacterProfile) {
