@@ -8,6 +8,10 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
 };
 
+const jsonHeaders = {
+    'Content-Type': 'application/json; charset=utf-8'
+};
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const RUN_TOKEN_SECRET = Deno.env.get('RUN_TOKEN_SECRET');
@@ -80,6 +84,46 @@ function createRunTokenKey(tokenId: string): Deno.KvKey {
 
 function isRunTokenFresh(expiresAt: number): boolean {
     return expiresAt - RUN_TOKEN_BUFFER_MS > Date.now();
+}
+
+function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+    const headers = new Headers(init.headers ?? {});
+    Object.entries({ ...corsHeaders, ...jsonHeaders }).forEach(([key, value]) => {
+        if (!headers.has(key)) {
+            headers.set(key, value);
+        }
+    });
+    return new Response(JSON.stringify(body), { ...init, headers });
+}
+
+function errorResponse(message: string, status: number): Response {
+    return jsonResponse({ error: message }, { status });
+}
+
+async function readRequestJson<T>(request: Request): Promise<T | null> {
+    try {
+        return await request.json();
+    } catch {
+        return null;
+    }
+}
+
+function extractClientIp(request: Request, fallback: string): string {
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    if (forwardedFor) {
+        const [first] = forwardedFor.split(',');
+        if (first?.trim()) {
+            return first.trim();
+        }
+    }
+    const candidates = ['cf-connecting-ip', 'x-real-ip'];
+    for (const header of candidates) {
+        const value = request.headers.get(header);
+        if (value) {
+            return value;
+        }
+    }
+    return fallback;
 }
 
 async function signRunToken(tokenId: string, deviceId: string, expiresAt: number): Promise<string> {
@@ -217,21 +261,13 @@ async function computePlacement(score: number, timeMs: number, recordedAt: numbe
 }
 
 async function handleIssueRunToken(request: Request) {
-    let body: { deviceId?: string };
-    try {
-        body = await request.json();
-    } catch {
-        return new Response(JSON.stringify({ error: 'Invalid JSON payload.' }), {
-            status: 400,
-            headers: corsHeaders
-        });
+    const body = await readRequestJson<{ deviceId?: string }>(request);
+    if (!body) {
+        return errorResponse('Invalid JSON payload.', 400);
     }
     const deviceId = (body.deviceId ?? '').trim().slice(0, 64);
     if (!deviceId) {
-        return new Response(JSON.stringify({ error: 'Missing device identifier.' }), {
-            status: 400,
-            headers: corsHeaders
-        });
+        return errorResponse('Missing device identifier.', 400);
     }
     const tokenId = crypto.randomUUID();
     const issuedAt = Date.now();
@@ -241,48 +277,32 @@ async function handleIssueRunToken(request: Request) {
     const key = createRunTokenKey(tokenId);
     const ttl = Math.max(1000, expiresAt - issuedAt);
     await kv.set(key, { deviceId, expiresAt }, { expireIn: ttl });
-    return new Response(JSON.stringify({ runToken: token, expiresAt }), {
-        status: 201,
-        headers: corsHeaders
-    });
+    return jsonResponse({ runToken: token, expiresAt }, { status: 201 });
 }
 
 async function handleSubmit(request: Request) {
-    let body: ScorePayload;
-    try {
-        body = await request.json();
-    } catch {
-        return new Response(JSON.stringify({ error: 'Invalid JSON payload.' }), {
-            status: 400,
-            headers: corsHeaders
-        });
+    const body = await readRequestJson<ScorePayload>(request);
+    if (!body) {
+        return errorResponse('Invalid JSON payload.', 400);
     }
 
     const playerName = sanitizeName(body.playerName);
     const deviceId = (body.deviceId ?? '').trim().slice(0, 64);
     if (!deviceId) {
-        return new Response(JSON.stringify({ error: 'Missing device identifier.' }), {
-            status: 400,
-            headers: corsHeaders
-        });
+        return errorResponse('Missing device identifier.', 400);
     }
 
     const runToken = typeof body.runToken === 'string' ? body.runToken.trim() : '';
     if (!runToken) {
-        return new Response(JSON.stringify({ error: 'Missing run token.' }), {
-            status: 401,
-            headers: corsHeaders
-        });
+        return errorResponse('Missing run token.', 401);
     }
 
     let runTokenValidation: RunTokenValidation;
     try {
         runTokenValidation = await validateRunToken(runToken, deviceId);
     } catch (error) {
-        return new Response(
-            JSON.stringify({ error: error instanceof Error ? error.message : 'Invalid run token.' }),
-            { status: 401, headers: corsHeaders }
-        );
+        const message = error instanceof Error ? error.message : 'Invalid run token.';
+        return errorResponse(message, 401);
     }
 
     const runTokenKey = createRunTokenKey(runTokenValidation.tokenId);
@@ -292,31 +312,19 @@ async function handleSubmit(request: Request) {
         const score = clampNumber(body.score);
         const timeMs = clampNumber(body.timeMs);
         if (score <= 0 || timeMs <= 0) {
-            return new Response(JSON.stringify({ error: 'Invalid score payload.' }), {
-                status: 400,
-                headers: corsHeaders
-            });
+            return errorResponse('Invalid score payload.', 400);
         }
 
         const bestStreak = clampNumber(body.bestStreak, { max: 9999 });
         const nyan = clampNumber(body.nyan, { max: 1_000_000 });
         const recordedAt = clampNumber(body.recordedAt ?? Date.now(), { min: 0 });
 
-        const ipAddress =
-            request.headers.get('x-forwarded-for') ??
-            request.headers.get('cf-connecting-ip') ??
-            request.headers.get('x-real-ip') ??
-            deviceId;
+        const ipAddress = extractClientIp(request, deviceId);
 
         const rateLimitId = `${deviceId}:${ipAddress}`;
         const limit = await enforceRateLimit(rateLimitId, 12, 60_000);
         if (!limit.allowed) {
-            return new Response(
-                JSON.stringify({
-                    error: 'Rate limit exceeded. Try again shortly.'
-                }),
-                { status: 429, headers: corsHeaders }
-            );
+            return errorResponse('Rate limit exceeded. Try again shortly.', 429);
         }
 
         const weekStart = getWeekStart(recordedAt).toISOString();
@@ -341,13 +349,13 @@ async function handleSubmit(request: Request) {
                     global: await fetchLeaderboard('global'),
                     weekly: await fetchLeaderboard('weekly')
                 };
-                return new Response(
-                    JSON.stringify({
+                return jsonResponse(
+                    {
                         message: 'Existing submission is stronger; keeping the best run.',
                         placement: null,
                         leaderboards
-                    }),
-                    { status: 409, headers: corsHeaders }
+                    },
+                    { status: 409 }
                 );
             }
             const { error } = await supabase
@@ -397,13 +405,13 @@ async function handleSubmit(request: Request) {
             shouldDeleteRunToken = false;
         }
 
-        return new Response(
-            JSON.stringify({
+        return jsonResponse(
+            {
                 placement,
                 leaderboards: { global, weekly },
                 fetchedAt: new Date().toISOString()
-            }),
-            { status: 201, headers: corsHeaders }
+            },
+            { status: 201 }
         );
     } finally {
         if (shouldDeleteRunToken) {
@@ -432,13 +440,10 @@ async function handleGetLeaderboards(url: URL) {
         })
     );
 
-    return new Response(
-        JSON.stringify({
-            leaderboards: entries,
-            fetchedAt: new Date().toISOString()
-        }),
-        { status: 200, headers: corsHeaders }
-    );
+    return jsonResponse({
+        leaderboards: entries,
+        fetchedAt: new Date().toISOString()
+    });
 }
 
 serve(async (request) => {
@@ -457,12 +462,9 @@ serve(async (request) => {
         if (request.method === 'GET' && url.pathname.endsWith('/leaderboards')) {
             return await handleGetLeaderboards(url);
         }
-        return new Response(JSON.stringify({ error: 'Not Found' }), { status: 404, headers: corsHeaders });
+        return errorResponse('Not Found', 404);
     } catch (error) {
         console.error(error);
-        return new Response(JSON.stringify({ error: 'Internal server error' }), {
-            status: 500,
-            headers: corsHeaders
-        });
+        return errorResponse('Internal server error', 500);
     }
 });
