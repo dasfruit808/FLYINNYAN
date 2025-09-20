@@ -206,18 +206,20 @@
         }
 
         #survivalTimer {
-            position: static;
-            transform: none;
+            position: absolute;
+            top: clamp(14px, 3vw, 28px);
+            left: 50%;
+            transform: translateX(-50%);
             font-size: 16px;
             font-weight: 600;
             letter-spacing: 0.04em;
-            padding: 6px 16px;
+            padding: 6px 18px;
             border-radius: 999px;
-            background: rgba(15, 23, 42, 0.7);
+            background: rgba(15, 23, 42, 0.78);
             box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
             text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
             z-index: 2;
-            margin-top: clamp(8px, 1.5vw, 16px);
+            pointer-events: none;
         }
 
         #survivalTimer .value {
@@ -248,7 +250,7 @@
             max-height: calc(100vh - 160px);
             overflow-y: auto;
             padding-right: 4px;
-            margin-left: 10px;
+            margin-left: clamp(24px, 4vw, 60px);
         }
 
         #instructions .hud-card {
