@@ -1155,10 +1155,10 @@
             <label for="playerNameInput">Pilot Callsign</label>
             <div class="input-row">
                 <input id="playerNameInput" name="playerName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Ace Pilot" aria-describedby="callsignHint">
-                <span id="callsignHint">Press Enter to launch a run.</span>
+                <span id="callsignHint">Press Enter or tap Launch to start a run.</span>
             </div>
         </form>
-        <button id="overlayButton" type="button" disabled aria-disabled="true">Press Enter to Launch</button>
+        <button id="overlayButton" type="button" disabled aria-disabled="true">Launch Flight</button>
         <div id="overlayPanels">
             <div id="highScorePanel">
                 <div id="highScoreTitle">Top Flight Times</div>
@@ -1894,6 +1894,7 @@
             const comicIntro = document.getElementById('comicIntro');
             const overlayTitle = overlay?.querySelector('h1') ?? null;
             const overlayDefaultTitle = overlayTitle?.textContent ?? '';
+            const overlayDefaultMessage = overlayMessage?.textContent ?? '';
             const loadingScreen = document.getElementById('loadingScreen');
             const loadingStatus = document.getElementById('loadingStatus');
             const loadingImageEl = document.getElementById('loadingImage');
@@ -2053,6 +2054,9 @@
                     overlayButton.textContent = 'Unavailable';
                     overlayButton.setAttribute('aria-disabled', 'true');
                     overlayButton.disabled = true;
+                    if (overlayButton.dataset.launchMode) {
+                        delete overlayButton.dataset.launchMode;
+                    }
                 }
                 if (intelLogEl) {
                     intelLogEl.innerHTML = '';
@@ -2475,6 +2479,14 @@
                 return filtered.trim().slice(0, 24);
             }
 
+            function getPendingPlayerName() {
+                if (!playerNameInput) {
+                    return playerName;
+                }
+                const sanitized = sanitizePlayerName(playerNameInput.value);
+                return sanitized || DEFAULT_PLAYER_NAME;
+            }
+
             function loadStoredPlayerName() {
                 const storedName = readStorage(STORAGE_KEYS.playerName);
                 const sanitized = sanitizePlayerName(storedName);
@@ -2517,6 +2529,7 @@
                     lastRunSummary.player = playerName;
                     updateSharePanel();
                 }
+                refreshOverlayLaunchButton();
                 return playerName;
             }
 
@@ -2529,11 +2542,20 @@
                 if (playerNameInput.value !== finalName) {
                     playerNameInput.value = finalName;
                 }
-                return updatePlayerName(finalName);
+                refreshOverlayLaunchButton();
+                const updated = updatePlayerName(finalName);
+                refreshHighScorePreview();
+                return updated;
             }
 
             if (playerNameInput) {
                 playerNameInput.value = playerName;
+                refreshOverlayLaunchButton();
+                refreshHighScorePreview();
+                playerNameInput.addEventListener('input', () => {
+                    refreshOverlayLaunchButton();
+                    refreshHighScorePreview();
+                });
                 playerNameInput.addEventListener('blur', () => {
                     commitPlayerNameInput();
                 });
@@ -2629,11 +2651,11 @@
                 return { accepted: true, placement, runsToday: recentRuns.length + 1, reason: null };
             }
 
-            function updateHighScorePanel() {
+            function renderHighScorePanelForName(name) {
                 if (!highScoreListEl || !highScoreTitleEl) return;
-                highScoreTitleEl.textContent = `Top Flight Times — ${playerName}`;
+                highScoreTitleEl.textContent = `Top Flight Times — ${name}`;
                 highScoreListEl.innerHTML = '';
-                const entries = highScoreData[playerName] ?? [];
+                const entries = highScoreData[name] ?? [];
                 if (!entries.length) {
                     const emptyItem = document.createElement('li');
                     emptyItem.className = 'empty';
@@ -2653,6 +2675,31 @@
                     item.appendChild(scoreSpan);
                     highScoreListEl.appendChild(item);
                 }
+            }
+
+            function updateHighScorePanel() {
+                renderHighScorePanelForName(playerName);
+            }
+
+            function refreshOverlayLaunchButton() {
+                if (!overlayButton || overlayButton.disabled) {
+                    return;
+                }
+                const mode = overlayButton.dataset.launchMode;
+                if (!mode) {
+                    return;
+                }
+                const pendingName = getPendingPlayerName();
+                const prefix = mode === 'retry' ? 'Retry as' : 'Launch as';
+                overlayButton.textContent = `${prefix} ${pendingName}`;
+            }
+
+            function refreshHighScorePreview() {
+                if (!overlay || overlay.classList.contains('hidden')) {
+                    updateHighScorePanel();
+                    return;
+                }
+                renderHighScorePanelForName(getPendingPlayerName());
             }
 
             function recordLeaderboardEntry(entry) {
@@ -2898,10 +2945,23 @@
                     .catch(() => undefined);
             }
 
+            function showPreflightOverlay() {
+                const message = overlayDefaultMessage || overlayMessage?.textContent || '';
+                showOverlay(message, 'Launch Flight', {
+                    title: overlayDefaultTitle,
+                    enableButton: true,
+                    launchMode: 'launch'
+                });
+            }
+
             function runCyborgLoadingSequence() {
+                const finishBootSequence = () => {
+                    showPreflightOverlay();
+                };
+
                 if (!loadingScreen || !loadingStatus) {
                     fontsReady.catch(() => undefined).then(() => {
-                        startGame();
+                        finishBootSequence();
                     });
                     return;
                 }
@@ -2938,7 +2998,7 @@
                 const finishLoading = () => {
                     fontsReady.catch(() => undefined).then(() => {
                         hideLoading();
-                        startGame();
+                        finishBootSequence();
                     });
                 };
 
@@ -4117,9 +4177,17 @@
                 overlayMessage.textContent = message;
                 const resolvedButtonText = buttonText || 'Press Enter to Launch';
                 if (overlayButton) {
+                    const enableButton = options.enableButton ?? false;
                     overlayButton.textContent = resolvedButtonText;
-                    overlayButton.setAttribute('aria-disabled', 'true');
-                    overlayButton.disabled = true;
+                    overlayButton.disabled = !enableButton;
+                    overlayButton.setAttribute('aria-disabled', enableButton ? 'false' : 'true');
+                    if (enableButton && options.launchMode) {
+                        overlayButton.dataset.launchMode = options.launchMode;
+                        refreshOverlayLaunchButton();
+                    } else if (overlayButton.dataset.launchMode) {
+                        overlayButton.textContent = resolvedButtonText;
+                        delete overlayButton.dataset.launchMode;
+                    }
                 }
                 if (overlayTitle) {
                     const titleText = options.title ?? overlayDefaultTitle;
@@ -4134,6 +4202,7 @@
                     overlay.classList.remove('hidden');
                     overlay.setAttribute('aria-hidden', 'false');
                 }
+                refreshHighScorePreview();
                 window.requestAnimationFrame(() => {
                     try {
                         if (playerNameInput) {
@@ -4162,6 +4231,7 @@
                 if (playerNameInput && document.activeElement === playerNameInput) {
                     playerNameInput.blur();
                 }
+                refreshHighScorePreview();
             }
 
             function setJoystickThumbPosition(dx, dy) {
@@ -4323,19 +4393,29 @@
 
             overlayButton.addEventListener('click', (event) => {
                 event.preventDefault();
-                if (playerNameInput) {
-                    playerNameInput.focus({ preventScroll: true });
-                    playerNameInput.select?.();
+                if (overlayButton.disabled) {
+                    if (playerNameInput) {
+                        playerNameInput.focus({ preventScroll: true });
+                        playerNameInput.select?.();
+                    }
+                    return;
                 }
+                commitPlayerNameInput();
+                startGame();
             });
 
             if (!supportsPointerEvents && overlayButton) {
                 overlayButton.addEventListener('touchstart', (event) => {
                     event.preventDefault();
-                    if (playerNameInput) {
-                        playerNameInput.focus({ preventScroll: true });
-                        playerNameInput.select?.();
+                    if (overlayButton.disabled) {
+                        if (playerNameInput) {
+                            playerNameInput.focus({ preventScroll: true });
+                            playerNameInput.select?.();
+                        }
+                        return;
                     }
+                    commitPlayerNameInput();
+                    startGame();
                 }, { passive: false });
             }
 
@@ -6059,7 +6139,7 @@
                 showOverlay(
                     `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — Points collected: ${state.nyan.toLocaleString()}${placementLine}${quotaLine}${limitLine}`,
                     'Press Enter to Retry',
-                    { title: '' }
+                    { title: '', enableButton: true, launchMode: 'retry' }
                 );
             }
 
