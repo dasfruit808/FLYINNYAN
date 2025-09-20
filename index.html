@@ -270,24 +270,15 @@
             color: rgba(224, 242, 254, 0.92);
         }
 
-        #settingsHint {
-            margin-left: clamp(16px, 4vw, 24px);
-            font-size: 0.68rem;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-            color: rgba(148, 210, 255, 0.82);
-            align-self: center;
-        }
-
         #preflightBar {
-            width: min(1400px, 100%);
-            margin: 0 auto clamp(24px, 5vw, 36px);
-            padding-inline: clamp(24px, 5vw, 48px);
+            width: min(520px, 100%);
+            margin: clamp(18px, 4vw, 32px) auto;
+            padding: 0 clamp(16px, 4vw, 24px);
             display: flex;
+            flex-direction: column;
             justify-content: center;
-            align-items: center;
-            gap: clamp(12px, 3vw, 20px);
-            flex-wrap: wrap;
+            align-items: stretch;
+            gap: clamp(12px, 3vw, 16px);
             position: relative;
             z-index: 2;
         }
@@ -515,25 +506,58 @@
         }
 
         #preflightPrompt {
-            width: min(520px, 100%);
+            position: relative;
+            width: 100%;
             margin: 0;
-            padding: clamp(10px, 2vw, 16px) clamp(24px, 6vw, 36px);
-            border-radius: 999px;
-            border: 1px solid rgba(94, 234, 212, 0.45);
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(8, 47, 73, 0.85));
-            box-shadow: 0 16px 42px rgba(2, 6, 23, 0.55);
-            color: rgba(94, 234, 212, 0.9);
-            font-size: clamp(14px, 1.8vw, 18px);
+            padding: clamp(16px, 4vw, 22px);
+            border-radius: 12px;
+            border: 4px solid #f4f4f4;
+            background: linear-gradient(180deg, #161616 0%, #111 100%);
+            box-shadow:
+                0 0 0 8px #202020,
+                0 18px 0 rgba(0, 0, 0, 0.35);
+            color: #fefefe;
+            font-family: "Flight Time", "Press Start 2P", "Consolas", monospace;
+            font-size: clamp(13px, 2.4vw, 16px);
             font-weight: 600;
-            letter-spacing: 0.2em;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
             text-align: center;
-            display: flex;
+            display: grid;
+            gap: clamp(10px, 2vw, 16px);
+            justify-items: center;
+            pointer-events: auto;
+        }
+
+        #preflightPrompt::after {
+            content: "";
+            position: absolute;
+            inset: clamp(6px, 1.8vw, 8px);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        #preflightPrompt > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        #preflightPrompt .hud-title {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: clamp(12px, 3vw, 20px);
-            flex-wrap: wrap;
-            pointer-events: auto;
+            padding: 6px 18px;
+            border: 3px solid #ffffff;
+            background: linear-gradient(180deg, #e53e3e 0%, #b91c1c 100%);
+            color: #ffffff;
+            font-size: clamp(12px, 2vw, 14px);
+            letter-spacing: 0.16em;
+            box-shadow: 0 4px 0 #450a0a;
+        }
+
+        #preflightPrompt .prompt-text {
+            text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
         }
 
         #preflightPrompt[hidden] {
@@ -545,23 +569,23 @@
             align-items: center;
             justify-content: center;
             padding: 10px 22px;
-            border-radius: 999px;
-            border: 1px solid rgba(94, 234, 212, 0.45);
-            background: linear-gradient(135deg, rgba(34, 197, 94, 0.9), rgba(20, 184, 166, 0.85));
-            color: rgba(15, 23, 42, 0.95);
-            font-size: clamp(13px, 2.6vw, 16px);
+            border-radius: 8px;
+            border: 3px solid #f4f4f4;
+            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+            color: #f8fafc;
+            font-size: clamp(12px, 2.6vw, 15px);
             font-weight: 700;
             letter-spacing: 0.12em;
             text-transform: uppercase;
             cursor: pointer;
-            box-shadow: 0 12px 28px rgba(45, 212, 191, 0.45);
-            transition: transform 140ms ease, box-shadow 140ms ease;
+            box-shadow: 0 6px 0 #0f172a;
+            transition: transform 120ms ease, box-shadow 120ms ease;
             touch-action: manipulation;
         }
 
         #mobilePreflightButton:active {
-            transform: translateY(1px);
-            box-shadow: 0 8px 18px rgba(45, 212, 191, 0.4);
+            transform: translateY(2px);
+            box-shadow: 0 3px 0 #0f172a;
         }
 
         body.touch-enabled #mobilePreflightButton {
@@ -570,6 +594,21 @@
 
         body.touch-enabled #preflightPrompt .desktop-only {
             display: none;
+        }
+
+        #settingsHint {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.18);
+            background: rgba(15, 23, 42, 0.5);
+            font-size: clamp(10px, 2vw, 12px);
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(226, 232, 240, 0.92);
+            text-align: center;
         }
 
         #stats span.value {
@@ -1558,13 +1597,16 @@
             #preflightBar {
                 position: sticky;
                 top: clamp(12px, 4vw, 18px);
-                padding-inline: clamp(16px, 5vw, 24px);
+                padding: 0 clamp(12px, 6vw, 20px);
                 margin-bottom: clamp(18px, 5vw, 28px);
             }
 
             #preflightPrompt {
                 width: 100%;
-                box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45);
+                border-width: 3px;
+                box-shadow:
+                    0 0 0 6px #202020,
+                    0 12px 0 rgba(0, 0, 0, 0.35);
             }
 
             #gameShell {
@@ -1721,8 +1763,9 @@
     </div>
     <div id="preflightBar">
         <div id="preflightPrompt" role="status" aria-live="polite" hidden>
-            <span class="desktop-only">Press Enter to launch the run</span>
-            <button id="mobilePreflightButton" type="button" hidden aria-hidden="true">Tap to Launch</button>
+            <span class="hud-title" aria-hidden="true">Nyan Ready</span>
+            <span class="prompt-text desktop-only">Press Start (Enter) to launch</span>
+            <button id="mobilePreflightButton" type="button" hidden aria-hidden="true">Tap Start</button>
         </div>
         <div id="settingsHint" aria-live="polite">
             <span class="desktop-only">Press Esc for settings</span>
@@ -1906,7 +1949,7 @@
             <label for="playerNameInput">Pilot Callsign</label>
             <div class="input-row">
                 <input id="playerNameInput" name="playerName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Ace Pilot" aria-describedby="callsignHint">
-                <span id="callsignHint">Press Enter or click Launch to start a run.</span>
+                <span id="callsignHint">Press Start (Enter) or click Launch to begin a run.</span>
             </div>
         </form>
         <div id="overlayActions">
@@ -3182,8 +3225,8 @@
                 window.visualViewport.addEventListener('scroll', requestViewportUpdate);
             }
 
-            const getLaunchControlText = () => (isTouchInterface ? 'Tap to Launch' : 'Press Enter to Launch');
-            const getRetryControlText = () => (isTouchInterface ? 'Tap to Retry' : 'Press Enter to Retry');
+            const getLaunchControlText = () => (isTouchInterface ? 'Tap Start' : 'Press Start (Enter)');
+            const getRetryControlText = () => (isTouchInterface ? 'Tap Start Again' : 'Press Start (Enter) Again');
 
             function refreshInteractionHints() {
                 if (bodyElement) {
@@ -3192,14 +3235,14 @@
                 if (mobilePreflightButton) {
                     mobilePreflightButton.hidden = !isTouchInterface;
                     mobilePreflightButton.setAttribute('aria-hidden', isTouchInterface ? 'false' : 'true');
-                    mobilePreflightButton.textContent = isTouchInterface ? 'Tap to Launch' : 'Start Run';
+                    mobilePreflightButton.textContent = isTouchInterface ? 'Tap Start' : 'Press Start';
                     const promptVisible = preflightPrompt && !preflightPrompt.hidden;
                     mobilePreflightButton.disabled = !promptVisible || !isTouchInterface;
                 }
                 if (callsignHint) {
                     callsignHint.textContent = isTouchInterface
-                        ? 'Tap Launch to start a run.'
-                        : 'Press Enter or click Launch to start a run.';
+                        ? 'Tap Start to begin a run.'
+                        : 'Press Start (Enter) or click Launch to begin a run.';
                 }
                 updateTouchControlsLayout();
             }
