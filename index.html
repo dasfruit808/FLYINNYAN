@@ -2248,11 +2248,11 @@
             <label for="playerNameInput">Pilot Callsign</label>
             <div class="input-row">
                 <input id="playerNameInput" name="playerName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Ace Pilot" aria-describedby="callsignHint">
-                <span id="callsignHint">Press Start (Enter) or click Launch to begin a run.</span>
+                <span id="callsignHint">Confirm your callsign, then press Start (Enter) to launch.</span>
             </div>
         </form>
         <div id="overlayActions">
-            <button id="overlayButton" type="button" disabled aria-disabled="true">Launch Flight</button>
+            <button id="overlayButton" type="button" disabled aria-disabled="true">Confirm Callsign</button>
             <button id="overlaySecondaryButton" type="button" class="secondary" hidden aria-disabled="true">Skip Submission</button>
         </div>
         <div id="overlayPanels">
@@ -5773,6 +5773,7 @@
             let lastRunSummary = null;
             let pendingSubmission = null;
             let preflightOverlayDismissed = false;
+            let preflightReady = false;
 
             function updatePlayerName(nextName) {
                 const sanitized = sanitizePlayerName(nextName) || DEFAULT_PLAYER_NAME;
@@ -6110,10 +6111,17 @@
                     return;
                 }
                 const mode = overlayButton.dataset.launchMode;
-                if (!mode || (mode !== 'launch' && mode !== 'retry')) {
+                if (!mode) {
                     return;
                 }
                 const pendingName = getPendingPlayerName();
+                if (mode === 'prepare') {
+                    overlayButton.textContent = `Confirm Callsign: ${pendingName}`;
+                    return;
+                }
+                if (mode !== 'launch' && mode !== 'retry') {
+                    return;
+                }
                 const prefix = mode === 'retry' ? 'Retry as' : 'Launch as';
                 overlayButton.textContent = `${prefix} ${pendingName}`;
             }
@@ -6916,13 +6924,27 @@
                     .catch(() => undefined);
             }
 
-            function showPreflightOverlay() {
+            function configureOverlayForNameEntry({ focusInput = true } = {}) {
                 const message = overlayDefaultMessage || overlayMessage?.textContent || '';
-                showOverlay(message, 'Launch Flight', {
+                showOverlay(message, 'Confirm Callsign', {
                     title: overlayDefaultTitle,
                     enableButton: true,
-                    launchMode: 'launch'
+                    launchMode: 'prepare'
                 });
+                if (playerNameInput && focusInput) {
+                    try {
+                        playerNameInput.focus({ preventScroll: true });
+                        playerNameInput.select?.();
+                    } catch {
+                        playerNameInput.focus();
+                        playerNameInput.select?.();
+                    }
+                }
+            }
+
+            function showPreflightOverlay() {
+                configureOverlayForNameEntry({ focusInput: false });
+                openCharacterSelect('launch');
             }
 
             function runCyborgLoadingSequence() {
@@ -7426,7 +7448,7 @@
                     if (action === 'retry') {
                         skipScoreSubmission();
                     }
-                    startGame();
+                    configureOverlayForNameEntry();
                     return;
                 }
                 pendingLaunchAction = action;
@@ -7472,7 +7494,7 @@
                 setActiveCharacter(profile);
                 pendingLaunchAction = null;
                 closeCharacterSelect();
-                startGame();
+                configureOverlayForNameEntry();
             }
             let activePlayerImage = playerBaseImage;
             let activeTrailStyle = trailStyles.rainbow;
@@ -8657,10 +8679,17 @@
                 if (!overlay || overlay.classList.contains('hidden')) {
                     return;
                 }
-                if (overlayButton?.dataset.launchMode !== 'launch') {
+                const mode = overlayButton?.dataset.launchMode;
+                if (mode !== 'prepare' && mode !== 'launch') {
                     return;
                 }
                 preflightOverlayDismissed = true;
+                state.gameState = 'ready';
+                preflightReady = true;
+                if (overlayButton) {
+                    overlayButton.dataset.launchMode = 'launch';
+                    refreshOverlayLaunchButton();
+                }
                 hideOverlay();
                 showPreflightPrompt();
                 focusGameCanvas();
@@ -8669,6 +8698,7 @@
             function showOverlay(message, buttonText = getLaunchControlText(), options = {}) {
                 hidePreflightPrompt();
                 preflightOverlayDismissed = false;
+                preflightReady = false;
                 overlayMessage.textContent = message;
                 const resolvedButtonText = buttonText || getLaunchControlText();
                 if (overlayButton) {
@@ -8678,7 +8708,11 @@
                     overlayButton.setAttribute('aria-disabled', enableButton ? 'false' : 'true');
                     if (enableButton && options.launchMode) {
                         overlayButton.dataset.launchMode = options.launchMode;
-                        if (options.launchMode === 'launch' || options.launchMode === 'retry') {
+                        if (
+                            options.launchMode === 'launch' ||
+                            options.launchMode === 'retry' ||
+                            options.launchMode === 'prepare'
+                        ) {
                             refreshOverlayLaunchButton();
                         }
                     } else if (overlayButton.dataset.launchMode) {
@@ -8931,6 +8965,7 @@
             async function startGame() {
                 hidePreflightPrompt();
                 preflightOverlayDismissed = false;
+                preflightReady = false;
                 commitPlayerNameInput();
                 completeFirstRunExperience();
                 resetGame();
@@ -9010,8 +9045,12 @@
             if (mobilePreflightButton) {
                 mobilePreflightButton.addEventListener('click', () => {
                     if (state.gameState === 'ready') {
-                        const mode = overlayButton?.dataset.launchMode || 'launch';
-                        handleOverlayAction(mode);
+                        if (preflightReady) {
+                            startGame();
+                        } else {
+                            const mode = overlayButton?.dataset.launchMode || 'launch';
+                            handleOverlayAction(mode);
+                        }
                     } else if (state.gameState === 'gameover') {
                         const mode = overlayButton?.dataset.launchMode || (pendingSubmission ? 'submit' : 'retry');
                         handleOverlayAction(mode);
@@ -9222,8 +9261,13 @@
                 }
                 if (normalizedKey === 'Enter') {
                     if (state.gameState === 'ready') {
-                        const mode = overlayButton?.dataset.launchMode || 'launch';
-                        handleOverlayAction(mode);
+                        if (preflightReady) {
+                            event.preventDefault();
+                            startGame();
+                        } else {
+                            const mode = overlayButton?.dataset.launchMode || 'launch';
+                            handleOverlayAction(mode);
+                        }
                     } else if (state.gameState === 'gameover') {
                         const mode = overlayButton?.dataset.launchMode || (pendingSubmission ? 'submit' : 'retry');
                         handleOverlayAction(mode);
@@ -11408,6 +11452,10 @@
                             console.error('Unhandled submission error', error);
                         });
                     }
+                    return;
+                }
+                if (action === 'prepare') {
+                    commitPlayerNameInput();
                     return;
                 }
                 if (action === 'retry') {
