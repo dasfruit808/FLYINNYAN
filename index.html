@@ -3196,7 +3196,8 @@
                 powerBomb: 'assets/powerbomb.png',
                 bulletSpread: 'assets/powerburger.png',
                 missiles: 'assets/powerpizza.png',
-                hyperBeam: 'assets/powerbeam.svg'
+                hyperBeam: 'assets/powerbeam.svg',
+                pumpDrive: 'assets/pump.png'
             };
 
             const powerUpImages = {};
@@ -3272,7 +3273,8 @@
                         bulletSpread: 6200,
                         missiles: 5600,
                         hyperBeam: 5600,
-                        radiantShield: 7200
+                        radiantShield: 7200,
+                        pumpDrive: 6200
                     }
                 },
                 hyperBeam: {
@@ -3426,7 +3428,8 @@
                     bulletSpread: 0,
                     missiles: 0,
                     hyperBeam: 0,
-                    radiantShield: 0
+                    radiantShield: 0,
+                    pumpDrive: 0
                 },
                 powerBombPulseTimer: 0,
                 lastVillainKey: null,
@@ -3546,6 +3549,18 @@
             const particles = [];
             const villainExplosions = [];
             const trail = [];
+            const pumpTailState = {
+                active: false,
+                bars: [],
+                waveTime: 0,
+                fade: 0,
+                amplitude: 1,
+                frequency: 1.6,
+                spread: 220,
+                baseHeight: 160,
+                centerX: 0,
+                releasePending: false
+            };
             const areaBursts = [];
             const floatingTexts = [];
             const cameraShake = { intensity: 0, duration: 0, elapsed: 0, offsetX: 0, offsetY: 0 };
@@ -3563,20 +3578,23 @@
 
             const HYPER_BEAM_POWER = 'hyperBeam';
             const SHIELD_POWER = 'radiantShield';
-            const powerUpTypes = ['powerBomb', 'bulletSpread', 'missiles', HYPER_BEAM_POWER, SHIELD_POWER];
+            const PUMP_POWER = 'pumpDrive';
+            const powerUpTypes = ['powerBomb', 'bulletSpread', 'missiles', HYPER_BEAM_POWER, SHIELD_POWER, PUMP_POWER];
             const powerUpLabels = {
                 powerBomb: 'Nova Pulse',
                 bulletSpread: 'Starlight Spread',
                 missiles: 'Comet Missiles',
                 [HYPER_BEAM_POWER]: 'Hyper Beam',
-                [SHIELD_POWER]: 'Radiant Shield'
+                [SHIELD_POWER]: 'Radiant Shield',
+                [PUMP_POWER]: 'Pump Drive'
             };
             const powerUpColors = {
                 powerBomb: { r: 255, g: 168, b: 112 },
                 bulletSpread: { r: 255, g: 128, b: 255 },
                 missiles: { r: 255, g: 182, b: 92 },
                 [HYPER_BEAM_POWER]: { r: 147, g: 197, b: 253 },
-                [SHIELD_POWER]: { r: 148, g: 210, b: 255 }
+                [SHIELD_POWER]: { r: 148, g: 210, b: 255 },
+                [PUMP_POWER]: { r: 255, g: 99, b: 247 }
             };
 
             const villainExplosionPalettes = {
@@ -3744,6 +3762,7 @@
                 state.powerUpTimers.missiles = 0;
                 state.powerUpTimers.radiantShield = 0;
                 state.powerUpTimers[HYPER_BEAM_POWER] = 0;
+                state.powerUpTimers.pumpDrive = 0;
                 state.powerBombPulseTimer = 0;
                 state.shieldHitPulse = 0;
                 state.lastVillainKey = null;
@@ -3764,6 +3783,12 @@
                 villainExplosions.length = 0;
                 particles.length = 0;
                 trail.length = 0;
+                pumpTailState.active = false;
+                pumpTailState.bars.length = 0;
+                pumpTailState.fade = 0;
+                pumpTailState.waveTime = 0;
+                pumpTailState.releasePending = false;
+                pumpTailState.centerX = 0;
                 areaBursts.length = 0;
                 spawnTimers.obstacle = 0;
                 spawnTimers.collectible = 0;
@@ -4255,6 +4280,16 @@
 
             function clamp(value, min, max) {
                 return Math.max(min, Math.min(max, value));
+            }
+
+            function moveTowards(value, target, maxDelta) {
+                if (value < target) {
+                    return Math.min(target, value + maxDelta);
+                }
+                if (value > target) {
+                    return Math.max(target, value - maxDelta);
+                }
+                return value;
             }
 
             function randomBetween(min, max) {
@@ -5006,7 +5041,13 @@
                 attemptShoot(delta);
 
                 updateTailLength(delta);
-                updateTrail();
+                if (isPowerUpActive(PUMP_POWER) || pumpTailState.fade > 0.001) {
+                    if (isPowerUpActive(PUMP_POWER)) {
+                        ensurePumpTailInitialized();
+                    }
+                } else {
+                    updateTrail();
+                }
             }
 
             function updateTrail() {
@@ -5022,6 +5063,147 @@
                         trail.shift();
                     }
                 }
+            }
+
+            function ensurePumpTailInitialized() {
+                if (pumpTailState.active) {
+                    return;
+                }
+                pumpTailState.bars.length = 0;
+                const barCount = Math.max(6, Math.round(state.tailLength));
+                pumpTailState.active = true;
+                pumpTailState.waveTime = 0;
+                pumpTailState.fade = 0;
+                pumpTailState.centerX = player.x + player.width * 0.3;
+                pumpTailState.spread = Math.min(canvas.width * 0.85, Math.max(180, barCount * 26));
+                const lengthFactor = state.tailLength / Math.max(1, config.baseTrailLength);
+                pumpTailState.baseHeight = Math.min(
+                    canvas.height * 0.52,
+                    canvas.height * (0.16 + Math.min(0.32, lengthFactor * 0.26))
+                );
+                pumpTailState.amplitude = 0.38 + Math.min(1.1, lengthFactor * 0.5);
+                pumpTailState.frequency = 1.6 + Math.min(1.6, lengthFactor * 0.35);
+                pumpTailState.bars = Array.from({ length: barCount }, (_, index) => ({
+                    offset: index - (barCount - 1) / 2,
+                    phase: Math.random() * Math.PI * 2,
+                    weight: 0.75 + Math.random() * 0.55
+                }));
+                pumpTailState.releasePending = false;
+                trail.length = 0;
+            }
+
+            function stopPumpTailEffect() {
+                pumpTailState.active = false;
+                pumpTailState.releasePending = true;
+            }
+
+            function updatePumpTail(delta) {
+                const deltaSeconds = delta / 1000;
+                const isActive = isPowerUpActive(PUMP_POWER);
+                if (isActive) {
+                    ensurePumpTailInitialized();
+                } else if (pumpTailState.active) {
+                    stopPumpTailEffect();
+                }
+
+                const fadeTarget = isActive ? 1 : 0;
+                const fadeSpeed = isActive ? 2.6 : 3.5;
+                pumpTailState.fade = moveTowards(pumpTailState.fade, fadeTarget, deltaSeconds * fadeSpeed);
+
+                if (pumpTailState.fade <= 0.001 && !isActive) {
+                    pumpTailState.fade = 0;
+                    if (pumpTailState.releasePending) {
+                        pumpTailState.bars.length = 0;
+                        pumpTailState.releasePending = false;
+                    }
+                }
+
+                if (pumpTailState.fade <= 0 && !isActive) {
+                    return;
+                }
+
+                const waveAdvance = pumpTailState.frequency * Math.PI * 2 * (isActive ? 1 : 0.6);
+                pumpTailState.waveTime += deltaSeconds * waveAdvance;
+                if (pumpTailState.bars.length) {
+                    const targetX = player.x + player.width * 0.3;
+                    pumpTailState.centerX = moveTowards(
+                        pumpTailState.centerX,
+                        targetX,
+                        deltaSeconds * 420
+                    );
+                    const lengthFactor = state.tailLength / Math.max(1, config.baseTrailLength);
+                    const targetAmplitude = 0.38 + Math.min(1.1, lengthFactor * 0.5);
+                    pumpTailState.amplitude = moveTowards(
+                        pumpTailState.amplitude,
+                        targetAmplitude,
+                        deltaSeconds * 2.4
+                    );
+                    const targetBaseHeight = Math.min(
+                        canvas.height * 0.52,
+                        canvas.height * (0.16 + Math.min(0.32, lengthFactor * 0.26))
+                    );
+                    pumpTailState.baseHeight = moveTowards(
+                        pumpTailState.baseHeight,
+                        targetBaseHeight,
+                        deltaSeconds * canvas.height * 0.6
+                    );
+                    const targetSpread = Math.min(
+                        canvas.width * 0.85,
+                        Math.max(180, Math.round(state.tailLength) * 26)
+                    );
+                    pumpTailState.spread = moveTowards(
+                        pumpTailState.spread,
+                        targetSpread,
+                        deltaSeconds * 260
+                    );
+                }
+            }
+
+            function drawPumpTail() {
+                if (!pumpTailState.bars.length || pumpTailState.fade <= 0) {
+                    return;
+                }
+
+                const baseY = canvas.height - 28;
+                const barCount = pumpTailState.bars.length;
+                const spacing = barCount > 1 ? pumpTailState.spread / (barCount - 1) : 0;
+                const startX = pumpTailState.centerX - (barCount > 1 ? pumpTailState.spread / 2 : 0);
+                const baseWidth = barCount > 0 ? Math.min(48, Math.max(10, spacing * 0.52)) : 16;
+                const time = performance.now();
+
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.shadowBlur = 24 * pumpTailState.fade;
+
+                for (let i = 0; i < barCount; i++) {
+                    const bar = pumpTailState.bars[i];
+                    const normalizedIndex = barCount > 1 ? i / (barCount - 1) : 0;
+                    const hue = (normalizedIndex * 280 + time * 0.08) % 360;
+                    const x = clamp(
+                        startX + i * spacing,
+                        baseWidth * 0.5,
+                        canvas.width - baseWidth * 0.5
+                    );
+                    const wave = Math.sin(pumpTailState.waveTime + normalizedIndex * 1.6 + bar.phase);
+                    const normalizedWave = wave * 0.5 + 0.5;
+                    const height = pumpTailState.baseHeight * (0.3 + pumpTailState.amplitude * bar.weight * normalizedWave);
+                    const scaledHeight = height * pumpTailState.fade;
+                    const topY = baseY - scaledHeight;
+
+                    const gradient = ctx.createLinearGradient(x, topY, x, baseY);
+                    gradient.addColorStop(0, `hsla(${hue}, 100%, 74%, ${0.72 * pumpTailState.fade})`);
+                    gradient.addColorStop(1, `hsla(${(hue + 40) % 360}, 100%, 48%, ${0.18 * pumpTailState.fade})`);
+                    ctx.fillStyle = gradient;
+                    ctx.shadowColor = `hsla(${hue}, 100%, 70%, ${0.45 * pumpTailState.fade})`;
+                    ctx.fillRect(x - baseWidth / 2, topY, baseWidth, scaledHeight);
+
+                    if (scaledHeight > 12) {
+                        ctx.fillStyle = `hsla(${(hue + 60) % 360}, 100%, 85%, ${0.35 * pumpTailState.fade})`;
+                        ctx.fillRect(x - baseWidth / 2, topY - 6, baseWidth, 6);
+                    }
+                }
+
+                ctx.restore();
             }
 
             function findNearestObstacle(projectile) {
@@ -5405,6 +5587,8 @@
                     hyperBeamState.sparkTimer = 0;
                     hyperBeamState.intensity = Math.max(hyperBeamState.intensity, 0.25);
                     audioManager.playHyperBeam();
+                } else if (type === PUMP_POWER) {
+                    ensurePumpTailInitialized();
                 }
             }
 
@@ -5448,6 +5632,9 @@
                         if (type === HYPER_BEAM_POWER && state.powerUpTimers[type] === 0) {
                             hyperBeamState.sparkTimer = 0;
                             audioManager.stopHyperBeam();
+                        }
+                        if (type === PUMP_POWER && state.powerUpTimers[type] === 0) {
+                            stopPumpTailEffect();
                         }
                     }
                 }
@@ -6574,6 +6761,10 @@
             }
 
             function drawTrail() {
+                if (isPowerUpActive(PUMP_POWER) || pumpTailState.fade > 0) {
+                    drawPumpTail();
+                    return;
+                }
                 if (trail.length < 2) return;
                 for (let i = 0; i < trail.length; i++) {
                     const t = trail[i];
@@ -7136,6 +7327,7 @@
                 updateVillainExplosions(delta);
                 updateShieldEffects(delta);
                 updateHyperBeam(delta);
+                updatePumpTail(delta);
             }
 
             function stepRunning(delta) {
@@ -7157,6 +7349,7 @@
                 updateFloatingTexts(delta);
                 updateSpawns(delta);
                 updatePowerUpTimers(delta);
+                updatePumpTail(delta);
                 updatePowerBomb(delta);
                 updateShieldEffects(delta);
                 updateAreaBursts(delta);
