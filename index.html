@@ -2373,35 +2373,139 @@
                     })
                     .filter(Boolean);
 
-                const setState = (entry, isOpen) => {
-                    const { card, content, toggle } = entry;
-                    card.classList.toggle('open', isOpen);
-                    toggle.setAttribute('aria-expanded', String(isOpen));
-                    content.setAttribute('aria-hidden', String(!isOpen));
+                const entryLookup = new Map(entries.map((entry) => [entry.content, entry]));
+                let pendingUpdateHandle = null;
 
-                    if (isOpen) {
-                        updateCardMaxHeight(card, content);
+                const runPendingUpdate = () => {
+                    pendingUpdateHandle = null;
+                    entries.forEach((entry) => {
+                        if (entry.card.classList.contains('open')) {
+                            updateCardMaxHeight(entry.card, entry.content);
+                        }
+                    });
+                };
+
+                const scheduleUpdate = () => {
+                    if (pendingUpdateHandle != null) {
+                        return;
+                    }
+                    pendingUpdateHandle = window.requestAnimationFrame(runPendingUpdate);
+                };
+
+                const setState = (entry, shouldOpen, { force = false } = {}) => {
+                    const { card, content, toggle } = entry;
+                    const wasOpen = card.classList.contains('open');
+                    if (!force && wasOpen === shouldOpen) {
+                        return;
+                    }
+
+                    card.classList.toggle('open', shouldOpen);
+                    toggle.setAttribute('aria-expanded', String(shouldOpen));
+                    content.setAttribute('aria-hidden', String(!shouldOpen));
+
+                    if (shouldOpen) {
+                        content.removeAttribute('inert');
+                        scheduleUpdate();
                     } else {
+                        content.setAttribute('inert', '');
                         content.scrollTop = 0;
                         content.style.removeProperty('--collapsible-max-height');
                     }
                 };
 
                 entries.forEach((entry) => {
-                    setState(entry, entry.card.classList.contains('open'));
+                    const initiallyOpen = entry.card.classList.contains('open');
+                    if (!initiallyOpen) {
+                        entry.content.setAttribute('inert', '');
+                    }
+                    setState(entry, initiallyOpen, { force: true });
 
                     entry.toggle.addEventListener('click', () => {
                         setState(entry, !entry.card.classList.contains('open'));
                     });
                 });
 
+                if (typeof ResizeObserver === 'function') {
+                    const resizeObserver = new ResizeObserver((observerEntries) => {
+                        for (const { target } of observerEntries) {
+                            const entry = entryLookup.get(target);
+                            if (entry?.card.classList.contains('open')) {
+                                scheduleUpdate();
+                                break;
+                            }
+                        }
+                    });
+
+                    entries.forEach((entry) => resizeObserver.observe(entry.content));
+                } else if (typeof MutationObserver === 'function') {
+                    const getElementFromNode = (node) => {
+                        if (!node) {
+                            return null;
+                        }
+
+                        if (node.nodeType === 1) {
+                            return node;
+                        }
+
+                        if ('parentElement' in node && node.parentElement) {
+                            return node.parentElement;
+                        }
+
+                        return null;
+                    };
+
+                    const findContentElement = (element) => {
+                        if (!element) {
+                            return null;
+                        }
+
+                        if (typeof element.closest === 'function') {
+                            return element.closest('.card-content');
+                        }
+
+                        let current = element;
+                        while (current) {
+                            if (current.classList?.contains('card-content')) {
+                                return current;
+                            }
+                            current = current.parentElement;
+                        }
+
+                        return null;
+                    };
+
+                    const mutationObserver = new MutationObserver((mutations) => {
+                        for (const mutation of mutations) {
+                            const element = getElementFromNode(mutation.target);
+                            if (!element) {
+                                continue;
+                            }
+
+                            const contentElement = findContentElement(element);
+                            if (!contentElement) {
+                                continue;
+                            }
+
+                            const entry = entryLookup.get(contentElement);
+                            if (entry?.card.classList.contains('open')) {
+                                scheduleUpdate();
+                                break;
+                            }
+                        }
+                    });
+
+                    entries.forEach((entry) =>
+                        mutationObserver.observe(entry.content, {
+                            childList: true,
+                            subtree: true,
+                            characterData: true
+                        })
+                    );
+                }
+
                 return {
                     updateAll() {
-                        entries.forEach((entry) => {
-                            if (entry.card.classList.contains('open')) {
-                                updateCardMaxHeight(entry.card, entry.content);
-                            }
-                        });
+                        scheduleUpdate();
                     }
                 };
             }
