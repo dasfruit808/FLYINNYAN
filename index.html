@@ -1623,6 +1623,55 @@
                 typeof window !== 'undefined' && window.NYAN_ASSET_OVERRIDES && typeof window.NYAN_ASSET_OVERRIDES === 'object'
                     ? window.NYAN_ASSET_OVERRIDES
                     : {};
+            const gameplayOverrides =
+                typeof window !== 'undefined' && window.NYAN_GAMEPLAY_OVERRIDES && typeof window.NYAN_GAMEPLAY_OVERRIDES === 'object'
+                    ? window.NYAN_GAMEPLAY_OVERRIDES
+                    : null;
+
+            const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
+
+            function cloneConfig(value) {
+                if (Array.isArray(value)) {
+                    return value.map((item) => cloneConfig(item));
+                }
+                if (isPlainObject(value)) {
+                    const cloned = {};
+                    for (const [key, child] of Object.entries(value)) {
+                        cloned[key] = cloneConfig(child);
+                    }
+                    return cloned;
+                }
+                return value;
+            }
+
+            function applyOverrides(base, overrides) {
+                if (!isPlainObject(overrides)) {
+                    return base;
+                }
+                for (const [key, value] of Object.entries(overrides)) {
+                    if (value == null) {
+                        continue;
+                    }
+                    if (Array.isArray(value)) {
+                        const currentBaseArray = Array.isArray(base[key]) ? base[key] : [];
+                        base[key] = value.map((item, index) => {
+                            if (isPlainObject(item)) {
+                                const baseItem = isPlainObject(currentBaseArray[index]) ? currentBaseArray[index] : {};
+                                return applyOverrides(cloneConfig(baseItem), item);
+                            }
+                            return cloneConfig(item);
+                        });
+                        continue;
+                    }
+                    if (isPlainObject(value)) {
+                        const baseValue = isPlainObject(base[key]) ? base[key] : {};
+                        base[key] = applyOverrides(cloneConfig(baseValue), value);
+                        continue;
+                    }
+                    base[key] = value;
+                }
+                return base;
+            }
 
             function resolveAssetConfig(override, defaultSrc) {
                 if (override == null) {
@@ -2760,9 +2809,9 @@
                 );
             }
 
-            const baseCollectScore = 80;
+            const defaultCollectScore = 80;
 
-            const config = {
+            const defaultConfig = {
                 baseGameSpeed: 160,
                 speedGrowth: 5,
                 obstacleSpawnInterval: 950,
@@ -2877,13 +2926,23 @@
                 },
                 comboMultiplierStep: 0.15,
                 score: {
-                    collect: baseCollectScore,
+                    collect: defaultCollectScore,
                     destroy: 120,
                     asteroid: 60,
                     dodge: 18,
                     villainEscape: 140
                 }
             };
+
+            const config = applyOverrides(cloneConfig(defaultConfig), gameplayOverrides ?? {});
+            const baseCollectScoreRaw = config?.score?.collect;
+            const baseCollectScore = Number.isFinite(Number(baseCollectScoreRaw))
+                ? Math.max(1, Number(baseCollectScoreRaw))
+                : defaultCollectScore;
+            if (!config.score || !isPlainObject(config.score)) {
+                config.score = { ...defaultConfig.score };
+            }
+            config.score.collect = baseCollectScore;
 
             const collectibleTiers = [
                 {
@@ -5720,10 +5779,10 @@
                 const ratio = clamp(1 - state.comboTimer / config.comboDecayWindow, 0, 1);
                 const percentage = Math.round(ratio * 100);
                 if (percentage !== lastComboPercent) {
-                    comboFillEl.style.width = `${percentage}%`;
-                    if (comboMeterEl) {
-                        comboMeterEl.setAttribute('aria-valuenow', String(percentage));
+                    if (comboFillEl) {
+                        comboFillEl.style.width = `${percentage}%`;
                     }
+                    comboMeterEl?.setAttribute('aria-valuenow', String(percentage));
                     lastComboPercent = percentage;
                 }
                 if (comboMeterEl) {
@@ -5736,19 +5795,25 @@
                 const formattedScore = state.score.toLocaleString();
                 if (formattedScore !== hudCache.score) {
                     hudCache.score = formattedScore;
-                    scoreEl.textContent = formattedScore;
+                    if (scoreEl) {
+                        scoreEl.textContent = formattedScore;
+                    }
                 }
 
                 const formattedNyan = state.nyan.toLocaleString();
                 if (formattedNyan !== hudCache.nyan) {
                     hudCache.nyan = formattedNyan;
-                    nyanEl.textContent = formattedNyan;
+                    if (nyanEl) {
+                        nyanEl.textContent = formattedNyan;
+                    }
                 }
 
                 const comboMultiplierText = `x${(1 + state.streak * config.comboMultiplierStep).toFixed(2)}`;
                 if (comboMultiplierText !== hudCache.comboMultiplier) {
                     hudCache.comboMultiplier = comboMultiplierText;
-                    streakEl.textContent = comboMultiplierText;
+                    if (streakEl) {
+                        streakEl.textContent = comboMultiplierText;
+                    }
                 }
 
                 const bestTailLengthText = `${Math.round(
@@ -5756,20 +5821,26 @@
                 )}`;
                 if (bestTailLengthText !== hudCache.bestTailLength) {
                     hudCache.bestTailLength = bestTailLengthText;
-                    bestStreakEl.textContent = bestTailLengthText;
+                    if (bestStreakEl) {
+                        bestStreakEl.textContent = bestTailLengthText;
+                    }
                 }
 
                 const marketCapText = `${(6.6 + state.score / 1400).toFixed(1)}K`;
                 if (marketCapText !== hudCache.marketCap) {
                     hudCache.marketCap = marketCapText;
-                    mcapEl.textContent = marketCapText;
+                    if (mcapEl) {
+                        mcapEl.textContent = marketCapText;
+                    }
                 }
 
                 const normalizedCollects = state.nyan / baseCollectScore;
                 const volumeText = `${(2.8 + normalizedCollects * 0.6 + state.streak * 0.3).toFixed(1)}K`;
                 if (volumeText !== hudCache.volume) {
                     hudCache.volume = volumeText;
-                    volEl.textContent = volumeText;
+                    if (volEl) {
+                        volEl.textContent = volumeText;
+                    }
                 }
 
                 const activeBoosts = powerUpTypes
@@ -5778,7 +5849,9 @@
                 const powerUpText = activeBoosts.length ? activeBoosts.join(' | ') : 'None';
                 if (powerUpText !== hudCache.powerUps) {
                     hudCache.powerUps = powerUpText;
-                    powerUpsEl.textContent = powerUpText;
+                    if (powerUpsEl) {
+                        powerUpsEl.textContent = powerUpText;
+                    }
                 }
             }
 
