@@ -36,6 +36,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const collectibleGradientCache = new Map();
     const powerUpGradientCache = new Map();
+    const supportsPath2D = typeof Path2D === 'function';
+    const projectilePathCache = supportsPath2D ? new Map() : null;
+    const particleColorStyleCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+    const STAR_FILL_COLOR = '#ffffff';
+    const INV_PARTICLE_LIFE = 1 / 500;
+
+    const getParticleColorStyle = (color) => {
+        if (!color) {
+            return 'rgb(255, 255, 255)';
+        }
+        if (particleColorStyleCache) {
+            const cached = particleColorStyleCache.get(color);
+            if (cached) {
+                return cached;
+            }
+            const style = `rgb(${color.r ?? 255}, ${color.g ?? 255}, ${color.b ?? 255})`;
+            particleColorStyleCache.set(color, style);
+            return style;
+        }
+        return `rgb(${color.r ?? 255}, ${color.g ?? 255}, ${color.b ?? 255})`;
+    };
+
+    const getProjectilePath = (width, height) => {
+        if (!projectilePathCache) {
+            return null;
+        }
+        const key = `${width}|${height}`;
+        let path = projectilePathCache.get(key);
+        if (!path) {
+            path = new Path2D();
+            path.moveTo(0, 0);
+            path.lineTo(width, height * 0.5);
+            path.lineTo(0, height);
+            path.closePath();
+            projectilePathCache.set(key, path);
+        }
+        return path;
+    };
 
     function getCachedRadialGradient(cache, context, innerRadius, outerRadius, colorStops) {
         const normalize = (value) => (typeof value === 'number' ? value.toFixed(4) : String(value));
@@ -8767,6 +8805,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 vy: randomBetween(-140, 140) * velocityScale,
                 life: randomBetween(240, 420) * lifeScale,
                 color,
+                colorStyle: getParticleColorStyle(color),
                 size: randomBetween(1.2, 2.6) * sizeScale
             });
         }
@@ -9098,6 +9137,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 vy: Math.sin(angle) * speed,
                 life: (300 + Math.random() * 200) * lifeScale,
                 color,
+                colorStyle: getParticleColorStyle(color),
                 size: (Math.random() * 2 + 0.8) * sizeScale
             });
         }
@@ -9119,6 +9159,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 vy: Math.sin(angle) * speed,
                 life: randomBetween(lifeRange[0], lifeRange[1]) * lifeScale,
                 color,
+                colorStyle: getParticleColorStyle(color),
                 size: randomBetween(sizeRange[0], sizeRange[1]) * sizeScale
             });
         }
@@ -9962,9 +10003,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawStars(time) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = STAR_FILL_COLOR;
         for (const star of stars) {
             const twinkle = (Math.sin(time * 0.002 + star.twinkleOffset) + 1) * 0.5;
-            ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + twinkle * 0.7})`;
+            ctx.globalAlpha = 0.3 + twinkle * 0.7;
             ctx.beginPath();
             ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
             ctx.fill();
@@ -10520,20 +10562,26 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const projectile of projectiles) {
             if (projectile.type === 'missile') {
                 ctx.save();
-                ctx.translate(projectile.x + projectile.width * 0.5, projectile.y + projectile.height * 0.5);
+                const halfWidth = projectile.width * 0.5;
+                const halfHeight = projectile.height * 0.5;
+                ctx.translate(projectile.x + halfWidth, projectile.y + halfHeight);
                 const angle = Math.atan2(projectile.vy, projectile.vx);
                 ctx.rotate(angle);
+                const bodyWidth = projectile.width;
+                const bodyHeight = projectile.height * 0.7;
                 ctx.fillStyle = '#ffb74d';
-                ctx.fillRect(-projectile.width * 0.5, -projectile.height * 0.35, projectile.width, projectile.height * 0.7);
+                ctx.fillRect(-halfWidth, -bodyHeight * 0.5, bodyWidth, bodyHeight);
                 ctx.fillStyle = '#ff7043';
                 ctx.beginPath();
-                ctx.moveTo(-projectile.width * 0.6, -projectile.height * 0.5);
-                ctx.lineTo(-projectile.width * 0.2, 0);
-                ctx.lineTo(-projectile.width * 0.6, projectile.height * 0.5);
+                const finX = -bodyWidth * 0.6;
+                const finY = projectile.height * 0.5;
+                ctx.moveTo(finX, -finY);
+                ctx.lineTo(-bodyWidth * 0.2, 0);
+                ctx.lineTo(finX, finY);
                 ctx.closePath();
                 ctx.fill();
                 ctx.fillStyle = '#263238';
-                ctx.fillRect(projectile.width * 0.1, -projectile.height * 0.2, projectile.width * 0.5, projectile.height * 0.4);
+                ctx.fillRect(bodyWidth * 0.1, -halfHeight * 0.4, bodyWidth * 0.5, halfHeight * 0.8);
                 ctx.restore();
             } else {
                 const gradient = ctx.createLinearGradient(projectile.x, projectile.y, projectile.x + projectile.width, projectile.y + projectile.height);
@@ -10544,13 +10592,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     gradient.addColorStop(0, '#00e5ff');
                     gradient.addColorStop(1, '#6a5acd');
                 }
+                ctx.save();
                 ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.moveTo(projectile.x, projectile.y);
-                ctx.lineTo(projectile.x + projectile.width, projectile.y + projectile.height * 0.5);
-                ctx.lineTo(projectile.x, projectile.y + projectile.height);
-                ctx.closePath();
-                ctx.fill();
+                if (supportsPath2D) {
+                    const path = getProjectilePath(projectile.width, projectile.height);
+                    if (path) {
+                        ctx.translate(projectile.x, projectile.y);
+                        ctx.fill(path);
+                    } else {
+                        ctx.beginPath();
+                        ctx.moveTo(projectile.x, projectile.y);
+                        ctx.lineTo(projectile.x + projectile.width, projectile.y + projectile.height * 0.5);
+                        ctx.lineTo(projectile.x, projectile.y + projectile.height);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                } else {
+                    ctx.beginPath();
+                    ctx.moveTo(projectile.x, projectile.y);
+                    ctx.lineTo(projectile.x + projectile.width, projectile.y + projectile.height * 0.5);
+                    ctx.lineTo(projectile.x, projectile.y + projectile.height);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.restore();
             }
         }
     }
@@ -10559,8 +10624,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         for (const particle of particles) {
-            const alpha = clamp(particle.life / 500, 0, 1);
-            ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha.toFixed(2)})`;
+            const alpha = clamp(particle.life * INV_PARTICLE_LIFE, 0, 1);
+            ctx.globalAlpha = alpha;
+            if (!particle.colorStyle) {
+                particle.colorStyle = getParticleColorStyle(particle.color);
+            }
+            ctx.fillStyle = particle.colorStyle;
             ctx.beginPath();
             ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
             ctx.fill();
