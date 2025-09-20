@@ -1,4 +1,12 @@
+let firstRunExperience = true;
+let quickStartUsed = false;
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Reset onboarding flags whenever the game reinitializes. This ensures that
+    // subsequent reloads (such as during development hot-reloads) don't carry
+    // over stale values from previous executions.
+    firstRunExperience = true;
+    quickStartUsed = false;
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
 
@@ -2041,9 +2049,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
         storageAvailable = false;
     }
-
-    let firstRunExperience = true;
-    let quickStartUsed = false;
 
     function readStorage(key) {
         if (!storageAvailable) return null;
