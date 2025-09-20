@@ -3559,7 +3559,8 @@
                 spread: 220,
                 baseHeight: 160,
                 centerX: 0,
-                releasePending: false
+                releasePending: false,
+                segments: []
             };
             const areaBursts = [];
             const floatingTexts = [];
@@ -4173,17 +4174,24 @@
                             return;
                         }
 
-                        for (let j = trail.length - 1; j >= 0; j--) {
-                            const t = trail[j];
-                            if (Math.hypot(asteroid.x - t.x, asteroid.y - t.y) <= collisionRadius + 10) {
-                                if (isShieldActive()) {
-                                    if (asteroid.shieldCooldown <= 0) {
-                                        repelAsteroidFromPlayer(asteroid);
+                        if (isPumpTailDamaging()) {
+                            if (pumpTailIntersectsCircle({ x: asteroid.x, y: asteroid.y, radius: collisionRadius })) {
+                                destroyAsteroid(i);
+                                continue;
+                            }
+                        } else {
+                            for (let j = trail.length - 1; j >= 0; j--) {
+                                const t = trail[j];
+                                if (Math.hypot(asteroid.x - t.x, asteroid.y - t.y) <= collisionRadius + 10) {
+                                    if (isShieldActive()) {
+                                        if (asteroid.shieldCooldown <= 0) {
+                                            repelAsteroidFromPlayer(asteroid);
+                                        }
+                                        break;
                                     }
-                                    break;
+                                    triggerGameOver('Your tail clipped an asteroid!');
+                                    return;
                                 }
-                                triggerGameOver('Your tail clipped an asteroid!');
-                                return;
                             }
                         }
                     }
@@ -5090,11 +5098,58 @@
                 }));
                 pumpTailState.releasePending = false;
                 trail.length = 0;
+                updatePumpTailSegments();
             }
 
             function stopPumpTailEffect() {
                 pumpTailState.active = false;
                 pumpTailState.releasePending = true;
+            }
+
+            function updatePumpTailSegments() {
+                const segments = pumpTailState.segments;
+                segments.length = 0;
+
+                if (!pumpTailState.bars.length || pumpTailState.fade <= 0) {
+                    return;
+                }
+
+                const baseY = canvas.height - 28;
+                const barCount = pumpTailState.bars.length;
+                const spacing = barCount > 1 ? pumpTailState.spread / (barCount - 1) : 0;
+                const startX = pumpTailState.centerX - (barCount > 1 ? pumpTailState.spread / 2 : 0);
+                const baseWidth = barCount > 0 ? Math.min(48, Math.max(10, spacing * 0.52)) : 16;
+
+                for (let i = 0; i < barCount; i++) {
+                    const bar = pumpTailState.bars[i];
+                    const normalizedIndex = barCount > 1 ? i / (barCount - 1) : 0;
+                    const x = clamp(
+                        startX + i * spacing,
+                        baseWidth * 0.5,
+                        canvas.width - baseWidth * 0.5
+                    );
+                    const wave = Math.sin(pumpTailState.waveTime + normalizedIndex * 1.6 + bar.phase);
+                    const normalizedWave = wave * 0.5 + 0.5;
+                    const height = pumpTailState.baseHeight * (
+                        0.3 + pumpTailState.amplitude * bar.weight * normalizedWave
+                    );
+                    const scaledHeight = height * pumpTailState.fade;
+
+                    if (scaledHeight <= 0) {
+                        continue;
+                    }
+
+                    const topY = baseY - scaledHeight;
+                    segments.push({
+                        x: x - baseWidth / 2,
+                        y: topY,
+                        width: baseWidth,
+                        height: scaledHeight,
+                        centerX: x,
+                        normalizedIndex,
+                        baseY
+                    });
+                }
             }
 
             function updatePumpTail(delta) {
@@ -5119,6 +5174,7 @@
                 }
 
                 if (pumpTailState.fade <= 0 && !isActive) {
+                    pumpTailState.segments.length = 0;
                     return;
                 }
 
@@ -5157,53 +5213,65 @@
                         deltaSeconds * 260
                     );
                 }
+
+                updatePumpTailSegments();
             }
 
             function drawPumpTail() {
-                if (!pumpTailState.bars.length || pumpTailState.fade <= 0) {
+                if (!pumpTailState.segments.length || pumpTailState.fade <= 0) {
                     return;
                 }
 
-                const baseY = canvas.height - 28;
-                const barCount = pumpTailState.bars.length;
-                const spacing = barCount > 1 ? pumpTailState.spread / (barCount - 1) : 0;
-                const startX = pumpTailState.centerX - (barCount > 1 ? pumpTailState.spread / 2 : 0);
-                const baseWidth = barCount > 0 ? Math.min(48, Math.max(10, spacing * 0.52)) : 16;
                 const time = performance.now();
 
                 ctx.save();
                 ctx.globalCompositeOperation = 'lighter';
                 ctx.shadowBlur = 24 * pumpTailState.fade;
 
-                for (let i = 0; i < barCount; i++) {
-                    const bar = pumpTailState.bars[i];
-                    const normalizedIndex = barCount > 1 ? i / (barCount - 1) : 0;
-                    const hue = (normalizedIndex * 280 + time * 0.08) % 360;
-                    const x = clamp(
-                        startX + i * spacing,
-                        baseWidth * 0.5,
-                        canvas.width - baseWidth * 0.5
-                    );
-                    const wave = Math.sin(pumpTailState.waveTime + normalizedIndex * 1.6 + bar.phase);
-                    const normalizedWave = wave * 0.5 + 0.5;
-                    const height = pumpTailState.baseHeight * (0.3 + pumpTailState.amplitude * bar.weight * normalizedWave);
-                    const scaledHeight = height * pumpTailState.fade;
-                    const topY = baseY - scaledHeight;
-
-                    const gradient = ctx.createLinearGradient(x, topY, x, baseY);
+                for (const segment of pumpTailState.segments) {
+                    const hue = (segment.normalizedIndex * 280 + time * 0.08) % 360;
+                    const gradient = ctx.createLinearGradient(segment.centerX, segment.y, segment.centerX, segment.baseY);
                     gradient.addColorStop(0, `hsla(${hue}, 100%, 74%, ${0.72 * pumpTailState.fade})`);
                     gradient.addColorStop(1, `hsla(${(hue + 40) % 360}, 100%, 48%, ${0.18 * pumpTailState.fade})`);
                     ctx.fillStyle = gradient;
                     ctx.shadowColor = `hsla(${hue}, 100%, 70%, ${0.45 * pumpTailState.fade})`;
-                    ctx.fillRect(x - baseWidth / 2, topY, baseWidth, scaledHeight);
+                    ctx.fillRect(segment.x, segment.y, segment.width, segment.height);
 
-                    if (scaledHeight > 12) {
+                    if (segment.height > 12) {
                         ctx.fillStyle = `hsla(${(hue + 60) % 360}, 100%, 85%, ${0.35 * pumpTailState.fade})`;
-                        ctx.fillRect(x - baseWidth / 2, topY - 6, baseWidth, 6);
+                        ctx.fillRect(segment.x, segment.y - 6, segment.width, 6);
                     }
                 }
 
                 ctx.restore();
+            }
+
+            function isPumpTailDamaging() {
+                return pumpTailState.segments.length > 0 && pumpTailState.fade > 0;
+            }
+
+            function pumpTailIntersectsRect(rect) {
+                if (!isPumpTailDamaging()) {
+                    return false;
+                }
+                for (const segment of pumpTailState.segments) {
+                    if (rectOverlap(segment, rect)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function pumpTailIntersectsCircle(circle) {
+                if (!isPumpTailDamaging()) {
+                    return false;
+                }
+                for (const segment of pumpTailState.segments) {
+                    if (circleRectOverlap(circle, segment)) {
+                        return true;
+                    }
+                }
+                return false;
             }
 
             function findNearestObstacle(projectile) {
@@ -5499,6 +5567,13 @@
 
                     obstacle.y = clamp(obstacle.y, 16, canvas.height - obstacle.height - 16);
 
+                    if (isPumpTailDamaging() && pumpTailIntersectsRect(obstacle)) {
+                        obstacles.splice(i, 1);
+                        awardDestroy(obstacle);
+                        createVillainExplosion(obstacle);
+                        continue;
+                    }
+
                     if (rectOverlap(player, obstacle)) {
                         if (isShieldActive() && obstacle.shieldCooldown <= 0) {
                             repelObstacleFromPlayer(obstacle);
@@ -5507,16 +5582,18 @@
                         return triggerGameOver('Your rainbow ship took a direct hit!');
                     }
 
-                    for (let j = trail.length - 1; j >= 0; j--) {
-                        const t = trail[j];
-                        if (circleRectOverlap({ x: t.x, y: t.y, radius: 10 }, obstacle)) {
-                            if (isShieldActive()) {
-                                if (obstacle.shieldCooldown <= 0) {
-                                    repelObstacleFromPlayer(obstacle);
+                    if (!isPumpTailDamaging()) {
+                        for (let j = trail.length - 1; j >= 0; j--) {
+                            const t = trail[j];
+                            if (circleRectOverlap({ x: t.x, y: t.y, radius: 10 }, obstacle)) {
+                                if (isShieldActive()) {
+                                    if (obstacle.shieldCooldown <= 0) {
+                                        repelObstacleFromPlayer(obstacle);
+                                    }
+                                    break;
                                 }
-                                break;
+                                return triggerGameOver('Your tail tangled with space junk!');
                             }
-                            return triggerGameOver('Your tail tangled with space junk!');
                         }
                     }
                 }
