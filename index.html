@@ -41,12 +41,253 @@
             position: relative;
         }
 
+        body.settings-open {
+            overflow: hidden;
+        }
+
+        .touch-only {
+            display: none;
+        }
+
+        body.touch-enabled .desktop-only {
+            display: none;
+        }
+
+        body.touch-enabled .touch-only {
+            display: inline;
+        }
+
+        button:focus-visible,
+        input[type='range']:focus-visible,
+        input[type='checkbox']:focus-visible {
+            outline: 2px solid rgba(148, 210, 255, 0.85);
+            outline-offset: 3px;
+        }
+
+        #settingsButton {
+            position: fixed;
+            top: clamp(18px, 4vw, 28px);
+            right: clamp(18px, 4vw, 28px);
+            z-index: 30;
+            border: none;
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.86), rgba(99, 102, 241, 0.86));
+            color: #e0f2fe;
+            padding: 10px 16px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 18px 32px rgba(15, 118, 110, 0.35);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 140ms ease, box-shadow 140ms ease, background 160ms ease;
+        }
+
+        #settingsButton:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 22px 36px rgba(15, 118, 110, 0.4);
+        }
+
+        #settingsButton .icon {
+            font-size: 1rem;
+        }
+
+        body.touch-enabled #settingsButton {
+            padding: 12px 18px;
+            font-size: 0.82rem;
+        }
+
+        #settingsDrawer[hidden] {
+            display: none;
+        }
+
+        #settingsDrawer {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            display: grid;
+            place-items: center;
+        }
+
+        #settingsDrawer .settings-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+
+        #settingsDrawer .settings-content {
+            position: relative;
+            width: min(480px, 92vw);
+            background: linear-gradient(165deg, rgba(15, 23, 42, 0.96), rgba(8, 16, 32, 0.92));
+            border-radius: 20px;
+            padding: clamp(22px, 5vw, 32px);
+            box-shadow: 0 28px 60px rgba(2, 6, 23, 0.65), inset 0 0 0 1px rgba(94, 234, 212, 0.08);
+            border: 1px solid rgba(148, 210, 255, 0.18);
+            color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        #settingsDrawer h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(148, 210, 255, 0.92);
+        }
+
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .settings-row .setting-label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.88rem;
+            color: rgba(226, 232, 240, 0.9);
+        }
+
+        .settings-row .setting-label span {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.75);
+        }
+
+        .settings-row output {
+            font-size: 0.82rem;
+            color: rgba(148, 210, 255, 0.92);
+            min-width: 3ch;
+            text-align: right;
+        }
+
+        .settings-row input[type='range'] {
+            flex: 1;
+            appearance: none;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.35);
+        }
+
+        .settings-row input[type='range']::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #38bdf8, #6366f1);
+            box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.9);
+            cursor: pointer;
+        }
+
+        .settings-row input[type='range']::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #38bdf8, #6366f1);
+            box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.9);
+            cursor: pointer;
+        }
+
+        .settings-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .settings-toggle input[type='checkbox'] {
+            appearance: none;
+            width: 40px;
+            height: 22px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.35);
+            position: relative;
+            cursor: pointer;
+            transition: background 160ms ease;
+        }
+
+        .settings-toggle .toggle-status {
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: rgba(224, 231, 255, 0.82);
+        }
+
+        .settings-toggle input[type='checkbox']::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #e0f2fe;
+            top: 2px;
+            left: 2px;
+            transition: transform 160ms ease, background 160ms ease;
+            box-shadow: 0 4px 10px rgba(14, 116, 144, 0.35);
+        }
+
+        .settings-toggle input[type='checkbox']:checked {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.8), rgba(99, 102, 241, 0.8));
+        }
+
+        .settings-toggle input[type='checkbox']:checked::after {
+            transform: translateX(18px);
+            background: #f8fafc;
+        }
+
+        #settingsCloseButton {
+            align-self: flex-end;
+            border: none;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.6);
+            color: rgba(148, 210, 255, 0.92);
+            padding: 6px 12px;
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 140ms ease, color 140ms ease;
+        }
+
+        #settingsCloseButton:hover {
+            background: rgba(30, 58, 138, 0.66);
+            color: rgba(224, 242, 254, 0.92);
+        }
+
+        #settingsHint {
+            margin-left: clamp(16px, 4vw, 24px);
+            font-size: 0.68rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(148, 210, 255, 0.82);
+            align-self: center;
+        }
+
         #preflightBar {
             width: min(1400px, 100%);
             margin: 0 auto clamp(24px, 5vw, 36px);
             padding-inline: clamp(24px, 5vw, 48px);
             display: flex;
             justify-content: center;
+            align-items: center;
+            gap: clamp(12px, 3vw, 20px);
+            flex-wrap: wrap;
             position: relative;
             z-index: 2;
         }
@@ -1286,7 +1527,21 @@
             <span class="desktop-only">Press Enter to launch the run</span>
             <button id="mobilePreflightButton" type="button" hidden aria-hidden="true">Tap to Launch</button>
         </div>
+        <div id="settingsHint" aria-live="polite">
+            <span class="desktop-only">Press Esc for settings</span>
+            <span class="touch-only">Tap ⚙ for settings</span>
+        </div>
     </div>
+    <button
+        id="settingsButton"
+        type="button"
+        aria-haspopup="dialog"
+        aria-controls="settingsDrawer"
+        aria-expanded="false"
+    >
+        <span class="icon" aria-hidden="true">⚙</span>
+        <span class="label">Settings</span>
+    </button>
     <div id="gameShell">
         <div id="playfield">
             <canvas id="gameCanvas" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
@@ -1369,10 +1624,16 @@
                                 <div class="control-action">Launch precision plasma bolts.</div>
                             </div>
                             <div class="control-row" role="listitem">
+                                <div class="control-keys" aria-label="Settings shortcut">
+                                    <span class="keycap wide" aria-hidden="true">Esc</span>
+                                </div>
+                                <div class="control-action">Open the quick settings panel mid-flight.</div>
+                            </div>
+                            <div class="control-row" role="listitem">
                                 <div class="control-keys" aria-label="Touch controls">
                                     <span class="keycap wide" aria-hidden="true">Touch</span>
                                 </div>
-                                <div class="control-action">Drag the left pad to steer, tap Fire to engage.</div>
+                                <div class="control-action">Drag the left pad to steer, tap Fire to engage, tap ⚙ to tweak settings.</div>
                             </div>
                         </div>
                     </div>
@@ -1457,6 +1718,70 @@
                 <button id="copyShareButton" class="share-button" type="button">Copy to Clipboard</button>
             </div>
             <p id="shareStatus" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+    <div
+        id="settingsDrawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settingsTitle"
+        aria-hidden="true"
+        hidden
+    >
+        <div class="settings-backdrop" data-settings-dismiss="backdrop"></div>
+        <div class="settings-content" role="document">
+            <button id="settingsCloseButton" type="button">Close</button>
+            <h2 id="settingsTitle">Flight Settings</h2>
+            <div class="settings-group" role="group" aria-labelledby="settingsTitle">
+                <div class="settings-row">
+                    <div class="setting-label">
+                        Master Volume
+                        <span>Overall output</span>
+                    </div>
+                    <input
+                        id="masterVolumeSlider"
+                        type="range"
+                        min="0"
+                        max="100"
+                        value="85"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow="85"
+                        aria-label="Master volume"
+                    />
+                    <output id="masterVolumeValue" for="masterVolumeSlider">85%</output>
+                </div>
+                <div class="settings-row">
+                    <div class="setting-label">
+                        Music Track
+                        <span>Background score</span>
+                    </div>
+                    <label class="settings-toggle" for="musicToggle">
+                        <input id="musicToggle" type="checkbox" checked />
+                        <span id="musicToggleStatus" class="toggle-status">On</span>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="setting-label">
+                        Effects Audio
+                        <span>Projectiles &amp; bursts</span>
+                    </div>
+                    <label class="settings-toggle" for="sfxToggle">
+                        <input id="sfxToggle" type="checkbox" checked />
+                        <span id="sfxToggleStatus" class="toggle-status">On</span>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="setting-label">
+                        Reduced Effects
+                        <span>Dim particle storms</span>
+                    </div>
+                    <label class="settings-toggle" for="reducedEffectsToggle">
+                        <input id="reducedEffectsToggle" type="checkbox" />
+                        <span id="reducedEffectsStatus" class="toggle-status">Off</span>
+                    </label>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1615,7 +1940,9 @@
                 const state = {
                     masterVolume: 0.85,
                     muted: false,
-                    unlocked: !isSupported
+                    unlocked: !isSupported,
+                    musicEnabled: true,
+                    sfxEnabled: true
                 };
 
                 const pools = new Map();
@@ -1708,9 +2035,21 @@
                     }
                 };
 
-                const getLoopTargetVolume = (definition) => clamp01((definition.volume ?? 1) * state.masterVolume);
+                const getLoopTargetVolume = (definition, category = 'sfx') => {
+                    const base = clamp01((definition.volume ?? 1) * state.masterVolume);
+                    if (category === 'music' && !state.musicEnabled) {
+                        return 0;
+                    }
+                    if (category === 'sfx' && !state.sfxEnabled) {
+                        return 0;
+                    }
+                    if (state.muted) {
+                        return 0;
+                    }
+                    return base;
+                };
 
-                const prepareLoopForPlayback = (audio, definition) => {
+                const prepareLoopForPlayback = (audio, definition, category = 'sfx') => {
                     if (!audio) {
                         return;
                     }
@@ -1718,7 +2057,7 @@
                     clearStopTimer(audio);
                     stopExistingFade(audio);
 
-                    const target = getLoopTargetVolume(definition);
+                    const target = getLoopTargetVolume(definition, category);
                     if (audio.paused) {
                         audio.volume = 0;
                     } else {
@@ -1768,17 +2107,23 @@
                     stopTimers.set(audio, timerId);
                 };
 
-                const attemptPlayLoop = (audio, definition) => {
+                const attemptPlayLoop = (audio, definition, category = 'sfx') => {
                     if (!audio || !state.unlocked || state.muted) {
                         return false;
                     }
+                    if (category === 'music' && !state.musicEnabled) {
+                        return false;
+                    }
+                    if (category === 'sfx' && !state.sfxEnabled) {
+                        return false;
+                    }
 
-                    prepareLoopForPlayback(audio, definition);
+                    prepareLoopForPlayback(audio, definition, category);
                     const playPromise = audio.play();
                     if (playPromise?.catch) {
                         playPromise.catch(() => undefined);
                     }
-                    fadeAudio(audio, getLoopTargetVolume(definition), 320);
+                    fadeAudio(audio, getLoopTargetVolume(definition, category), 320);
                     return true;
                 };
 
@@ -1848,9 +2193,19 @@
 
                     let index = 0;
 
+                    const applyVolume = () => {
+                        const base = clamp01((definition.volume ?? 1) * state.masterVolume);
+                        const finalVolume = state.sfxEnabled && !state.muted ? base : 0;
+                        for (const audio of elements) {
+                            audio.volume = finalVolume;
+                        }
+                    };
+
+                    applyVolume();
+
                     return {
                         play() {
-                            if (!isSupported || disabled || state.muted || !state.unlocked) {
+                            if (!isSupported || disabled || state.muted || !state.unlocked || !state.sfxEnabled) {
                                 return;
                             }
 
@@ -1871,8 +2226,17 @@
                             if (playPromise?.catch) {
                                 playPromise.catch(() => undefined);
                             }
-                        }
+                        },
+                        updateVolume: applyVolume
                     };
+                }
+
+                function updateAllPoolVolumes() {
+                    for (const pool of pools.values()) {
+                        if (typeof pool?.updateVolume === 'function') {
+                            pool.updateVolume();
+                        }
+                    }
                 }
 
                 function getPool(category, key) {
@@ -1889,14 +2253,14 @@
                 }
 
                 function play(category, key, fallbackKey) {
-                    if (!isSupported || state.muted) return;
+                    if (!isSupported || state.muted || !state.sfxEnabled) return;
                     const pool = getPool(category, key) ?? (fallbackKey ? getPool(category, fallbackKey) : null);
                     pool?.play();
                 }
 
                 function updateGameplayMusicVolume({ immediate = false } = {}) {
                     if (!gameplayMusic) return;
-                    const target = getLoopTargetVolume(musicDefinition);
+                    const target = getLoopTargetVolume(musicDefinition, 'music');
                     if (immediate) {
                         stopExistingFade(gameplayMusic);
                         clearStopTimer(gameplayMusic);
@@ -1908,7 +2272,7 @@
 
                 function updateHyperBeamVolume({ immediate = false } = {}) {
                     if (!hyperBeamAudio) return;
-                    const target = getLoopTargetVolume(hyperBeamDefinition);
+                    const target = getLoopTargetVolume(hyperBeamDefinition, 'sfx');
                     if (immediate) {
                         stopExistingFade(hyperBeamAudio);
                         clearStopTimer(hyperBeamAudio);
@@ -1919,19 +2283,19 @@
                 }
 
                 function attemptPlayGameplayMusic() {
-                    if (!attemptPlayLoop(gameplayMusic, musicDefinition)) {
+                    if (!attemptPlayLoop(gameplayMusic, musicDefinition, 'music')) {
                         return;
                     }
                 }
 
                 function attemptPlayHyperBeam() {
-                    if (!attemptPlayLoop(hyperBeamAudio, hyperBeamDefinition)) {
+                    if (!attemptPlayLoop(hyperBeamAudio, hyperBeamDefinition, 'sfx')) {
                         return;
                     }
                 }
 
                 function playGameplayMusic() {
-                    if (!isSupported || !gameplayMusic) {
+                    if (!isSupported || !gameplayMusic || !state.musicEnabled) {
                         shouldResumeGameplayMusic = false;
                         return;
                     }
@@ -1954,7 +2318,7 @@
                 }
 
                 function playHyperBeam() {
-                    if (!isSupported || !hyperBeamAudio) {
+                    if (!isSupported || !hyperBeamAudio || !state.sfxEnabled) {
                         shouldResumeHyperBeam = false;
                         return;
                     }
@@ -2018,6 +2382,69 @@
                     }
                 }
 
+                function setMasterVolume(volume) {
+                    const numeric = Number.parseFloat(volume);
+                    const clamped = Number.isFinite(numeric) ? clamp01(numeric) : state.masterVolume;
+                    if (Math.abs(clamped - state.masterVolume) < 0.001) {
+                        return state.masterVolume;
+                    }
+                    state.masterVolume = clamped;
+                    updateGameplayMusicVolume({ immediate: true });
+                    updateHyperBeamVolume({ immediate: true });
+                    updateAllPoolVolumes();
+                    return state.masterVolume;
+                }
+
+                function toggleMusic(forceValue) {
+                    const next = typeof forceValue === 'boolean' ? forceValue : !state.musicEnabled;
+                    if (state.musicEnabled === next) {
+                        updateGameplayMusicVolume({ immediate: true });
+                        return state.musicEnabled;
+                    }
+                    state.musicEnabled = next;
+                    if (!state.musicEnabled) {
+                        stopGameplayMusic({ reset: false });
+                        updateGameplayMusicVolume({ immediate: true });
+                    } else {
+                        shouldResumeGameplayMusic = true;
+                        updateGameplayMusicVolume({ immediate: true });
+                        if (state.unlocked) {
+                            attemptPlayGameplayMusic();
+                        }
+                    }
+                    return state.musicEnabled;
+                }
+
+                function toggleSfx(forceValue) {
+                    const next = typeof forceValue === 'boolean' ? forceValue : !state.sfxEnabled;
+                    if (state.sfxEnabled === next) {
+                        updateHyperBeamVolume({ immediate: true });
+                        updateAllPoolVolumes();
+                        return state.sfxEnabled;
+                    }
+                    const wasHyperActive = shouldResumeHyperBeam;
+                    state.sfxEnabled = next;
+                    if (!state.sfxEnabled) {
+                        stopHyperBeam({ reset: false });
+                        updateHyperBeamVolume({ immediate: true });
+                    } else {
+                        shouldResumeHyperBeam = wasHyperActive;
+                        updateHyperBeamVolume({ immediate: true });
+                        updateAllPoolVolumes();
+                        if (shouldResumeHyperBeam && state.unlocked) {
+                            attemptPlayHyperBeam();
+                        }
+                    }
+                    if (!state.sfxEnabled) {
+                        updateAllPoolVolumes();
+                    }
+                    return state.sfxEnabled;
+                }
+
+                const getMasterVolume = () => state.masterVolume;
+                const isMusicEnabled = () => state.musicEnabled;
+                const isSfxEnabled = () => state.sfxEnabled;
+
                 return {
                     playProjectile(type) {
                         play('projectile', type, 'standard');
@@ -2034,7 +2461,13 @@
                     stopHyperBeam,
                     suspendForVisibilityChange,
                     resumeAfterVisibilityChange,
-                    unlock
+                    unlock,
+                    setMasterVolume,
+                    toggleMusic,
+                    toggleSfx,
+                    getMasterVolume,
+                    isMusicEnabled,
+                    isSfxEnabled
                 };
             })();
 
@@ -2220,6 +2653,17 @@
             const instructionsEl = document.getElementById('instructions');
             const instructionNavEl = document.getElementById('instructionNav');
             const instructionPanelsEl = document.getElementById('instructionPanels');
+            const settingsButton = document.getElementById('settingsButton');
+            const settingsDrawer = document.getElementById('settingsDrawer');
+            const settingsCloseButton = document.getElementById('settingsCloseButton');
+            const masterVolumeSlider = document.getElementById('masterVolumeSlider');
+            const masterVolumeValue = document.getElementById('masterVolumeValue');
+            const musicToggle = document.getElementById('musicToggle');
+            const musicToggleStatus = document.getElementById('musicToggleStatus');
+            const sfxToggle = document.getElementById('sfxToggle');
+            const sfxToggleStatus = document.getElementById('sfxToggleStatus');
+            const reducedEffectsToggle = document.getElementById('reducedEffectsToggle');
+            const reducedEffectsStatus = document.getElementById('reducedEffectsStatus');
             const bodyElement = document.body;
             const instructionLinks = instructionNavEl
                 ? Array.from(instructionNavEl.querySelectorAll('a[data-panel-target]'))
@@ -3057,7 +3501,8 @@
                 socialFeed: 'nyanEscape.socialFeed',
                 submissionLog: 'nyanEscape.submissionLog',
                 loreProgress: 'nyanEscape.loreProgress',
-                firstRunComplete: 'nyanEscape.firstRunComplete'
+                firstRunComplete: 'nyanEscape.firstRunComplete',
+                settings: 'nyanEscape.settings'
             };
 
             let storageAvailable = false;
@@ -3187,6 +3632,225 @@
             const SUBMISSION_LIMIT = 3;
 
             let submissionLog = loadSubmissionLog();
+
+            const DEFAULT_SETTINGS = {
+                masterVolume: typeof audioManager.getMasterVolume === 'function'
+                    ? audioManager.getMasterVolume()
+                    : 0.85,
+                musicEnabled: typeof audioManager.isMusicEnabled === 'function'
+                    ? audioManager.isMusicEnabled()
+                    : true,
+                sfxEnabled: typeof audioManager.isSfxEnabled === 'function'
+                    ? audioManager.isSfxEnabled()
+                    : true,
+                reducedEffects: false
+            };
+
+            let settingsState = { ...DEFAULT_SETTINGS };
+
+            function sanitizeVolume(value, fallback = DEFAULT_SETTINGS.masterVolume) {
+                const numeric = Number(value);
+                if (!Number.isFinite(numeric)) {
+                    return clamp(fallback, 0, 1);
+                }
+                return clamp(numeric, 0, 1);
+            }
+
+            function coerceSettings(partial, base = settingsState ?? DEFAULT_SETTINGS) {
+                const source = { ...base };
+                if (partial && typeof partial === 'object') {
+                    if (Object.prototype.hasOwnProperty.call(partial, 'masterVolume')) {
+                        source.masterVolume = partial.masterVolume;
+                    }
+                    if (Object.prototype.hasOwnProperty.call(partial, 'musicEnabled')) {
+                        source.musicEnabled = partial.musicEnabled;
+                    }
+                    if (Object.prototype.hasOwnProperty.call(partial, 'sfxEnabled')) {
+                        source.sfxEnabled = partial.sfxEnabled;
+                    }
+                    if (Object.prototype.hasOwnProperty.call(partial, 'reducedEffects')) {
+                        source.reducedEffects = partial.reducedEffects;
+                    }
+                }
+                return {
+                    masterVolume: sanitizeVolume(source.masterVolume, base.masterVolume ?? DEFAULT_SETTINGS.masterVolume),
+                    musicEnabled: source.musicEnabled !== false,
+                    sfxEnabled: source.sfxEnabled !== false,
+                    reducedEffects: source.reducedEffects === true
+                };
+            }
+
+            function loadSettingsPreferences() {
+                if (!storageAvailable) {
+                    return { ...DEFAULT_SETTINGS };
+                }
+                const raw = readStorage(STORAGE_KEYS.settings);
+                if (!raw) {
+                    return { ...DEFAULT_SETTINGS };
+                }
+                try {
+                    const parsed = JSON.parse(raw);
+                    return coerceSettings(parsed, DEFAULT_SETTINGS);
+                } catch (error) {
+                    return { ...DEFAULT_SETTINGS };
+                }
+            }
+
+            function persistSettingsPreferences() {
+                if (!storageAvailable) {
+                    return;
+                }
+                const payload = {
+                    masterVolume: Number(settingsState.masterVolume.toFixed(3)),
+                    musicEnabled: settingsState.musicEnabled,
+                    sfxEnabled: settingsState.sfxEnabled,
+                    reducedEffects: settingsState.reducedEffects
+                };
+                writeStorage(STORAGE_KEYS.settings, JSON.stringify(payload));
+            }
+
+            function applyReducedEffectsFlag(enabled) {
+                reducedEffectsMode = Boolean(enabled);
+                if (bodyElement) {
+                    bodyElement.classList.toggle('reduced-effects', reducedEffectsMode);
+                }
+            }
+
+            function updateSettingsUI() {
+                if (masterVolumeSlider) {
+                    const volumePercent = Math.round(settingsState.masterVolume * 100);
+                    masterVolumeSlider.value = String(volumePercent);
+                    masterVolumeSlider.setAttribute('aria-valuenow', String(volumePercent));
+                    masterVolumeSlider.setAttribute('aria-valuetext', `${volumePercent} percent`);
+                }
+                if (masterVolumeValue) {
+                    masterVolumeValue.textContent = `${Math.round(settingsState.masterVolume * 100)}%`;
+                }
+                if (musicToggle) {
+                    musicToggle.checked = settingsState.musicEnabled;
+                }
+                if (musicToggleStatus) {
+                    musicToggleStatus.textContent = settingsState.musicEnabled ? 'On' : 'Off';
+                }
+                if (sfxToggle) {
+                    sfxToggle.checked = settingsState.sfxEnabled;
+                }
+                if (sfxToggleStatus) {
+                    sfxToggleStatus.textContent = settingsState.sfxEnabled ? 'On' : 'Off';
+                }
+                if (reducedEffectsToggle) {
+                    reducedEffectsToggle.checked = settingsState.reducedEffects;
+                }
+                if (reducedEffectsStatus) {
+                    reducedEffectsStatus.textContent = settingsState.reducedEffects ? 'On' : 'Off';
+                }
+            }
+
+            function applySettingsPreferences(partial, { persist = false } = {}) {
+                settingsState = coerceSettings(partial, settingsState);
+                audioManager.setMasterVolume(settingsState.masterVolume);
+                audioManager.toggleMusic(settingsState.musicEnabled);
+                audioManager.toggleSfx(settingsState.sfxEnabled);
+                applyReducedEffectsFlag(settingsState.reducedEffects);
+                updateSettingsUI();
+                if (persist) {
+                    persistSettingsPreferences();
+                }
+                return settingsState;
+            }
+
+            settingsState = loadSettingsPreferences();
+            applySettingsPreferences(settingsState, { persist: false });
+
+            const isSettingsDrawerOpen = () => Boolean(settingsDrawer && !settingsDrawer.hasAttribute('hidden'));
+
+            function setSettingsDrawerOpen(open, { focusTarget = true } = {}) {
+                if (!settingsDrawer) {
+                    return;
+                }
+                if (open) {
+                    settingsDrawer.hidden = false;
+                    settingsDrawer.setAttribute('aria-hidden', 'false');
+                    settingsButton?.setAttribute('aria-expanded', 'true');
+                    bodyElement?.classList.add('settings-open');
+                    const focusEl = masterVolumeSlider ?? settingsCloseButton ?? settingsButton;
+                    if (focusTarget && focusEl) {
+                        window.requestAnimationFrame(() => {
+                            try {
+                                focusEl.focus({ preventScroll: true });
+                            } catch {
+                                // Ignore focus errors
+                            }
+                        });
+                    }
+                } else {
+                    settingsDrawer.hidden = true;
+                    settingsDrawer.setAttribute('aria-hidden', 'true');
+                    settingsButton?.setAttribute('aria-expanded', 'false');
+                    bodyElement?.classList.remove('settings-open');
+                    if (focusTarget && settingsButton) {
+                        window.requestAnimationFrame(() => {
+                            try {
+                                settingsButton.focus({ preventScroll: true });
+                            } catch {
+                                // Ignore focus errors
+                            }
+                        });
+                    }
+                }
+            }
+
+            const openSettingsDrawer = (options = {}) => setSettingsDrawerOpen(true, options);
+            const closeSettingsDrawer = (options = {}) => setSettingsDrawerOpen(false, options);
+            const toggleSettingsDrawer = () => setSettingsDrawerOpen(!isSettingsDrawerOpen());
+
+            if (settingsButton) {
+                settingsButton.addEventListener('click', () => {
+                    toggleSettingsDrawer();
+                });
+            }
+
+            if (settingsCloseButton) {
+                settingsCloseButton.addEventListener('click', () => {
+                    closeSettingsDrawer();
+                });
+            }
+
+            if (settingsDrawer) {
+                settingsDrawer.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (target instanceof HTMLElement && target.dataset.settingsDismiss === 'backdrop') {
+                        closeSettingsDrawer();
+                    }
+                });
+            }
+
+            if (masterVolumeSlider) {
+                const handleVolumeChange = (persist) => {
+                    const normalized = clamp(Number(masterVolumeSlider.value) / 100, 0, 1);
+                    applySettingsPreferences({ masterVolume: normalized }, { persist });
+                };
+                masterVolumeSlider.addEventListener('input', () => handleVolumeChange(false));
+                masterVolumeSlider.addEventListener('change', () => handleVolumeChange(true));
+            }
+
+            if (musicToggle) {
+                musicToggle.addEventListener('change', () => {
+                    applySettingsPreferences({ musicEnabled: musicToggle.checked }, { persist: true });
+                });
+            }
+
+            if (sfxToggle) {
+                sfxToggle.addEventListener('change', () => {
+                    applySettingsPreferences({ sfxEnabled: sfxToggle.checked }, { persist: true });
+                });
+            }
+
+            if (reducedEffectsToggle) {
+                reducedEffectsToggle.addEventListener('change', () => {
+                    applySettingsPreferences({ reducedEffects: reducedEffectsToggle.checked }, { persist: true });
+                });
+            }
 
             function ensureSubmissionLogEntry(name) {
                 if (!name) return;
@@ -4146,6 +4810,8 @@
                     alertTimer: 0
                 }
             };
+
+            let reducedEffectsMode = false;
 
             updateTimerDisplay();
 
@@ -5589,6 +6255,18 @@
                 const target = event.target;
                 const isFormControl = isFormControlTarget(target);
                 const isTextEntry = isTextEntryTarget(target);
+                if (normalizedKey === 'Escape') {
+                    if (isSettingsDrawerOpen()) {
+                        event.preventDefault();
+                        closeSettingsDrawer();
+                        return;
+                    }
+                    if (!isTextEntry) {
+                        event.preventDefault();
+                        openSettingsDrawer();
+                        return;
+                    }
+                }
                 if (preventDefaultKeys.has(normalizedKey) && !isFormControl) {
                     event.preventDefault();
                 }
@@ -6748,22 +7426,27 @@
                 }
 
                 const baseInterval = hyperConfig.sparkInterval ?? 140;
-                const scaledInterval = baseInterval / Math.max(0.45, intensity);
+                const intervalScale = reducedEffectsMode ? 1.4 : 1;
+                const scaledInterval = (baseInterval / Math.max(0.45, intensity)) * intervalScale;
                 hyperBeamState.sparkTimer = randomBetween(scaledInterval * 0.6, scaledInterval * 1.4);
 
                 const color = powerUpColors[HYPER_BEAM_POWER] ?? { r: 147, g: 197, b: 253 };
-                const count = Math.max(1, Math.round(1 + intensity * 2));
+                const particleScale = reducedEffectsMode ? 0.6 : 1;
+                const count = Math.max(1, Math.round((1 + intensity * 2) * particleScale));
+                const velocityScale = reducedEffectsMode ? 0.7 : 1;
+                const lifeScale = reducedEffectsMode ? 0.75 : 1;
+                const sizeScale = reducedEffectsMode ? 0.85 : 1;
                 for (let i = 0; i < count; i++) {
                     const spawnX = randomBetween(bounds.x + bounds.width * 0.2, bounds.x + bounds.width * 0.9);
                     const spawnY = randomBetween(bounds.y, bounds.y + bounds.height);
                     particles.push({
                         x: spawnX,
                         y: spawnY,
-                        vx: randomBetween(120, 240),
-                        vy: randomBetween(-140, 140),
-                        life: randomBetween(240, 420),
+                        vx: randomBetween(120, 240) * velocityScale,
+                        vy: randomBetween(-140, 140) * velocityScale,
+                        life: randomBetween(240, 420) * lifeScale,
                         color,
-                        size: randomBetween(1.2, 2.6)
+                        size: randomBetween(1.2, 2.6) * sizeScale
                     });
                 }
             }
@@ -7080,33 +7763,42 @@
             }
 
             function createHitSpark({ x, y, color }) {
-                for (let i = 0; i < 8; i++) {
+                const sparkCount = reducedEffectsMode ? 4 : 8;
+                const speedScale = reducedEffectsMode ? 0.7 : 1;
+                const lifeScale = reducedEffectsMode ? 0.75 : 1;
+                const sizeScale = reducedEffectsMode ? 0.85 : 1;
+                for (let i = 0; i < sparkCount; i++) {
                     const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 180 + 80;
+                    const speed = (Math.random() * 180 + 80) * speedScale;
                     particles.push({
                         x,
                         y,
                         vx: Math.cos(angle) * speed,
                         vy: Math.sin(angle) * speed,
-                        life: 300 + Math.random() * 200,
+                        life: (300 + Math.random() * 200) * lifeScale,
                         color,
-                        size: Math.random() * 2 + 0.8
+                        size: (Math.random() * 2 + 0.8) * sizeScale
                     });
                 }
             }
 
             function createParticles({ x, y, color, count = 18, speedRange = [60, 340], sizeRange = [1.4, 4.4], lifeRange = [500, 900] }) {
-                for (let i = 0; i < count; i++) {
+                const intensity = reducedEffectsMode ? 0.6 : 1;
+                const spawnCount = Math.max(1, Math.round(count * intensity));
+                const speedScale = reducedEffectsMode ? 0.75 : 1;
+                const lifeScale = reducedEffectsMode ? 0.75 : 1;
+                const sizeScale = reducedEffectsMode ? 0.85 : 1;
+                for (let i = 0; i < spawnCount; i++) {
                     const angle = Math.random() * Math.PI * 2;
-                    const speed = randomBetween(speedRange[0], speedRange[1]);
+                    const speed = randomBetween(speedRange[0], speedRange[1]) * speedScale;
                     particles.push({
                         x,
                         y,
                         vx: Math.cos(angle) * speed,
                         vy: Math.sin(angle) * speed,
-                        life: randomBetween(lifeRange[0], lifeRange[1]),
+                        life: randomBetween(lifeRange[0], lifeRange[1]) * lifeScale,
                         color,
-                        size: randomBetween(sizeRange[0], sizeRange[1])
+                        size: randomBetween(sizeRange[0], sizeRange[1]) * sizeScale
                     });
                 }
             }
@@ -7214,8 +7906,12 @@
             }
 
             function triggerScreenShake(strength = 6, duration = 220) {
-                cameraShake.intensity = Math.max(cameraShake.intensity, strength);
-                cameraShake.duration = Math.max(cameraShake.duration, duration);
+                const strengthScale = reducedEffectsMode ? 0.65 : 1;
+                const durationScale = reducedEffectsMode ? 0.75 : 1;
+                const effectiveStrength = strength * strengthScale;
+                const effectiveDuration = duration * durationScale;
+                cameraShake.intensity = Math.max(cameraShake.intensity, effectiveStrength);
+                cameraShake.duration = Math.max(cameraShake.duration, effectiveDuration);
                 cameraShake.elapsed = 0;
             }
 
@@ -8310,7 +9006,9 @@
 
                 const hyperConfig = config.hyperBeam ?? {};
                 const color = powerUpColors[HYPER_BEAM_POWER] ?? { r: 147, g: 197, b: 253 };
-                const verticalJitter = Math.sin(time * 0.008 + hyperBeamState.wave) * (hyperConfig.jitterAmplitude ?? 18) * intensity;
+                const effectScale = reducedEffectsMode ? 0.7 : 1;
+                const jitterAmplitude = (hyperConfig.jitterAmplitude ?? 18) * effectScale;
+                const verticalJitter = Math.sin(time * 0.008 + hyperBeamState.wave) * jitterAmplitude * intensity;
                 const top = clamp(bounds.y + verticalJitter * -0.5, 0, Math.max(0, viewport.height - bounds.height));
                 const height = Math.min(bounds.height, viewport.height - top);
                 if (height <= 0) {
@@ -8322,24 +9020,25 @@
                 ctx.globalCompositeOperation = 'lighter';
 
                 const outerGradient = ctx.createLinearGradient(bounds.x, top, bounds.x + bounds.width, top);
-                const outerAlpha = Math.min(1, 0.32 + intensity * 0.28);
-                const midAlpha = Math.min(1, 0.5 + intensity * 0.3);
+                const outerAlpha = Math.min(1, (0.32 + intensity * 0.28) * effectScale);
+                const midAlpha = Math.min(1, (0.5 + intensity * 0.3) * effectScale);
                 outerGradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${outerAlpha})`);
                 outerGradient.addColorStop(0.45, `rgba(${color.r}, ${color.g}, ${color.b}, ${midAlpha})`);
                 outerGradient.addColorStop(1, 'rgba(17, 24, 39, 0)');
                 ctx.fillStyle = outerGradient;
                 ctx.fillRect(bounds.x, top, bounds.width, height);
 
-                const coreHeight = Math.max(18, height * 0.36);
+                const coreHeight = Math.max(18, height * 0.36 * (reducedEffectsMode ? 0.85 : 1));
                 const coreTop = clamp(midY - coreHeight / 2, top, top + height - coreHeight);
-                const coreGradient = ctx.createLinearGradient(bounds.x, coreTop, bounds.x + bounds.width * 0.9, coreTop);
-                coreGradient.addColorStop(0, `rgba(236, 254, 255, ${Math.min(1, 0.85 * intensity)})`);
+                const coreWidth = bounds.width * (reducedEffectsMode ? 0.8 : 0.9);
+                const coreGradient = ctx.createLinearGradient(bounds.x, coreTop, bounds.x + coreWidth, coreTop);
+                coreGradient.addColorStop(0, `rgba(236, 254, 255, ${Math.min(1, 0.85 * intensity * effectScale)})`);
                 coreGradient.addColorStop(1, 'rgba(148, 210, 255, 0)');
                 ctx.fillStyle = coreGradient;
-                ctx.fillRect(bounds.x, coreTop, bounds.width * 0.9, coreHeight);
+                ctx.fillRect(bounds.x, coreTop, coreWidth, coreHeight);
 
-                ctx.strokeStyle = `rgba(236, 254, 255, ${Math.min(1, 0.55 * intensity)})`;
-                ctx.lineWidth = Math.max(2, height * 0.12 * intensity);
+                ctx.strokeStyle = `rgba(236, 254, 255, ${Math.min(1, 0.55 * intensity * effectScale)})`;
+                ctx.lineWidth = Math.max(2, height * 0.12 * intensity * effectScale);
                 ctx.beginPath();
                 ctx.moveTo(bounds.x, midY + Math.sin(time * 0.014 + hyperBeamState.wave) * height * 0.08);
                 ctx.lineTo(bounds.x + bounds.width, midY + Math.sin(time * 0.017 + hyperBeamState.wave) * height * 0.05);
