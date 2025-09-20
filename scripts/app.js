@@ -9946,6 +9946,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (trail.length < 2) return;
         const style = activeTrailStyle ?? trailStyles.rainbow;
+        const now = performance.now();
         ctx.save();
         if (style.type === 'palette' && Array.isArray(style.colors) && style.colors.length) {
             for (let i = 0; i < trail.length; i++) {
@@ -9960,7 +9961,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 0; i < trail.length; i++) {
                 const t = trail[i];
                 const alpha = i / trail.length;
-                const hue = (alpha * 300 + performance.now() * 0.05) % 360;
+                const hue = (alpha * 300 + now * 0.05) % 360;
                 ctx.fillStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
                 ctx.fillRect(t.x - 36, t.y - 6, 72, 12);
             }
