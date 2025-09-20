@@ -7173,6 +7173,13 @@
                     ember: trailStyles.ember
                 }
             };
+            const config = applyOverrides(cloneConfig(defaultConfig), gameplayOverrides ?? {});
+            const basePlayerConfig = cloneConfig(config.player);
+            const baseDashConfig = cloneConfig(config.player.dash);
+            const baseProjectileSettings = {
+                cooldown: config.projectileCooldown,
+                speed: config.projectileSpeed
+            };
             function getCharacterProfile(id) {
                 return characterProfileMap.get(id ?? '') ?? null;
             }
@@ -7578,13 +7585,6 @@
                 }
             };
 
-            const config = applyOverrides(cloneConfig(defaultConfig), gameplayOverrides ?? {});
-            const basePlayerConfig = cloneConfig(config.player);
-            const baseDashConfig = cloneConfig(config.player.dash);
-            const baseProjectileSettings = {
-                cooldown: config.projectileCooldown,
-                speed: config.projectileSpeed
-            };
             const initialCharacterProfile = getCharacterProfile(activeCharacterId);
             if (initialCharacterProfile) {
                 setActiveCharacter(initialCharacterProfile);
