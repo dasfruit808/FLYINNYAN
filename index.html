@@ -4690,6 +4690,8 @@
                 };
             }
 
+            let reducedEffectsMode = false;
+
             function applyReducedEffectsFlag(enabled) {
                 reducedEffectsMode = Boolean(enabled);
                 if (bodyElement) {
@@ -6077,8 +6079,6 @@
                     alertTimer: 0
                 }
             };
-
-            let reducedEffectsMode = false;
 
             updateTimerDisplay();
 
