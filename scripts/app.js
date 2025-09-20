@@ -1003,6 +1003,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingResizeFrame = null;
     let devicePixelRatioQuery = null;
     let resizeObserver = null;
+    let backgroundGradient = null;
+    let backgroundGradientHeight = 0;
 
     function measureElementSize(element) {
         if (!element) {
@@ -1197,6 +1199,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         viewport.width = displayWidth;
         viewport.height = displayHeight;
+        if (previousHeight !== displayHeight) {
+            backgroundGradient = null;
+            backgroundGradientHeight = 0;
+        }
         viewport.cssWidth = displayWidth;
         viewport.cssHeight = displayHeight;
         viewport.physicalWidth = physicalWidth;
@@ -9940,10 +9946,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawBackground() {
         ctx.fillStyle = '#05091f';
         ctx.fillRect(0, 0, viewport.width, viewport.height);
-        const gradient = ctx.createLinearGradient(0, 0, 0, viewport.height);
-        gradient.addColorStop(0, 'rgba(26, 35, 126, 0.85)');
-        gradient.addColorStop(0.5, 'rgba(21, 11, 45, 0.85)');
-        gradient.addColorStop(1, 'rgba(0, 2, 12, 0.95)');
+        let gradient = backgroundGradient;
+        if (!gradient || backgroundGradientHeight !== viewport.height) {
+            gradient = ctx.createLinearGradient(0, 0, 0, viewport.height);
+            gradient.addColorStop(0, 'rgba(26, 35, 126, 0.85)');
+            gradient.addColorStop(0.5, 'rgba(21, 11, 45, 0.85)');
+            gradient.addColorStop(1, 'rgba(0, 2, 12, 0.95)');
+            backgroundGradient = gradient;
+            backgroundGradientHeight = viewport.height;
+        }
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, viewport.width, viewport.height);
     }
