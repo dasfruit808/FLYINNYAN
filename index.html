@@ -636,12 +636,24 @@
             overflow-y: auto;
             padding-right: 4px;
             margin-inline: 0;
+            scroll-behavior: smooth;
+            scroll-snap-type: y proximity;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #instructions {
+                scroll-behavior: auto;
+            }
         }
 
         #instructionPanels {
             display: flex;
             flex-direction: column;
             gap: 18px;
+        }
+
+        #instructionPanels > section {
+            scroll-snap-align: start;
         }
 
         #instructions .hud-card {
@@ -717,6 +729,13 @@
         #instructionNav a:active {
             transform: translateY(1px);
             box-shadow: 0 6px 12px rgba(2, 6, 23, 0.5);
+        }
+
+        #instructionNav a.active {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.88), rgba(99, 102, 241, 0.82));
+            color: rgba(12, 18, 32, 0.92);
+            box-shadow: 0 12px 26px rgba(56, 189, 248, 0.35);
+            border-color: rgba(148, 210, 255, 0.48);
         }
 
         #instructions .control-list {
@@ -2059,7 +2078,6 @@
             <div class="panel-title">Broadcast Run</div>
             <div class="share-buttons">
                 <button id="shareButton" class="share-button" type="button">Share Flight Log</button>
-                <button id="copyShareButton" class="share-button" type="button">Copy to Clipboard</button>
             </div>
             <p id="shareStatus" role="status" aria-live="polite"></p>
         </div>
@@ -2999,7 +3017,6 @@
                 document.querySelectorAll('[data-leaderboard-scope]')
             );
             const shareButton = document.getElementById('shareButton');
-            const copyShareButton = document.getElementById('copyShareButton');
             const shareStatusEl = document.getElementById('shareStatus');
             const socialFeedEl = document.getElementById('socialFeed');
             const intelLogEl = document.getElementById('intelLog');
@@ -3369,47 +3386,146 @@
             }
             const mobileInstructionQuery = window.matchMedia('(max-width: 768px)');
             let isMobileInstructionLayout = mobileInstructionQuery.matches;
-
-            const syncInstructionPanels = (activePanelId) => {
-                if (!instructionsEl) {
-                    return;
+            const getFirstInstructionPanelId = () => {
+                const firstPanel = instructionPanelNodes.find(
+                    (panel) => panel instanceof HTMLElement && typeof panel.id === 'string' && panel.id.length
+                );
+                return firstPanel?.id ?? null;
+            };
+            const escapePanelId = (value) => {
+                if (typeof value !== 'string') {
+                    return '';
                 }
-
-                if (isMobileInstructionLayout && activePanelId) {
-                    instructionsEl.setAttribute('data-mobile-open', activePanelId);
-                } else {
-                    instructionsEl.removeAttribute('data-mobile-open');
+                if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+                    return CSS.escape(value);
                 }
+                return value.replace(/[^a-zA-Z0-9_\-]/g, '\\$&');
+            };
+            let activeInstructionPanelId = getFirstInstructionPanelId();
+            let instructionObserver = null;
 
+            const updateInstructionLinkHighlight = (panelId) => {
                 instructionLinks.forEach((link) => {
-                    const targetId = link.dataset.panelTarget;
-                    const isActive = Boolean(activePanelId) && targetId === activePanelId && isMobileInstructionLayout;
-                    link.classList.toggle('mobile-active', isActive);
+                    const targetId = link.dataset.panelTarget ?? '';
+                    const isActive = Boolean(panelId) && targetId === panelId;
                     if (isMobileInstructionLayout) {
+                        link.classList.toggle('mobile-active', isActive);
+                        link.classList.remove('active');
                         link.setAttribute('aria-expanded', String(isActive));
-                        link.setAttribute('aria-selected', String(isActive));
+                        if (isActive) {
+                            link.setAttribute('aria-selected', 'true');
+                        } else {
+                            link.removeAttribute('aria-selected');
+                        }
+                        link.removeAttribute('aria-current');
                     } else {
+                        link.classList.toggle('active', isActive);
+                        link.classList.remove('mobile-active');
                         link.setAttribute('aria-expanded', 'false');
                         link.removeAttribute('aria-selected');
+                        if (isActive) {
+                            link.setAttribute('aria-current', 'true');
+                        } else {
+                            link.removeAttribute('aria-current');
+                        }
                     }
                 });
+            };
+
+            const setActiveInstructionPanel = (panelId, { fromObserver = false, preserveScroll = false } = {}) => {
+                let resolvedId;
+                if (typeof panelId === 'string') {
+                    resolvedId = panelId;
+                } else if (panelId === null) {
+                    resolvedId = null;
+                } else {
+                    resolvedId = activeInstructionPanelId ?? getFirstInstructionPanelId();
+                }
+
+                if (!isMobileInstructionLayout && resolvedId === null) {
+                    resolvedId = getFirstInstructionPanelId();
+                }
+
+                activeInstructionPanelId = resolvedId;
+
+                if (instructionsEl) {
+                    if (isMobileInstructionLayout && resolvedId) {
+                        instructionsEl.setAttribute('data-mobile-open', resolvedId);
+                    } else {
+                        instructionsEl.removeAttribute('data-mobile-open');
+                    }
+                }
 
                 instructionPanelNodes.forEach((panel) => {
                     if (!(panel instanceof HTMLElement)) {
                         return;
                     }
-
                     if (isMobileInstructionLayout) {
-                        const isActive = Boolean(activePanelId) && panel.id === activePanelId;
+                        const isActive = Boolean(resolvedId) && panel.id === resolvedId;
                         panel.setAttribute('aria-hidden', String(!isActive));
                     } else {
                         panel.removeAttribute('aria-hidden');
                     }
                 });
+
+                updateInstructionLinkHighlight(resolvedId);
+
+                if (!isMobileInstructionLayout && !fromObserver && resolvedId && !preserveScroll) {
+                    const selector = `#${escapePanelId(resolvedId)}`;
+                    const panel = instructionPanelsEl?.querySelector(selector);
+                    if (panel && typeof panel.scrollIntoView === 'function') {
+                        try {
+                            panel.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+                        } catch {
+                            panel.scrollIntoView({ block: 'start', inline: 'nearest' });
+                        }
+                    }
+                }
             };
 
-            const resetInstructionPanels = () => {
-                syncInstructionPanels(null);
+            const initializeInstructionObserver = () => {
+                if (instructionObserver) {
+                    instructionObserver.disconnect();
+                    instructionObserver = null;
+                }
+                if (!instructionPanelsEl || !instructionsEl || isMobileInstructionLayout) {
+                    return;
+                }
+                instructionObserver = new IntersectionObserver(
+                    (entries) => {
+                        const visible = entries
+                            .filter((entry) => entry.isIntersecting && entry.target instanceof HTMLElement)
+                            .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+                        if (!visible.length) {
+                            return;
+                        }
+                        const topEntry = visible[0];
+                        const observedId = topEntry.target.id;
+                        if (observedId && observedId !== activeInstructionPanelId) {
+                            setActiveInstructionPanel(observedId, { fromObserver: true, preserveScroll: true });
+                        }
+                    },
+                    {
+                        root: instructionsEl,
+                        threshold: [0.35, 0.6],
+                        rootMargin: '-10% 0px -35% 0px'
+                    }
+                );
+                instructionPanelNodes.forEach((panel) => {
+                    if (panel instanceof HTMLElement) {
+                        instructionObserver.observe(panel);
+                    }
+                });
+            };
+
+            const handleInstructionLayoutChange = (event) => {
+                isMobileInstructionLayout = event.matches;
+                if (instructionObserver) {
+                    instructionObserver.disconnect();
+                    instructionObserver = null;
+                }
+                setActiveInstructionPanel(undefined, { preserveScroll: true });
+                initializeInstructionObserver();
             };
 
             if (instructionNavEl && instructionsEl && instructionPanelsEl) {
@@ -3419,23 +3535,68 @@
                         if (!targetId) {
                             return;
                         }
+                        event.preventDefault();
+                        if (isMobileInstructionLayout && activeInstructionPanelId === targetId) {
+                            setActiveInstructionPanel(null);
+                        } else {
+                            setActiveInstructionPanel(targetId);
+                        }
+                    });
 
-                        if (isMobileInstructionLayout) {
+                    link.addEventListener('keydown', (event) => {
+                        if (event.key === ' ') {
+                            const targetId = link.dataset.panelTarget;
+                            if (!targetId) {
+                                return;
+                            }
                             event.preventDefault();
-                            const currentOpen = instructionsEl.getAttribute('data-mobile-open');
-                            if (currentOpen === targetId) {
-                                syncInstructionPanels(null);
+                            if (isMobileInstructionLayout && activeInstructionPanelId === targetId) {
+                                setActiveInstructionPanel(null);
                             } else {
-                                syncInstructionPanels(targetId);
+                                setActiveInstructionPanel(targetId);
                             }
                         }
                     });
                 });
 
-                const handleInstructionLayoutChange = (event) => {
-                    isMobileInstructionLayout = event.matches;
-                    resetInstructionPanels();
-                };
+                instructionNavEl.addEventListener('keydown', (event) => {
+                    const key = event.key;
+                    if (
+                        key !== 'ArrowLeft' &&
+                        key !== 'ArrowRight' &&
+                        key !== 'ArrowUp' &&
+                        key !== 'ArrowDown' &&
+                        key !== 'Home' &&
+                        key !== 'End'
+                    ) {
+                        return;
+                    }
+                    if (!instructionLinks.length) {
+                        return;
+                    }
+                    event.preventDefault();
+                    const currentIndex = instructionLinks.indexOf(document.activeElement);
+                    let nextIndex = currentIndex >= 0 ? currentIndex : 0;
+                    if (key === 'Home') {
+                        nextIndex = 0;
+                    } else if (key === 'End') {
+                        nextIndex = instructionLinks.length - 1;
+                    } else if (key === 'ArrowLeft' || key === 'ArrowUp') {
+                        nextIndex = currentIndex > 0 ? currentIndex - 1 : instructionLinks.length - 1;
+                    } else if (key === 'ArrowRight' || key === 'ArrowDown') {
+                        nextIndex = currentIndex >= 0 && currentIndex < instructionLinks.length - 1
+                            ? currentIndex + 1
+                            : 0;
+                    }
+                    const nextLink = instructionLinks[nextIndex];
+                    if (nextLink) {
+                        nextLink.focus();
+                        const targetId = nextLink.dataset.panelTarget;
+                        if (targetId) {
+                            setActiveInstructionPanel(targetId);
+                        }
+                    }
+                });
 
                 if (typeof mobileInstructionQuery.addEventListener === 'function') {
                     mobileInstructionQuery.addEventListener('change', handleInstructionLayoutChange);
@@ -3443,7 +3604,8 @@
                     mobileInstructionQuery.addListener(handleInstructionLayoutChange);
                 }
 
-                resetInstructionPanels();
+                setActiveInstructionPanel(undefined, { preserveScroll: true });
+                initializeInstructionObserver();
             }
 
             const intelLoreEntries = [
@@ -5302,6 +5464,8 @@
                 });
                 playerNameInput.addEventListener('keydown', (event) => {
                     if (event.key === 'Enter') {
+                        event.preventDefault();
+                        event.stopPropagation();
                         commitPlayerNameInput();
                     }
                 });
@@ -5310,6 +5474,7 @@
             if (callsignForm) {
                 callsignForm.addEventListener('submit', (event) => {
                     event.preventDefault();
+                    event.stopPropagation?.();
                     commitPlayerNameInput();
                 });
             }
@@ -6178,9 +6343,6 @@
                     shareButton.disabled = !lastRunSummary;
                     shareButton.setAttribute('title', 'Open X to post your flight log');
                 }
-                if (copyShareButton) {
-                    copyShareButton.disabled = !lastRunSummary;
-                }
                 if (!lastRunSummary) {
                     showShareStatus('Complete a run to generate a broadcast log.');
                 } else if (lastRunSummary.reason === 'pending') {
@@ -6190,7 +6352,7 @@
                 } else if (lastRunSummary.reason === 'skipped') {
                     showShareStatus('Run not logged. Share manually or fly again.');
                 } else {
-                    showShareStatus('Flight log ready. Share to X or copy it for later.');
+                    showShareStatus('Flight log ready. Share to X and rally the squadron.');
                 }
             }
 
@@ -6233,34 +6395,7 @@
                     }
                 }
 
-                showShareStatus('Unable to open X. Allow pop-ups or copy the log manually.', 'error');
-            }
-
-            async function handleCopyShareClick(event) {
-                event?.preventDefault?.();
-                if (!lastRunSummary) {
-                    return;
-                }
-                const text = getShareText(lastRunSummary);
-                const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : null;
-                try {
-                    if (clipboard?.writeText) {
-                        await clipboard.writeText(text);
-                    } else {
-                        const textarea = document.createElement('textarea');
-                        textarea.value = text;
-                        textarea.setAttribute('readonly', '');
-                        textarea.style.position = 'absolute';
-                        textarea.style.left = '-9999px';
-                        document.body.appendChild(textarea);
-                        textarea.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(textarea);
-                    }
-                    showShareStatus('Flight log copied. Rally the crew!', 'success');
-                } catch (error) {
-                    showShareStatus('Clipboard unavailable. Manually copy from the log.', 'error');
-                }
+                showShareStatus('Unable to open X. Allow pop-ups or share the log manually.', 'error');
             }
 
             updateHighScorePanel();
@@ -6270,9 +6405,6 @@
 
             if (shareButton) {
                 shareButton.addEventListener('click', handleShareClick);
-            }
-            if (copyShareButton) {
-                copyShareButton.addEventListener('click', handleCopyShareClick);
             }
 
             if (highScoreTitleEl && typeof highScoreTitleEl.addEventListener === 'function') {
