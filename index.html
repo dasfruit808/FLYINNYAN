@@ -271,18 +271,16 @@
         }
 
         #preflightBar {
-            width: 100%;
-            max-width: clamp(260px, 28vw, 360px);
-            padding: 0;
+            width: min(520px, 100%);
+            padding: 0 clamp(16px, 4vw, 24px);
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: flex-start;
+            align-items: stretch;
             gap: clamp(12px, 3vw, 16px);
             position: relative;
             z-index: 2;
-            margin: clamp(16px, 3vw, 24px) 0 0;
-            align-self: flex-start;
+            margin: 0 auto;
         }
 
         #gameShell {
@@ -511,23 +509,23 @@
             position: relative;
             width: 100%;
             margin: 0;
-            padding: clamp(12px, 3vw, 18px);
+            padding: clamp(16px, 4vw, 22px);
             border-radius: 12px;
-            border: 3px solid #f4f4f4;
+            border: 4px solid #f4f4f4;
             background: linear-gradient(180deg, #161616 0%, #111 100%);
             box-shadow:
-                0 0 0 6px #202020,
-                0 14px 0 rgba(0, 0, 0, 0.35);
+                0 0 0 8px #202020,
+                0 18px 0 rgba(0, 0, 0, 0.35);
             color: #fefefe;
             font-family: "Flight Time", "Press Start 2P", "Consolas", monospace;
-            font-size: clamp(12px, 2.2vw, 15px);
+            font-size: clamp(13px, 2.4vw, 16px);
             font-weight: 600;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
-            text-align: left;
+            text-align: center;
             display: grid;
             gap: clamp(10px, 2vw, 16px);
-            justify-items: start;
+            justify-items: center;
             pointer-events: auto;
         }
 
@@ -553,7 +551,7 @@
             border: 3px solid #ffffff;
             background: linear-gradient(180deg, #e53e3e 0%, #b91c1c 100%);
             color: #ffffff;
-            font-size: clamp(11px, 1.8vw, 13px);
+            font-size: clamp(12px, 2vw, 14px);
             letter-spacing: 0.16em;
             box-shadow: 0 4px 0 #450a0a;
         }
@@ -600,9 +598,8 @@
 
         #settingsHint {
             display: flex;
-            justify-content: flex-start;
+            justify-content: center;
             align-items: center;
-            width: 100%;
             padding: 8px 12px;
             border-radius: 8px;
             border: 2px solid rgba(255, 255, 255, 0.18);
@@ -611,7 +608,7 @@
             letter-spacing: 0.16em;
             text-transform: uppercase;
             color: rgba(226, 232, 240, 0.92);
-            text-align: left;
+            text-align: center;
         }
 
         #stats span.value {
@@ -1680,12 +1677,13 @@
             }
 
             #preflightBar {
-                max-width: min(320px, 100%);
-                padding: 0;
-                margin: clamp(16px, 5vw, 24px) 0 0 clamp(12px, 6vw, 20px);
+                width: 100%;
+                padding: 0 clamp(12px, 6vw, 20px);
+                margin: 0 auto;
             }
 
             #preflightPrompt {
+                width: 100%;
                 border-width: 3px;
                 box-shadow:
                     0 0 0 6px #202020,
