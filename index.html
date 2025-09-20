@@ -3428,7 +3428,10 @@
             let lastComboPercent = -1;
             let lastFormattedTimer = '';
 
-            if (!(canvas instanceof HTMLCanvasElement) || !ctx) {
+            const isCanvasElement =
+                typeof HTMLCanvasElement !== 'undefined' && canvas instanceof HTMLCanvasElement;
+
+            if (!isCanvasElement || !ctx) {
                 console.error('Unable to initialize the Nyan Escape flight deck: canvas support is unavailable.');
 
                 loadingScreen?.classList.add('hidden');
