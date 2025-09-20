@@ -3452,6 +3452,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return sanitized.length >= 3 ? sanitized : 'Flight Cadet';
     }
 
+    let quickStartUsed = false;
+
     function refreshFlyNowButton() {
         if (!flyNowButton) {
             return;
@@ -3519,7 +3521,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let preflightReady = false;
     let tutorialFlightActive = false;
     let tutorialCallsign = null;
-    let quickStartUsed = false;
     let activeSummaryTab = summarySections.has('run') ? 'run' : summarySections.keys().next().value ?? null;
 
     function setActiveSummaryTab(tabId, { focusTab = false } = {}) {
