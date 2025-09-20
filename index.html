@@ -762,6 +762,18 @@
             white-space: pre-line;
         }
 
+        #overlayActions {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+            width: min(360px, 90vw);
+        }
+
+        #overlayActions button {
+            width: 100%;
+        }
+
         #overlay button {
             background: linear-gradient(135deg, rgba(56, 189, 248, 0.92), rgba(99, 102, 241, 0.92));
             border: none;
@@ -791,6 +803,23 @@
             cursor: default;
             opacity: 0.65;
             box-shadow: none;
+        }
+
+        #overlaySecondaryButton {
+            background: transparent;
+            border: 1px solid rgba(148, 210, 255, 0.45);
+            color: rgba(224, 231, 255, 0.88);
+            box-shadow: none;
+        }
+
+        #overlaySecondaryButton:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 32px rgba(37, 99, 235, 0.3);
+        }
+
+        #overlaySecondaryButton:active {
+            transform: translateY(1px);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
         }
 
         #overlay.unsupported #highScorePanel {
@@ -1159,7 +1188,10 @@
                 <span id="callsignHint">Press Enter or tap Launch to start a run.</span>
             </div>
         </form>
-        <button id="overlayButton" type="button" disabled aria-disabled="true">Launch Flight</button>
+        <div id="overlayActions">
+            <button id="overlayButton" type="button" disabled aria-disabled="true">Launch Flight</button>
+            <button id="overlaySecondaryButton" type="button" class="secondary" hidden aria-disabled="true">Skip Submission</button>
+        </div>
         <div id="overlayPanels">
             <div id="highScorePanel">
                 <div id="highScoreTitle">Top Flight Times</div>
@@ -1890,6 +1922,7 @@
             const overlay = document.getElementById('overlay');
             const overlayMessage = document.getElementById('overlayMessage');
             const overlayButton = document.getElementById('overlayButton');
+            const overlaySecondaryButton = document.getElementById('overlaySecondaryButton');
             const callsignForm = document.getElementById('callsignForm');
             const playerNameInput = document.getElementById('playerNameInput');
             const comicIntro = document.getElementById('comicIntro');
@@ -2371,6 +2404,7 @@
                 highScores: 'nyanEscape.highScores',
                 leaderboard: 'nyanEscape.leaderboard',
                 socialFeed: 'nyanEscape.socialFeed',
+                submissionLog: 'nyanEscape.submissionLog',
                 loreProgress: 'nyanEscape.loreProgress',
                 firstRunComplete: 'nyanEscape.firstRunComplete'
             };
@@ -2469,6 +2503,67 @@
                 writeStorage(STORAGE_KEYS.socialFeed, JSON.stringify(entries));
             }
 
+            function loadSubmissionLog() {
+                const raw = readStorage(STORAGE_KEYS.submissionLog);
+                if (!raw) return {};
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (typeof parsed !== 'object' || parsed === null) {
+                        return {};
+                    }
+                    const sanitized = {};
+                    for (const [key, value] of Object.entries(parsed)) {
+                        if (!Array.isArray(value)) {
+                            continue;
+                        }
+                        const normalized = value
+                            .map((timestamp) => Number(timestamp))
+                            .filter((timestamp) => Number.isFinite(timestamp));
+                        sanitized[key] = normalized;
+                    }
+                    return sanitized;
+                } catch (error) {
+                    return {};
+                }
+            }
+
+            function persistSubmissionLog(log) {
+                if (!storageAvailable) return;
+                writeStorage(STORAGE_KEYS.submissionLog, JSON.stringify(log));
+            }
+
+            const SUBMISSION_WINDOW_MS = 24 * 60 * 60 * 1000;
+            const SUBMISSION_LIMIT = 3;
+
+            let submissionLog = loadSubmissionLog();
+
+            function ensureSubmissionLogEntry(name) {
+                if (!name) return;
+                if (!Array.isArray(submissionLog[name])) {
+                    submissionLog[name] = [];
+                }
+            }
+
+            function getSubmissionUsage(name, now = Date.now()) {
+                ensureSubmissionLogEntry(name);
+                const cutoff = now - SUBMISSION_WINDOW_MS;
+                const recent = submissionLog[name]
+                    .map((timestamp) => Number(timestamp))
+                    .filter((timestamp) => Number.isFinite(timestamp) && timestamp >= cutoff)
+                    .sort((a, b) => a - b);
+                submissionLog[name] = recent;
+                return { recent, count: recent.length };
+            }
+
+            function trackSubmissionUsage(name, timestamp) {
+                const { recent } = getSubmissionUsage(name, timestamp);
+                recent.push(timestamp);
+                recent.sort((a, b) => a - b);
+                submissionLog[name] = recent;
+                persistSubmissionLog(submissionLog);
+                return recent.length;
+            }
+
             const DEFAULT_PLAYER_NAME = 'Ace Pilot';
 
             function sanitizePlayerName(value) {
@@ -2502,11 +2597,13 @@
             if (!highScoreData[playerName]) {
                 highScoreData[playerName] = [];
             }
+            ensureSubmissionLogEntry(playerName);
             writeStorage(STORAGE_KEYS.playerName, playerName);
             let leaderboardEntries = loadLeaderboard();
             let socialFeedData = loadSocialFeed();
             const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
             let lastRunSummary = null;
+            let pendingSubmission = null;
 
             function updatePlayerName(nextName) {
                 const sanitized = sanitizePlayerName(nextName) || DEFAULT_PLAYER_NAME;
@@ -2520,6 +2617,7 @@
                 if (!highScoreData[playerName]) {
                     highScoreData[playerName] = [];
                 }
+                ensureSubmissionLogEntry(playerName);
                 persistHighScores(highScoreData);
                 writeStorage(STORAGE_KEYS.playerName, playerName);
                 if (playerNameInput && playerNameInput.value !== sanitized) {
@@ -2593,6 +2691,40 @@
                 return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${tenths}`;
             }
 
+            function buildRunSummaryMessage(baseMessage, summary, {
+                placement = null,
+                runsToday = null,
+                limitReached = false,
+                prompt = false,
+                success = false,
+                skipped = false
+            } = {}) {
+                const lines = [
+                    baseMessage,
+                    `Flight Time: ${formatTime(summary.timeMs)}`,
+                    `Final Score: ${summary.score} — Points collected: ${summary.nyan.toLocaleString()}`
+                ];
+                if (placement) {
+                    lines.push(`Galaxy Standings: #${placement}`);
+                }
+                if (typeof runsToday === 'number') {
+                    lines.push(`Daily Log: ${Math.min(runsToday, SUBMISSION_LIMIT)}/${SUBMISSION_LIMIT} submissions used.`);
+                }
+                if (limitReached) {
+                    lines.push('Daily flight log limit reached. Try again after the cooldown.');
+                }
+                if (prompt) {
+                    lines.push('Submit this flight log to record your score?');
+                }
+                if (success) {
+                    lines.push('Score logged successfully! Ready for another run?');
+                }
+                if (skipped) {
+                    lines.push('Submission skipped. Run not recorded.');
+                }
+                return lines.join('\n');
+            }
+
             function formatRelativeTime(timestamp) {
                 if (!timestamp) return '';
                 const now = Date.now();
@@ -2617,39 +2749,45 @@
             }
 
             function recordHighScore(durationMs, score, metadata = {}) {
-                if (!playerName || durationMs <= 0) {
+                const baseName = sanitizePlayerName(metadata.player) || playerName;
+                if (!baseName || durationMs <= 0) {
                     return { accepted: false, placement: null, runsToday: 0, reason: 'invalid' };
+                }
+                ensureSubmissionLogEntry(baseName);
+                if (!highScoreData[baseName]) {
+                    highScoreData[baseName] = [];
+                }
+                const recordedAt = metadata.recordedAt ?? Date.now();
+                const usage = getSubmissionUsage(baseName, recordedAt);
+                if (usage.count >= SUBMISSION_LIMIT) {
+                    return { accepted: false, placement: null, runsToday: usage.count, reason: 'limit' };
                 }
                 const entry = {
                     timeMs: durationMs,
                     score,
-                    recordedAt: metadata.recordedAt ?? Date.now(),
+                    recordedAt,
                     bestStreak: metadata.bestStreak ?? 0,
                     nyan: metadata.nyan ?? 0
                 };
-                const userScores = highScoreData[playerName] ? [...highScoreData[playerName]] : [];
-                const dayWindowMs = 24 * 60 * 60 * 1000;
-                const recentRuns = userScores.filter((existing) => entry.recordedAt - existing.recordedAt < dayWindowMs);
-                if (recentRuns.length >= 3) {
-                    return { accepted: false, placement: null, runsToday: recentRuns.length, reason: 'limit' };
-                }
+                const userScores = highScoreData[baseName] ? [...highScoreData[baseName]] : [];
                 userScores.push(entry);
                 userScores.sort((a, b) => {
                     if (b.timeMs !== a.timeMs) return b.timeMs - a.timeMs;
                     if (b.score !== a.score) return b.score - a.score;
                     return b.recordedAt - a.recordedAt;
                 });
-                highScoreData[playerName] = userScores.slice(0, 3);
+                highScoreData[baseName] = userScores.slice(0, 3);
                 persistHighScores(highScoreData);
+                const runsToday = trackSubmissionUsage(baseName, recordedAt);
                 const placement = recordLeaderboardEntry({
-                    player: playerName,
+                    player: baseName,
                     timeMs: entry.timeMs,
                     score: entry.score,
                     bestStreak: entry.bestStreak,
                     nyan: entry.nyan,
                     recordedAt: entry.recordedAt
                 });
-                return { accepted: true, placement, runsToday: recentRuns.length + 1, reason: null };
+                return { accepted: true, placement, runsToday, reason: null };
             }
 
             function renderHighScorePanelForName(name) {
@@ -2687,7 +2825,7 @@
                     return;
                 }
                 const mode = overlayButton.dataset.launchMode;
-                if (!mode) {
+                if (!mode || (mode !== 'launch' && mode !== 'retry')) {
                     return;
                 }
                 const pendingName = getPendingPlayerName();
@@ -2829,8 +2967,12 @@
                 }
                 if (!lastRunSummary) {
                     showShareStatus('Complete a run to generate a broadcast log.');
+                } else if (lastRunSummary.reason === 'pending') {
+                    showShareStatus('Submission pending. Log the run or skip to continue.');
                 } else if (lastRunSummary.recorded === false && lastRunSummary.reason === 'limit') {
                     showShareStatus('Daily log limit reached. Share this flight manually to hype the squadron.');
+                } else if (lastRunSummary.reason === 'skipped') {
+                    showShareStatus('Run not logged. Share manually or fly again.');
                 } else {
                     showShareStatus('Flight log ready. Share to X or copy it for later.');
                 }
@@ -4184,10 +4326,32 @@
                     overlayButton.setAttribute('aria-disabled', enableButton ? 'false' : 'true');
                     if (enableButton && options.launchMode) {
                         overlayButton.dataset.launchMode = options.launchMode;
-                        refreshOverlayLaunchButton();
+                        if (options.launchMode === 'launch' || options.launchMode === 'retry') {
+                            refreshOverlayLaunchButton();
+                        }
                     } else if (overlayButton.dataset.launchMode) {
                         overlayButton.textContent = resolvedButtonText;
                         delete overlayButton.dataset.launchMode;
+                    }
+                }
+                if (overlaySecondaryButton) {
+                    const secondaryConfig = options.secondaryButton;
+                    if (secondaryConfig && secondaryConfig.text && secondaryConfig.launchMode) {
+                        overlaySecondaryButton.hidden = false;
+                        overlaySecondaryButton.disabled = Boolean(secondaryConfig.disabled);
+                        overlaySecondaryButton.setAttribute(
+                            'aria-disabled',
+                            secondaryConfig.disabled ? 'true' : 'false'
+                        );
+                        overlaySecondaryButton.textContent = secondaryConfig.text;
+                        overlaySecondaryButton.dataset.launchMode = secondaryConfig.launchMode;
+                    } else {
+                        overlaySecondaryButton.hidden = true;
+                        overlaySecondaryButton.disabled = true;
+                        overlaySecondaryButton.setAttribute('aria-disabled', 'true');
+                        if (overlaySecondaryButton.dataset.launchMode) {
+                            delete overlaySecondaryButton.dataset.launchMode;
+                        }
                     }
                 }
                 if (overlayTitle) {
@@ -4227,6 +4391,14 @@
                     const activeElement = document.activeElement;
                     if (activeElement === overlayButton) {
                         overlayButton.blur();
+                    }
+                }
+                if (overlaySecondaryButton && !overlaySecondaryButton.hidden) {
+                    overlaySecondaryButton.hidden = true;
+                    overlaySecondaryButton.disabled = true;
+                    overlaySecondaryButton.setAttribute('aria-disabled', 'true');
+                    if (overlaySecondaryButton.dataset.launchMode) {
+                        delete overlaySecondaryButton.dataset.launchMode;
                     }
                 }
                 if (playerNameInput && document.activeElement === playerNameInput) {
@@ -4383,6 +4555,7 @@
                 commitPlayerNameInput();
                 completeFirstRunExperience();
                 resetGame();
+                pendingSubmission = null;
                 state.gameState = 'running';
                 lastTime = null;
                 accumulatedDelta = 0;
@@ -4401,8 +4574,8 @@
                     }
                     return;
                 }
-                commitPlayerNameInput();
-                startGame();
+                const mode = overlayButton.dataset.launchMode || (state.gameState === 'ready' ? 'launch' : 'retry');
+                handleOverlayAction(mode);
             });
 
             if (!supportsPointerEvents && overlayButton) {
@@ -4415,9 +4588,30 @@
                         }
                         return;
                     }
-                    commitPlayerNameInput();
-                    startGame();
+                    const mode = overlayButton.dataset.launchMode || (state.gameState === 'ready' ? 'launch' : 'retry');
+                    handleOverlayAction(mode);
                 }, { passive: false });
+            }
+
+            if (overlaySecondaryButton) {
+                overlaySecondaryButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    if (overlaySecondaryButton.disabled) {
+                        return;
+                    }
+                    const mode = overlaySecondaryButton.dataset.launchMode || 'retry';
+                    handleOverlayAction(mode);
+                });
+                if (!supportsPointerEvents) {
+                    overlaySecondaryButton.addEventListener('touchstart', (event) => {
+                        event.preventDefault();
+                        if (overlaySecondaryButton.disabled) {
+                            return;
+                        }
+                        const mode = overlaySecondaryButton.dataset.launchMode || 'retry';
+                        handleOverlayAction(mode);
+                    }, { passive: false });
+                }
             }
 
             if (canvas) {
@@ -4571,9 +4765,14 @@
                         }
                     }
                 }
-                if (normalizedKey === 'Enter' && (state.gameState === 'ready' || state.gameState === 'gameover')) {
-                    commitPlayerNameInput();
-                    startGame();
+                if (normalizedKey === 'Enter') {
+                    if (state.gameState === 'ready') {
+                        const mode = overlayButton?.dataset.launchMode || 'launch';
+                        handleOverlayAction(mode);
+                    } else if (state.gameState === 'gameover') {
+                        const mode = overlayButton?.dataset.launchMode || (pendingSubmission ? 'submit' : 'retry');
+                        handleOverlayAction(mode);
+                    }
                 }
             });
 
@@ -6073,6 +6272,57 @@
                 state.tailTarget = config.baseTrailLength;
             }
 
+            function finalizePendingSubmission({ recorded, reason = null, placement = null, runsToday = 0 } = {}) {
+                if (!pendingSubmission) {
+                    return null;
+                }
+                const summary = { ...pendingSubmission };
+                const formattedTime = formatTime(summary.timeMs);
+                const formattedScore = summary.score.toLocaleString();
+                const timestamp = summary.recordedAt;
+                lastRunSummary = {
+                    player: summary.player,
+                    timeMs: summary.timeMs,
+                    score: summary.score,
+                    nyan: summary.nyan,
+                    bestStreak: summary.bestStreak,
+                    placement,
+                    recordedAt: timestamp,
+                    runsToday,
+                    recorded,
+                    reason
+                };
+                updateSharePanel();
+                const runDescriptor = runsToday
+                    ? ` (${Math.min(runsToday, SUBMISSION_LIMIT)}/${SUBMISSION_LIMIT} today)`
+                    : '';
+                if (recorded) {
+                    if (placement && placement <= 7) {
+                        addSocialMoment(`${summary.player} entered the galaxy standings at #${placement}!${runDescriptor}`, {
+                            type: 'leaderboard',
+                            timestamp
+                        });
+                    } else {
+                        addSocialMoment(`${summary.player} logged ${formattedTime} for ${formattedScore} pts${runDescriptor}.`, {
+                            type: 'score',
+                            timestamp
+                        });
+                    }
+                } else if (reason === 'limit') {
+                    addSocialMoment(`${summary.player} maxed out their daily flight logs for now.`, {
+                        type: 'limit',
+                        timestamp
+                    });
+                } else if (reason === 'skipped') {
+                    addSocialMoment(`${summary.player} survived ${formattedTime} for ${formattedScore} pts.`, {
+                        type: 'score',
+                        timestamp
+                    });
+                }
+                pendingSubmission = null;
+                return { summary, formattedTime, formattedScore };
+            }
+
             function triggerGameOver(message) {
                 if (state.gameState !== 'running') return;
                 state.gameState = 'gameover';
@@ -6080,68 +6330,119 @@
                 audioManager.stopHyperBeam();
                 const finalTimeMs = state.elapsedTime;
                 const runTimestamp = Date.now();
-                const recordResult = recordHighScore(finalTimeMs, state.score, {
-                    bestStreak: state.bestStreak,
+                const usage = getSubmissionUsage(playerName, runTimestamp);
+                const limitReached = usage.count >= SUBMISSION_LIMIT;
+                pendingSubmission = {
+                    player: playerName,
+                    timeMs: finalTimeMs,
+                    score: state.score,
                     nyan: state.nyan,
-                    recordedAt: runTimestamp
-                });
-                updateHighScorePanel();
-                updateTimerDisplay();
-                const formattedTime = formatTime(finalTimeMs);
-                const placement = recordResult?.placement ?? null;
-                const recorded = Boolean(recordResult?.accepted);
-                const runsToday = recordResult?.runsToday ?? 0;
-                const recordReason = recordResult?.reason ?? null;
+                    bestStreak: state.bestStreak,
+                    recordedAt: runTimestamp,
+                    baseMessage: message,
+                    quotaCount: usage.count,
+                    limitReached
+                };
                 lastRunSummary = {
                     player: playerName,
                     timeMs: finalTimeMs,
                     score: state.score,
                     nyan: state.nyan,
                     bestStreak: state.bestStreak,
-                    placement,
+                    placement: null,
                     recordedAt: runTimestamp,
-                    runsToday,
-                    recorded,
-                    reason: recordReason
+                    runsToday: usage.count,
+                    recorded: false,
+                    reason: limitReached ? 'limit' : 'pending'
                 };
                 updateSharePanel();
-                const placementLine = placement ? `\nGalaxy Standings: #${placement}` : '';
-                let quotaLine = '';
-                if (runsToday && (recorded || recordReason === 'limit')) {
-                    const used = Math.min(runsToday, 3);
-                    quotaLine = `\nDaily Log: ${used}/3 submissions used.`;
+                updateTimerDisplay();
+                const promptMessage = buildRunSummaryMessage(message, pendingSubmission, {
+                    runsToday: usage.count,
+                    limitReached,
+                    prompt: !limitReached
+                });
+                const primaryText = limitReached ? 'Retry Flight' : 'Submit Flight Log';
+                const primaryMode = limitReached ? 'retry' : 'submit';
+                const secondaryConfig = limitReached
+                    ? null
+                    : { text: 'Skip Submission', launchMode: 'retry' };
+                showOverlay(promptMessage, primaryText, {
+                    title: '',
+                    enableButton: true,
+                    launchMode: primaryMode,
+                    secondaryButton: secondaryConfig
+                });
+            }
+
+            function skipScoreSubmission() {
+                if (!pendingSubmission) {
+                    return;
                 }
-                let limitLine = '';
-                if (recorded) {
-                    const runDescriptor = runsToday ? ` (${runsToday}/3 today)` : '';
-                    if (placement && placement <= 7) {
-                        addSocialMoment(`${playerName} entered the galaxy standings at #${placement}!${runDescriptor}`, {
-                            type: 'leaderboard',
-                            timestamp: runTimestamp
-                        });
-                    } else {
-                        addSocialMoment(`${playerName} logged ${formattedTime} for ${state.score.toLocaleString()} pts${runDescriptor}.`, {
-                            type: 'score',
-                            timestamp: runTimestamp
-                        });
-                    }
-                } else if (recordReason === 'limit') {
-                    limitLine = '\nDaily flight log limit reached. Try again after the cooldown.';
-                    addSocialMoment(`${playerName} maxed out their daily flight logs for now.`, {
-                        type: 'limit',
-                        timestamp: runTimestamp
-                    });
-                } else {
-                    addSocialMoment(`${playerName} survived ${formattedTime} for ${state.score.toLocaleString()} pts.`, {
-                        type: 'score',
-                        timestamp: runTimestamp
-                    });
+                pendingSubmission.player = getPendingPlayerName();
+                const runsToday = pendingSubmission.limitReached
+                    ? Math.min(
+                        typeof pendingSubmission.quotaCount === 'number'
+                            ? pendingSubmission.quotaCount
+                            : SUBMISSION_LIMIT,
+                        SUBMISSION_LIMIT
+                    )
+                    : getSubmissionUsage(pendingSubmission.player, pendingSubmission.recordedAt).count;
+                const reason = pendingSubmission.limitReached ? 'limit' : 'skipped';
+                finalizePendingSubmission({
+                    recorded: false,
+                    reason,
+                    runsToday
+                });
+            }
+
+            function attemptSubmitScore() {
+                if (!pendingSubmission) {
+                    return;
                 }
-                showOverlay(
-                    `${message}\nFlight Time: ${formattedTime}\nFinal Score: ${state.score} — Points collected: ${state.nyan.toLocaleString()}${placementLine}${quotaLine}${limitLine}`,
-                    'Press Enter to Retry',
-                    { title: '', enableButton: true, launchMode: 'retry' }
-                );
+                const submission = { ...pendingSubmission };
+                submission.player = commitPlayerNameInput();
+                pendingSubmission.player = submission.player;
+                const result = recordHighScore(submission.timeMs, submission.score, {
+                    player: submission.player,
+                    bestStreak: submission.bestStreak,
+                    nyan: submission.nyan,
+                    recordedAt: submission.recordedAt
+                });
+                if (!result || !result.accepted) {
+                    const runsToday = result?.runsToday ?? getSubmissionUsage(submission.player, submission.recordedAt).count;
+                    finalizePendingSubmission({ recorded: false, reason: 'limit', runsToday });
+                    const message = buildRunSummaryMessage(submission.baseMessage, submission, {
+                        runsToday,
+                        limitReached: true
+                    });
+                    showOverlay(message, 'Retry Flight', { title: '', enableButton: true, launchMode: 'retry' });
+                    return;
+                }
+                const runsToday = result.runsToday ?? getSubmissionUsage(submission.player, submission.recordedAt).count;
+                const placement = result.placement ?? null;
+                finalizePendingSubmission({ recorded: true, reason: null, placement, runsToday });
+                updateHighScorePanel();
+                const message = buildRunSummaryMessage(submission.baseMessage, submission, {
+                    placement,
+                    runsToday,
+                    success: true
+                });
+                showOverlay(message, 'Press Enter to Retry', { title: '', enableButton: true, launchMode: 'retry' });
+            }
+
+            function handleOverlayAction(mode) {
+                const action = mode || (state.gameState === 'ready' ? 'launch' : 'retry');
+                if (action === 'submit') {
+                    attemptSubmitScore();
+                    return;
+                }
+                if (action === 'retry') {
+                    skipScoreSubmission();
+                    startGame();
+                    return;
+                }
+                startGame();
             }
 
             function updateCombo(delta) {
