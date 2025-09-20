@@ -866,9 +866,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const characterSelectConfirm = document.getElementById('characterSelectConfirm');
     const characterSelectCancel = document.getElementById('characterSelectCancel');
     const characterSelectSummary = document.getElementById('characterSelectSummary');
-    const characterCards = Array.from(
-        characterSelectModal?.querySelectorAll('[data-character-id]') ?? []
+    const characterSelectSummaryDescription = characterSelectSummary?.querySelector(
+        '[data-character-summary-description]'
     );
+    const characterSelectSummaryOngoing = characterSelectSummary?.querySelector(
+        '[data-character-summary-ongoing]'
+    );
+    const characterSelectGrid =
+        characterSelectModal?.querySelector('[data-character-grid]') ??
+        characterSelectModal?.querySelector('.character-grid') ??
+        null;
+    let characterCards = [];
     const loadingScreen = document.getElementById('loadingScreen');
     const loadingStatus = document.getElementById('loadingStatus');
     const loadingImageEl = document.getElementById('loadingImage');
@@ -4953,6 +4961,11 @@ document.addEventListener('DOMContentLoaded', () => {
             role: 'Balanced Ace',
             summary:
                 'Balanced thrusters keep acceleration, dash control, and blaster cadence perfectly aligned for any mission.',
+            ongoing: [
+                'Factory-tuned thrusters for adaptable handling.',
+                'Even dash burst and recovery for reliable escapes.',
+                'Baseline plasma cadence ready for any mission.'
+            ],
             image: playerBaseImage,
             overrides: {}
         },
@@ -4962,6 +4975,11 @@ document.addEventListener('DOMContentLoaded', () => {
             role: 'Speed Specialist',
             summary:
                 'Surge thrusters push the frame faster and harder, trading a slightly larger hull and shorter dash window for burst speed and rapid-fire shots.',
+            ongoing: [
+                'High-output engines spike acceleration and top speed.',
+                'Shorter dash cooldown built for aggressive weaving.',
+                'Rapid-fire bolts keep pressure on debris clusters.'
+            ],
             image: loadImageWithFallback('assets/player2.png', () => playerBaseImage),
             overrides: {
                 player: {
@@ -4988,6 +5006,11 @@ document.addEventListener('DOMContentLoaded', () => {
             role: 'Shielded Scout',
             summary:
                 'A compact hull narrows the hitbox and stretches dash uptime, sacrificing raw thrust for control while launching slower, heavy plasma volleys.',
+            ongoing: [
+                'Compact hull trims the hitbox for precision dodges.',
+                'Extended dash window excels at sustained evasions.',
+                'Heavy plasma rounds punch through asteroid armor.'
+            ],
             image: loadImageWithFallback('assets/player3.png', () => playerBaseImage),
             overrides: {
                 player: {
@@ -5010,6 +5033,99 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     ];
     const characterProfileMap = new Map(characterProfiles.map((profile) => [profile.id, profile]));
+
+    function renderCharacterSelectCards() {
+        if (!characterSelectGrid) {
+            characterCards = [];
+            return;
+        }
+
+        characterSelectGrid.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        const cards = [];
+
+        for (const profile of characterProfiles) {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'character-card';
+            card.dataset.characterId = profile.id;
+            card.setAttribute('role', 'listitem');
+
+            const image = document.createElement('img');
+            const imageSource =
+                profile.image?.src ?? playerBaseImage?.src ?? 'assets/player.png';
+            image.src = imageSource;
+            image.alt = profile.name ?? '';
+            image.loading = 'lazy';
+            card.appendChild(image);
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'character-name';
+            nameEl.textContent = profile.name ?? '';
+            card.appendChild(nameEl);
+
+            const roleEl = document.createElement('div');
+            roleEl.className = 'character-role';
+            roleEl.textContent = profile.role ?? '';
+            card.appendChild(roleEl);
+
+            const details = document.createElement('div');
+            details.className = 'character-details';
+            const detailsHeading = document.createElement('strong');
+            detailsHeading.textContent = 'Flight Profile';
+            details.appendChild(detailsHeading);
+
+            const detailsList = document.createElement('ul');
+            const ongoingEntries = Array.isArray(profile.ongoing) ? profile.ongoing : [];
+            if (ongoingEntries.length) {
+                for (const entry of ongoingEntries) {
+                    if (!entry) {
+                        continue;
+                    }
+                    const item = document.createElement('li');
+                    item.textContent = entry;
+                    detailsList.appendChild(item);
+                }
+            }
+            details.appendChild(detailsList);
+            card.appendChild(details);
+
+            const characterId = profile.id;
+            card.addEventListener('click', () => {
+                if (!characterId) {
+                    return;
+                }
+                if (pendingCharacterId === characterId && !characterSelectConfirm?.disabled) {
+                    confirmCharacterSelection();
+                } else {
+                    setPendingCharacter(characterId);
+                }
+            });
+
+            card.addEventListener('focus', () => {
+                updateCharacterSummaryDisplay(profile);
+            });
+
+            card.addEventListener('blur', () => {
+                updateCharacterSummaryDisplay(getCharacterProfile(pendingCharacterId));
+            });
+
+            card.addEventListener('mouseenter', () => {
+                updateCharacterSummaryDisplay(profile);
+            });
+
+            card.addEventListener('mouseleave', () => {
+                updateCharacterSummaryDisplay(getCharacterProfile(pendingCharacterId));
+            });
+
+            fragment.appendChild(card);
+            cards.push(card);
+        }
+
+        characterSelectGrid.appendChild(fragment);
+        characterCards = cards;
+    }
+
     const pilotStatDescriptors = [
         { key: 'speed', label: 'Speed' },
         { key: 'dash', label: 'Dash' },
@@ -5106,12 +5222,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    const defaultCharacterSummaryText = characterSelectSummary?.textContent ?? '';
+    const defaultCharacterSummaryText = (
+        characterSelectSummaryDescription?.textContent ??
+        characterSelectSummary?.textContent ??
+        ''
+    ).trim();
     let selectedCharacterImage = playerBaseImage;
     let activeCharacterId = 'nova';
     let pendingCharacterId = 'nova';
     let pendingLaunchAction = null;
     let lastEquippedCosmetics = {};
+    renderCharacterSelectCards();
     renderPilotPreview();
     refreshPilotPreviewStates();
     updateSwapPilotButton();
@@ -5339,10 +5460,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!characterSelectSummary) {
             return;
         }
-        if (profile) {
-            characterSelectSummary.textContent = profile.summary ?? defaultCharacterSummaryText;
+        const summaryText = profile?.summary ?? defaultCharacterSummaryText;
+        if (characterSelectSummaryDescription) {
+            characterSelectSummaryDescription.textContent = summaryText;
         } else {
-            characterSelectSummary.textContent = defaultCharacterSummaryText;
+            characterSelectSummary.textContent = summaryText;
+        }
+
+        if (characterSelectSummaryOngoing) {
+            characterSelectSummaryOngoing.innerHTML = '';
+            const ongoingEntries = Array.isArray(profile?.ongoing) ? profile.ongoing : [];
+            if (ongoingEntries.length) {
+                characterSelectSummaryOngoing.removeAttribute('hidden');
+                for (const entry of ongoingEntries) {
+                    if (!entry) {
+                        continue;
+                    }
+                    const item = document.createElement('li');
+                    item.textContent = entry;
+                    characterSelectSummaryOngoing.appendChild(item);
+                }
+            } else {
+                characterSelectSummaryOngoing.setAttribute('hidden', '');
+            }
         }
     }
 
@@ -5444,41 +5584,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     let activePlayerImage = playerBaseImage;
     let activeTrailStyle = trailStyles.rainbow;
-    if (characterCards.length) {
-        for (const card of characterCards) {
-            card.addEventListener('click', () => {
-                const characterId = card?.dataset?.characterId;
-                if (!characterId) {
-                    return;
-                }
-                if (pendingCharacterId === characterId && !characterSelectConfirm?.disabled) {
-                    confirmCharacterSelection();
-                } else {
-                    setPendingCharacter(characterId);
-                }
-            });
-            card.addEventListener('focus', () => {
-                const characterId = card?.dataset?.characterId;
-                if (!characterId) {
-                    return;
-                }
-                updateCharacterSummaryDisplay(getCharacterProfile(characterId));
-            });
-            card.addEventListener('blur', () => {
-                updateCharacterSummaryDisplay(getCharacterProfile(pendingCharacterId));
-            });
-            card.addEventListener('mouseenter', () => {
-                const characterId = card?.dataset?.characterId;
-                if (!characterId) {
-                    return;
-                }
-                updateCharacterSummaryDisplay(getCharacterProfile(characterId));
-            });
-            card.addEventListener('mouseleave', () => {
-                updateCharacterSummaryDisplay(getCharacterProfile(pendingCharacterId));
-            });
-        }
-    }
+    
     if (swapPilotButton) {
         swapPilotButton.addEventListener('click', () => {
             if (swapPilotButton.disabled) {
