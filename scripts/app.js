@@ -962,6 +962,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let debugOverlayEnabled = false;
     let player = null;
+    const stars = [];
+    const asteroids = [];
     try {
         debugOverlayEnabled = window.localStorage.getItem(DEBUG_OVERLAY_STORAGE_KEY) === '1';
     } catch {
@@ -2041,6 +2043,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let firstRunExperience = true;
+    let quickStartUsed = false;
 
     function readStorage(key) {
         if (!storageAvailable) return null;
@@ -3451,8 +3454,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const sanitized = sanitizePlayerName(raw);
         return sanitized.length >= 3 ? sanitized : 'Flight Cadet';
     }
-
-    let quickStartUsed = false;
 
     function refreshFlyNowButton() {
         if (!flyNowButton) {
@@ -6026,8 +6027,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const obstacles = [];
     const collectibles = [];
     const powerUps = [];
-    const stars = [];
-    const asteroids = [];
     let asteroidSpawnTimer = 0;
     const particles = [];
     const villainExplosions = [];
