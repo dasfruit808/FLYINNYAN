@@ -228,6 +228,25 @@
             color: #7dd3fc;
         }
 
+        #preflightPrompt {
+            margin-top: clamp(18px, 4vw, 28px);
+            padding: clamp(10px, 2vw, 16px) clamp(24px, 6vw, 36px);
+            border-radius: 999px;
+            border: 1px solid rgba(94, 234, 212, 0.45);
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(8, 47, 73, 0.85));
+            box-shadow: 0 16px 42px rgba(2, 6, 23, 0.55);
+            color: rgba(94, 234, 212, 0.9);
+            font-size: clamp(14px, 1.8vw, 18px);
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        #preflightPrompt[hidden] {
+            display: none;
+        }
+
         #stats span.value {
             font-weight: 700;
             color: #ffd54f;
@@ -1024,6 +1043,7 @@
         <div id="playfield">
             <canvas id="gameCanvas" width="900" height="600" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
             <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
+            <div id="preflightPrompt" role="status" aria-live="polite" hidden>Press Enter to launch the run</div>
         </div>
         <aside id="instructions" aria-label="Flight telemetry, controls, and mission information">
             <nav id="instructionNav" aria-label="Quick mission links">
@@ -1908,6 +1928,7 @@
             const overlaySecondaryButton = document.getElementById('overlaySecondaryButton');
             const callsignForm = document.getElementById('callsignForm');
             const playerNameInput = document.getElementById('playerNameInput');
+            const preflightPrompt = document.getElementById('preflightPrompt');
             const comicIntro = document.getElementById('comicIntro');
             const overlayTitle = overlay?.querySelector('h1') ?? null;
             const overlayDefaultTitle = overlayTitle?.textContent ?? '';
@@ -2535,6 +2556,7 @@
             const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
             let lastRunSummary = null;
             let pendingSubmission = null;
+            let preflightOverlayDismissed = false;
 
             function updatePlayerName(nextName) {
                 const sanitized = sanitizePlayerName(nextName) || DEFAULT_PLAYER_NAME;
@@ -2575,6 +2597,7 @@
                 refreshOverlayLaunchButton();
                 const updated = updatePlayerName(finalName);
                 refreshHighScorePreview();
+                revealGameScreenAfterNameEntry();
                 return updated;
             }
 
@@ -4271,7 +4294,41 @@
                 return lerp(settings.start, settings.end, eased);
             }
 
+            function setPreflightPromptVisibility(visible) {
+                if (!preflightPrompt) {
+                    return;
+                }
+                preflightPrompt.hidden = !visible;
+                preflightPrompt.setAttribute('aria-hidden', visible ? 'false' : 'true');
+            }
+
+            function showPreflightPrompt() {
+                setPreflightPromptVisibility(true);
+            }
+
+            function hidePreflightPrompt() {
+                setPreflightPromptVisibility(false);
+            }
+
+            function revealGameScreenAfterNameEntry() {
+                if (preflightOverlayDismissed) {
+                    return;
+                }
+                if (!overlay || overlay.classList.contains('hidden')) {
+                    return;
+                }
+                if (overlayButton?.dataset.launchMode !== 'launch') {
+                    return;
+                }
+                preflightOverlayDismissed = true;
+                hideOverlay();
+                showPreflightPrompt();
+                focusGameCanvas();
+            }
+
             function showOverlay(message, buttonText = 'Press Enter to Launch', options = {}) {
+                hidePreflightPrompt();
+                preflightOverlayDismissed = false;
                 overlayMessage.textContent = message;
                 const resolvedButtonText = buttonText || 'Press Enter to Launch';
                 if (overlayButton) {
@@ -4507,6 +4564,8 @@
             }
 
             function startGame() {
+                hidePreflightPrompt();
+                preflightOverlayDismissed = false;
                 commitPlayerNameInput();
                 completeFirstRunExperience();
                 resetGame();
