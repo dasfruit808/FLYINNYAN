@@ -866,7 +866,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const characterSelectConfirm = document.getElementById('characterSelectConfirm');
     const characterSelectCancel = document.getElementById('characterSelectCancel');
     const characterSelectSummary = document.getElementById('characterSelectSummary');
-    const characterCards = Array.from(document.querySelectorAll('[data-character-id]'));
+    const characterCards = Array.from(
+        characterSelectModal?.querySelectorAll('[data-character-id]') ?? []
+    );
     const loadingScreen = document.getElementById('loadingScreen');
     const loadingStatus = document.getElementById('loadingStatus');
     const loadingImageEl = document.getElementById('loadingImage');
@@ -879,6 +881,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaderboardTabButtons = Array.from(
         document.querySelectorAll('[data-leaderboard-scope]')
     );
+    const summaryCard = document.getElementById('summaryCard');
+    const summaryTabButtons = Array.from(document.querySelectorAll('[data-summary-tab]'));
+    const summarySections = new Map();
+    document.querySelectorAll('[data-summary-section]').forEach((section) => {
+        if (!(section instanceof HTMLElement)) {
+            return;
+        }
+        const key = section.dataset.summarySection;
+        if (key) {
+            summarySections.set(key, section);
+        }
+    });
+    const runSummaryStatusEl = document.getElementById('runSummaryStatus');
+    const runSummaryTimeEl = document.getElementById('runSummaryTime');
+    const runSummaryScoreEl = document.getElementById('runSummaryScore');
+    const runSummaryStreakEl = document.getElementById('runSummaryStreak');
+    const runSummaryNyanEl = document.getElementById('runSummaryNyan');
+    const runSummaryPlacementEl = document.getElementById('runSummaryPlacement');
+    const runSummaryRunsEl = document.getElementById('runSummaryRuns');
+    const swapPilotButton = document.getElementById('swapPilotButton');
+    const pilotPreviewGrid = document.getElementById('pilotPreviewGrid');
     const shareButton = document.getElementById('shareButton');
     const shareStatusEl = document.getElementById('shareStatus');
     const socialFeedEl = document.getElementById('socialFeed');
@@ -3421,6 +3444,83 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingSubmission = null;
     let preflightOverlayDismissed = false;
     let preflightReady = false;
+    let activeSummaryTab = summarySections.has('run') ? 'run' : summarySections.keys().next().value ?? null;
+
+    function setActiveSummaryTab(tabId, { focusTab = false } = {}) {
+        if (!tabId || !summarySections.has(tabId)) {
+            return;
+        }
+        activeSummaryTab = tabId;
+        summarySections.forEach((section, key) => {
+            const isActive = key === tabId;
+            if (isActive) {
+                section.hidden = false;
+                section.classList.add('active');
+            } else {
+                section.hidden = true;
+                section.classList.remove('active');
+            }
+        });
+        summaryTabButtons.forEach((button) => {
+            if (!(button instanceof HTMLElement)) {
+                return;
+            }
+            const key = button.dataset.summaryTab;
+            const isActive = key === tabId;
+            button.classList.toggle('active', isActive);
+            if (isActive) {
+                button.setAttribute('aria-selected', 'true');
+                button.setAttribute('tabindex', '0');
+                if (focusTab) {
+                    try {
+                        button.focus({ preventScroll: true });
+                    } catch {
+                        button.focus();
+                    }
+                }
+            } else {
+                button.setAttribute('aria-selected', 'false');
+                button.setAttribute('tabindex', '-1');
+            }
+        });
+    }
+
+    function focusSummaryTabByOffset(currentButton, offset) {
+        if (!summaryTabButtons.length || !offset) {
+            return;
+        }
+        const index = summaryTabButtons.indexOf(currentButton);
+        if (index < 0) {
+            return;
+        }
+        const nextIndex = (index + offset + summaryTabButtons.length) % summaryTabButtons.length;
+        const nextButton = summaryTabButtons[nextIndex];
+        const tabId = nextButton?.dataset?.summaryTab;
+        if (tabId) {
+            setActiveSummaryTab(tabId, { focusTab: true });
+        }
+    }
+
+    if (summaryTabButtons.length && activeSummaryTab) {
+        setActiveSummaryTab(activeSummaryTab);
+        summaryTabButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const tabId = button.dataset.summaryTab;
+                if (tabId) {
+                    setActiveSummaryTab(tabId);
+                }
+            });
+            button.addEventListener('keydown', (event) => {
+                if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    focusSummaryTabByOffset(button, 1);
+                } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    focusSummaryTabByOffset(button, -1);
+                }
+            });
+        });
+    }
 
     function updatePlayerName(nextName) {
         const sanitized = sanitizePlayerName(nextName) || DEFAULT_PLAYER_NAME;
@@ -3751,6 +3851,99 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateHighScorePanel() {
         renderHighScorePanelForName(playerName);
+    }
+
+    function setRunSummaryStatus(message, type = 'info') {
+        if (!runSummaryStatusEl) {
+            return;
+        }
+        runSummaryStatusEl.textContent = message ?? '';
+        runSummaryStatusEl.className = 'summary-status';
+        if (type && type !== 'info') {
+            runSummaryStatusEl.classList.add(type);
+        }
+    }
+
+    function updateRunSummaryOverview() {
+        if (runSummaryTimeEl) {
+            runSummaryTimeEl.textContent = lastRunSummary ? formatTime(lastRunSummary.timeMs) : '—';
+        }
+        if (runSummaryScoreEl) {
+            runSummaryScoreEl.textContent = lastRunSummary
+                ? `${lastRunSummary.score.toLocaleString()} pts`
+                : '—';
+        }
+        if (runSummaryStreakEl) {
+            const streakValue = lastRunSummary ? Math.max(0, lastRunSummary.bestStreak ?? 0) : null;
+            runSummaryStreakEl.textContent = streakValue != null ? `x${streakValue}` : '—';
+        }
+        if (runSummaryNyanEl) {
+            const pickups = lastRunSummary ? Math.max(0, lastRunSummary.nyan ?? 0) : null;
+            runSummaryNyanEl.textContent = pickups != null ? pickups.toLocaleString() : '—';
+        }
+        if (runSummaryRunsEl) {
+            const used = lastRunSummary ? Math.min(lastRunSummary.runsToday ?? 0, SUBMISSION_LIMIT) : 0;
+            runSummaryRunsEl.textContent = `Logs today: ${used}/${SUBMISSION_LIMIT}`;
+        }
+        if (runSummaryPlacementEl) {
+            let placementText = '';
+            if (!lastRunSummary) {
+                placementText = '';
+            } else if (typeof lastRunSummary.placement === 'number' && lastRunSummary.placement > 0) {
+                placementText = `Placement: #${lastRunSummary.placement}`;
+            } else if (lastRunSummary.reason === 'pending') {
+                placementText = 'Placement pending submission';
+            } else if (lastRunSummary.reason === 'limit') {
+                placementText = 'Placement unchanged (daily limit)';
+            } else if (lastRunSummary.reason === 'skipped') {
+                placementText = 'Placement not submitted';
+            } else if (lastRunSummary.reason === 'conflict') {
+                placementText = 'Placement held by stronger run';
+            } else if (lastRunSummary.reason === 'offline') {
+                placementText = 'Placement offline (sync later)';
+            } else {
+                placementText = '';
+            }
+            runSummaryPlacementEl.textContent = placementText;
+        }
+
+        if (!lastRunSummary) {
+            setRunSummaryStatus('Survive a flight to log fresh telemetry.');
+            return;
+        }
+
+        if (lastRunSummary.reason === 'pending') {
+            setRunSummaryStatus('Submission pending. Log the run or skip to continue.');
+            return;
+        }
+
+        if (lastRunSummary.recorded) {
+            setRunSummaryStatus('Flight log transmitted successfully!', 'success');
+            return;
+        }
+
+        switch (lastRunSummary.reason) {
+            case 'limit':
+                setRunSummaryStatus('Daily log limit reached. Fly again tomorrow or share manually.', 'warning');
+                break;
+            case 'skipped':
+                setRunSummaryStatus('Run skipped. Fly again when you are ready.', 'info');
+                break;
+            case 'conflict':
+                setRunSummaryStatus('Stronger flight already recorded. Beat it to climb the board.', 'warning');
+                break;
+            case 'error':
+            case 'server':
+            case 'auth':
+                setRunSummaryStatus('Submission hit turbulence. Retry shortly.', 'error');
+                break;
+            case 'offline':
+                setRunSummaryStatus('Flight stored locally. Connect to sync your rank.', 'warning');
+                break;
+            default:
+                setRunSummaryStatus('Flight log saved. Reconnect to update the board.');
+                break;
+        }
     }
 
     function refreshOverlayLaunchButton() {
@@ -4536,6 +4729,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateHighScorePanel();
     updateLeaderboardPanel();
     updateSocialFeedPanel();
+    updateRunSummaryOverview();
     updateSharePanel();
 
     if (shareButton) {
@@ -4591,7 +4785,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showPreflightOverlay() {
         configureOverlayForNameEntry({ focusInput: false });
-        openCharacterSelect('launch');
+        refreshPilotPreviewStates();
     }
 
     function runCyborgLoadingSequence() {
@@ -4756,6 +4950,7 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             id: 'nova',
             name: 'Nova Navigator',
+            role: 'Balanced Ace',
             summary:
                 'Balanced thrusters keep acceleration, dash control, and blaster cadence perfectly aligned for any mission.',
             image: playerBaseImage,
@@ -4764,6 +4959,7 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             id: 'comet',
             name: 'Comet Vanguard',
+            role: 'Speed Specialist',
             summary:
                 'Surge thrusters push the frame faster and harder, trading a slightly larger hull and shorter dash window for burst speed and rapid-fire shots.',
             image: loadImageWithFallback('assets/player2.png', () => playerBaseImage),
@@ -4789,6 +4985,7 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             id: 'nebula',
             name: 'Nebula Warden',
+            role: 'Shielded Scout',
             summary:
                 'A compact hull narrows the hitbox and stretches dash uptime, sacrificing raw thrust for control while launching slower, heavy plasma volleys.',
             image: loadImageWithFallback('assets/player3.png', () => playerBaseImage),
@@ -4813,12 +5010,111 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     ];
     const characterProfileMap = new Map(characterProfiles.map((profile) => [profile.id, profile]));
+    const pilotStatDescriptors = [
+        { key: 'speed', label: 'Speed' },
+        { key: 'dash', label: 'Dash' },
+        { key: 'firepower', label: 'Firepower' },
+        { key: 'shield', label: 'Shield' }
+    ];
+    const MAX_PILOT_STAT_LEVEL = 5;
+    const pilotStatLevels = {
+        nova: { speed: 3, dash: 3, firepower: 3, shield: 3 },
+        comet: { speed: 5, dash: 4, firepower: 4, shield: 2 },
+        nebula: { speed: 3, dash: 5, firepower: 3, shield: 4 }
+    };
+
+    function renderPilotPreview() {
+        if (!pilotPreviewGrid) {
+            return;
+        }
+        pilotPreviewGrid.innerHTML = '';
+        for (const profile of characterProfiles) {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'pilot-preview-card';
+            card.dataset.characterId = profile.id;
+            card.setAttribute('role', 'listitem');
+            const nameRow = document.createElement('div');
+            nameRow.className = 'pilot-preview-header-row';
+            const nameEl = document.createElement('span');
+            nameEl.className = 'pilot-preview-name';
+            nameEl.textContent = profile.name;
+            const roleEl = document.createElement('span');
+            roleEl.className = 'pilot-preview-role';
+            roleEl.textContent = profile.role ?? '';
+            nameRow.appendChild(nameEl);
+            nameRow.appendChild(roleEl);
+            const statsContainer = document.createElement('div');
+            statsContainer.className = 'pilot-preview-stats';
+            const levels = pilotStatLevels[profile.id] ?? {};
+            for (const descriptor of pilotStatDescriptors) {
+                const row = document.createElement('div');
+                row.className = 'pilot-preview-stat';
+                const label = document.createElement('span');
+                label.className = 'pilot-preview-stat-label';
+                label.textContent = descriptor.label;
+                const bar = document.createElement('div');
+                bar.className = 'pilot-preview-bar';
+                const fill = document.createElement('div');
+                fill.className = 'pilot-preview-bar-fill';
+                const level = Math.max(
+                    0,
+                    Math.min(MAX_PILOT_STAT_LEVEL, Number(levels[descriptor.key] ?? 0))
+                );
+                fill.style.width = `${(level / MAX_PILOT_STAT_LEVEL) * 100}%`;
+                fill.dataset.level = String(level);
+                bar.appendChild(fill);
+                row.appendChild(label);
+                row.appendChild(bar);
+                statsContainer.appendChild(row);
+            }
+            card.appendChild(nameRow);
+            card.appendChild(statsContainer);
+            pilotPreviewGrid.appendChild(card);
+        }
+    }
+
+    function refreshPilotPreviewStates() {
+        if (!pilotPreviewGrid) {
+            return;
+        }
+        const cards = pilotPreviewGrid.querySelectorAll('.pilot-preview-card');
+        cards.forEach((card) => {
+            if (!(card instanceof HTMLElement)) {
+                return;
+            }
+            const characterId = card.dataset.characterId;
+            card.classList.toggle('active', characterId === activeCharacterId);
+            card.classList.toggle('pending', characterId === pendingCharacterId && pendingCharacterId !== activeCharacterId);
+        });
+    }
+
+    function updateSwapPilotButton() {
+        if (!swapPilotButton) {
+            return;
+        }
+        const profile = getCharacterProfile(activeCharacterId);
+        const label = profile ? `Swap Pilot (${profile.name})` : 'Swap Pilot';
+        swapPilotButton.textContent = label;
+        swapPilotButton.setAttribute('aria-label', profile ? `Swap pilot — current ${profile.name}` : 'Swap pilot');
+        if (!characterSelectModal) {
+            swapPilotButton.disabled = true;
+            swapPilotButton.setAttribute('aria-disabled', 'true');
+        } else {
+            swapPilotButton.disabled = false;
+            swapPilotButton.setAttribute('aria-disabled', 'false');
+        }
+    }
+
     const defaultCharacterSummaryText = characterSelectSummary?.textContent ?? '';
     let selectedCharacterImage = playerBaseImage;
     let activeCharacterId = 'nova';
     let pendingCharacterId = 'nova';
     let pendingLaunchAction = null;
     let lastEquippedCosmetics = {};
+    renderPilotPreview();
+    refreshPilotPreviewStates();
+    updateSwapPilotButton();
     const trailStyles = {
         rainbow: { id: 'rainbow', label: 'Prismatic Stream', type: 'spectrum' },
         aurora: {
@@ -5035,6 +5331,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateCharacterConfirmState();
         applyEquippedCosmetics(lastEquippedCosmetics);
+        refreshPilotPreviewStates();
+        updateSwapPilotButton();
     }
 
     function updateCharacterSummaryDisplay(profile) {
@@ -5067,6 +5365,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateCharacterSummaryDisplay(profile);
         }
         updateCharacterConfirmState();
+        refreshPilotPreviewStates();
     }
 
     function updateCharacterConfirmState() {
@@ -5179,6 +5478,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateCharacterSummaryDisplay(getCharacterProfile(pendingCharacterId));
             });
         }
+    }
+    if (swapPilotButton) {
+        swapPilotButton.addEventListener('click', () => {
+            if (swapPilotButton.disabled) {
+                return;
+            }
+            openCharacterSelect('launch');
+        });
+    }
+    if (pilotPreviewGrid) {
+        pilotPreviewGrid.addEventListener('click', (event) => {
+            const target = event.target instanceof HTMLElement ? event.target.closest('.pilot-preview-card') : null;
+            if (!target) {
+                return;
+            }
+            const characterId = target.dataset.characterId;
+            if (!characterId || !characterSelectModal) {
+                return;
+            }
+            openCharacterSelect('launch');
+            setPendingCharacter(characterId, { focusCard: true });
+        });
     }
     if (characterSelectConfirm) {
         characterSelectConfirm.addEventListener('click', () => {
@@ -8914,6 +9235,7 @@ document.addEventListener('DOMContentLoaded', () => {
             recorded,
             reason
         };
+        updateRunSummaryOverview();
         updateSharePanel();
         const runDescriptor = runsToday
             ? ` (${Math.min(runsToday, SUBMISSION_LIMIT)}/${SUBMISSION_LIMIT} today)`
@@ -8987,6 +9309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             recorded: false,
             reason: limitReached ? 'limit' : 'pending'
         };
+        updateRunSummaryOverview();
         updateSharePanel();
         updateTimerDisplay();
         const promptMessage = buildRunSummaryMessage(message, pendingSubmission, {
