@@ -3807,7 +3807,13 @@
                 meteorShowerTimer: 0,
                 nextMeteorShower: 0,
                 dashTimer: 0,
-                shieldHitPulse: 0
+                shieldHitPulse: 0,
+                bossBattle: {
+                    triggered: false,
+                    active: false,
+                    bossSpawned: false,
+                    defeated: false
+                }
             };
 
             updateTimerDisplay();
@@ -3985,7 +3991,24 @@
                     core: { r: 255, g: 120, b: 160 },
                     halo: { r: 255, g: 200, b: 120 },
                     spark: { r: 255, g: 180, b: 140 }
+                },
+                boss: {
+                    core: { r: 255, g: 105, b: 180 },
+                    halo: { r: 120, g: 190, b: 255 },
+                    spark: { r: 240, g: 255, b: 255 }
                 }
+            };
+
+            const BOSS_EVENT_TIME_MS = 60000;
+            const bossVillainType = {
+                key: 'boss',
+                name: 'Celestial Behemoth',
+                imageSrc: 'assets/boss1.png',
+                width: 220,
+                height: 220,
+                health: 36,
+                rotation: { min: -0.4, max: 0.4 },
+                behavior: { type: 'sine', amplitude: 48, speed: 1.2 }
             };
 
             const villainTypes = [
@@ -4110,6 +4133,12 @@
                 villain.image = image;
             }
 
+            const bossImage = loadImageWithFallback(
+                bossVillainType.imageSrc,
+                () => createVillainFallbackDataUrl(0) ?? bossVillainType.imageSrc
+            );
+            bossVillainType.image = bossImage;
+
             const player = {
                 x: canvas.width * 0.18,
                 y: canvas.height * 0.5,
@@ -4141,6 +4170,10 @@
                 state.lastVillainKey = null;
                 state.recentVillains.length = 0;
                 state.dashTimer = 0;
+                state.bossBattle.triggered = false;
+                state.bossBattle.active = false;
+                state.bossBattle.bossSpawned = false;
+                state.bossBattle.defeated = false;
                 hyperBeamState.intensity = 0;
                 hyperBeamState.wave = 0;
                 hyperBeamState.sparkTimer = 0;
@@ -5809,7 +5842,84 @@
                 return state;
             }
 
+            function isBossObstacle(obstacle) {
+                return obstacle?.villainType?.key === bossVillainType.key;
+            }
+
+            function completeBossBattle() {
+                state.bossBattle.active = false;
+                state.bossBattle.bossSpawned = false;
+                state.bossBattle.defeated = true;
+                spawnTimers.obstacle = 0;
+                spawnTimers.collectible = 0;
+                spawnTimers.powerUp = 0;
+            }
+
+            function spawnBoss() {
+                const width = bossVillainType.width;
+                const height = bossVillainType.height ?? width;
+                const spawnY = clamp(
+                    canvas.height * 0.5 - height * 0.5,
+                    32,
+                    canvas.height - height - 32
+                );
+                const rotationSpeed = randomBetween(
+                    bossVillainType.rotation.min,
+                    bossVillainType.rotation.max
+                );
+                const behaviorState = {
+                    phase: 0,
+                    amplitude: bossVillainType.behavior?.amplitude ?? 0,
+                    speed: bossVillainType.behavior?.speed ?? 0,
+                    baseY: spawnY
+                };
+
+                obstacles.push({
+                    x: canvas.width + width,
+                    y: spawnY,
+                    width,
+                    height,
+                    speed: Math.max(80, state.gameSpeed * 0.35),
+                    rotation: 0,
+                    rotationSpeed,
+                    health: bossVillainType.health,
+                    maxHealth: bossVillainType.health,
+                    hitFlash: 0,
+                    vx: 0,
+                    vy: 0,
+                    bounceTimer: 0,
+                    shieldCooldown: 0,
+                    villainType: bossVillainType,
+                    behaviorState,
+                    image: bossVillainType.image
+                });
+                state.bossBattle.bossSpawned = true;
+                state.lastVillainKey = bossVillainType.key;
+            }
+
+            function startBossBattle() {
+                if (state.bossBattle.active || state.bossBattle.defeated) {
+                    return;
+                }
+                state.bossBattle.triggered = true;
+                state.bossBattle.active = true;
+                state.bossBattle.bossSpawned = false;
+                obstacles.length = 0;
+                collectibles.length = 0;
+                powerUps.length = 0;
+                spawnTimers.obstacle = 0;
+                spawnTimers.collectible = 0;
+                spawnTimers.powerUp = 0;
+                spawnBoss();
+            }
+
             function spawnObstacle() {
+                if (state.bossBattle.active) {
+                    if (!state.bossBattle.bossSpawned) {
+                        spawnBoss();
+                    }
+                    return;
+                }
                 const villainType = selectVillainType();
                 const size = randomBetween(villainType.size.min, villainType.size.max);
                 const health = getVillainHealth(size, villainType);
@@ -5954,6 +6064,7 @@
                 const deltaSeconds = delta / 1000;
                 for (let i = obstacles.length - 1; i >= 0; i--) {
                     const obstacle = obstacles[i];
+                    const isBoss = isBossObstacle(obstacle);
                     obstacle.x -= obstacle.speed * deltaSeconds;
                     obstacle.rotation += obstacle.rotationSpeed * deltaSeconds;
                     if (obstacle.hitFlash > 0) {
@@ -5982,6 +6093,9 @@
 
                     if (obstacle.x + obstacle.width < 0) {
                         obstacles.splice(i, 1);
+                        if (isBoss) {
+                            return triggerGameOver('The boss overwhelmed your defenses!');
+                        }
                         handleVillainEscape(obstacle);
                         continue;
                     }
@@ -5996,6 +6110,9 @@
                     }
 
                     if (rectOverlap(player, obstacle)) {
+                        if (isBoss) {
+                            return triggerGameOver('The boss crushed your ship!');
+                        }
                         if (isShieldActive() && obstacle.shieldCooldown <= 0) {
                             repelObstacleFromPlayer(obstacle);
                             continue;
@@ -6007,13 +6124,17 @@
                         for (let j = trail.length - 1; j >= 0; j--) {
                             const t = trail[j];
                             if (circleRectOverlap({ x: t.x, y: t.y, radius: 10 }, obstacle)) {
-                                if (isShieldActive()) {
+                                if (isShieldActive() && !isBoss) {
                                     if (obstacle.shieldCooldown <= 0) {
                                         repelObstacleFromPlayer(obstacle);
                                     }
                                     break;
                                 }
-                                return triggerGameOver('Your tail tangled with space junk!');
+                                return triggerGameOver(
+                                    isBoss
+                                        ? 'The boss shattered your tail formation!'
+                                        : 'Your tail tangled with space junk!'
+                                );
                             }
                         }
                     }
@@ -6447,6 +6568,13 @@
                 spawnTimers.obstacle += delta;
                 spawnTimers.collectible += delta;
                 spawnTimers.powerUp += delta;
+
+                if (state.bossBattle.active) {
+                    if (!state.bossBattle.bossSpawned) {
+                        spawnBoss();
+                    }
+                    return;
+                }
 
                 const obstacleInterval = config.obstacleSpawnInterval / (1 + state.gameSpeed * 0.005 * getSpawnIntensity('obstacle'));
                 const collectibleInterval = config.collectibleSpawnInterval / (1 + state.gameSpeed * 0.004 * getSpawnIntensity('collectible'));
@@ -6895,6 +7023,18 @@
                     color: '#f9a8d4'
                 });
                 triggerScreenShake(12, 300);
+                if (isBossObstacle(obstacle)) {
+                    completeBossBattle();
+                    spawnFloatingText({
+                        text: 'Boss Neutralized!',
+                        x: obstacle.x + obstacle.width * 0.5,
+                        y: obstacle.y,
+                        color: '#38bdf8',
+                        life: 1400,
+                        variant: 'score',
+                        multiplier: 1
+                    });
+                }
             }
 
             function awardDodge() {
@@ -7832,6 +7972,10 @@
                 state.elapsedTime += delta;
                 updateIntelLore(state.elapsedTime);
                 state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (delta / 1000);
+
+                if (!state.bossBattle.triggered && state.elapsedTime >= BOSS_EVENT_TIME_MS) {
+                    startBossBattle();
+                }
 
                 updateCameraShake(delta);
                 updatePlayer(delta);
