@@ -910,6 +910,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const runSummaryPlacementEl = document.getElementById('runSummaryPlacement');
     const runSummaryRunsEl = document.getElementById('runSummaryRuns');
     const swapPilotButton = document.getElementById('swapPilotButton');
+    const preflightSwapPilotButton = document.getElementById('preflightSwapPilotButton');
     const pilotPreviewGrid = document.getElementById('pilotPreviewGrid');
     const shareButton = document.getElementById('shareButton');
     const shareStatusEl = document.getElementById('shareStatus');
@@ -5274,19 +5275,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateSwapPilotButton() {
-        if (!swapPilotButton) {
-            return;
-        }
         const profile = getCharacterProfile(activeCharacterId);
         const label = profile ? `Swap Pilot (${profile.name})` : 'Swap Pilot';
-        swapPilotButton.textContent = label;
-        swapPilotButton.setAttribute('aria-label', profile ? `Swap pilot — current ${profile.name}` : 'Swap pilot');
-        if (!characterSelectModal) {
-            swapPilotButton.disabled = true;
-            swapPilotButton.setAttribute('aria-disabled', 'true');
-        } else {
-            swapPilotButton.disabled = false;
-            swapPilotButton.setAttribute('aria-disabled', 'false');
+        const ariaLabel = profile ? `Swap pilot — current ${profile.name}` : 'Swap pilot';
+        const canSelectPilot = Boolean(characterSelectModal);
+        if (swapPilotButton) {
+            swapPilotButton.textContent = label;
+            swapPilotButton.setAttribute('aria-label', ariaLabel);
+            if (!canSelectPilot) {
+                swapPilotButton.disabled = true;
+                swapPilotButton.setAttribute('aria-disabled', 'true');
+            } else {
+                swapPilotButton.disabled = false;
+                swapPilotButton.setAttribute('aria-disabled', 'false');
+            }
+        }
+        if (preflightSwapPilotButton) {
+            preflightSwapPilotButton.textContent = label;
+            preflightSwapPilotButton.setAttribute('aria-label', ariaLabel);
+            const shouldDisable = !canSelectPilot || preflightSwapPilotButton.hidden;
+            preflightSwapPilotButton.disabled = shouldDisable;
+            preflightSwapPilotButton.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
         }
     }
 
@@ -5636,6 +5645,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function requestPilotSelection(source) {
+        openCharacterSelect(resolveCharacterSelectAction(), { source });
+    }
+
     function closeCharacterSelect() {
         if (!characterSelectModal) {
             return;
@@ -5691,7 +5704,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (swapPilotButton.disabled) {
                 return;
             }
-            openCharacterSelect(resolveCharacterSelectAction(), { source: 'swap' });
+            requestPilotSelection('swap');
+        });
+    }
+    if (preflightSwapPilotButton) {
+        preflightSwapPilotButton.addEventListener('click', () => {
+            if (preflightSwapPilotButton.disabled) {
+                return;
+            }
+            requestPilotSelection('preflight');
         });
     }
     if (pilotPreviewGrid) {
@@ -5704,7 +5725,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!characterId || !characterSelectModal) {
                 return;
             }
-            openCharacterSelect(resolveCharacterSelectAction(), { source: 'preview' });
+            requestPilotSelection('preview');
             setPendingCharacter(characterId, { focusCard: true });
         });
     }
@@ -6861,6 +6882,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mobilePreflightButton) {
             mobilePreflightButton.disabled = !visible || !isTouchInterface;
         }
+        if (preflightSwapPilotButton) {
+            preflightSwapPilotButton.hidden = !visible;
+            preflightSwapPilotButton.setAttribute('aria-hidden', visible ? 'false' : 'true');
+            const shouldDisable = !visible || !characterSelectModal;
+            preflightSwapPilotButton.disabled = shouldDisable;
+            preflightSwapPilotButton.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
+        }
+        updateSwapPilotButton();
     }
 
     function showPreflightPrompt() {
