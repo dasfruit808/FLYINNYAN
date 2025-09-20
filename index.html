@@ -187,8 +187,9 @@
         <button id="fireButton" type="button" aria-label="Fire cosmic arrows">Fire</button>
     </div>
     <div id="overlay">
-        <h1>NYAN ESCAPE</h1>
-        <div id="comicIntro" class="comic-panels" hidden>
+        <div class="overlay-content">
+            <h1>NYAN DASH</h1>
+            <div id="comicIntro" class="comic-panels" hidden>
             <article class="comic-panel">
                 <h3>Inciting Incident</h3>
                 <p>Space Station Meowprise is under siege by neon asteroids. Only your star-kitted reflexes can cut a path to safety.</p>
@@ -202,61 +203,62 @@
                 <p>Every logged flight inspires the squadron. Chronicle your best three runs each cycle and rally the galaxy.</p>
             </article>
         </div>
-        <p id="overlayMessage">Thread the cosmic needle, gather Points, and charge Nova Pulses to vaporize space junk. Ready to glide?</p>
-        <form id="callsignForm" autocomplete="off" novalidate>
-            <label for="playerNameInput">Pilot Callsign</label>
-            <div class="input-row">
-                <input id="playerNameInput" name="playerName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Ace Pilot" aria-describedby="callsignHint">
-                <span id="callsignHint">Confirm your callsign, then press Start (Enter) to launch.</span>
-            </div>
-        </form>
-        <div id="overlayActions">
-            <button id="overlayButton" type="button" disabled aria-disabled="true">Confirm Callsign</button>
-            <button id="overlaySecondaryButton" type="button" class="secondary" hidden aria-disabled="true">Skip Submission</button>
-        </div>
-        <div id="overlayPanels">
-            <div id="highScorePanel">
-                <div id="highScoreTitle">Top Flight Times</div>
-                <ol id="highScoreList"></ol>
-            </div>
-            <div id="leaderboardPanel">
-                <div class="panel-header">
-                    <div class="panel-title" id="leaderboardTitle">Galaxy Standings</div>
-                    <div class="panel-tabs" role="tablist" aria-label="Leaderboard scope">
-                        <button
-                            type="button"
-                            class="leaderboard-tab active"
-                            data-leaderboard-scope="global"
-                            aria-pressed="true"
-                        >
-                            Global
-                        </button>
-                        <button
-                            type="button"
-                            class="leaderboard-tab"
-                            data-leaderboard-scope="weekly"
-                            aria-pressed="false"
-                        >
-                            Weekly
-                        </button>
-                    </div>
+            <p id="overlayMessage">Thread the cosmic needle, gather Points, and charge Nova Pulses to vaporize space junk. Ready to glide?</p>
+            <form id="callsignForm" autocomplete="off" novalidate>
+                <label for="playerNameInput">Pilot Callsign</label>
+                <div class="input-row">
+                    <input id="playerNameInput" name="playerName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Ace Pilot" aria-describedby="callsignHint">
+                    <span id="callsignHint">Confirm your callsign, then press Start (Enter) to launch.</span>
                 </div>
-                <p
-                    id="leaderboardStatus"
-                    class="panel-status"
-                    role="status"
-                    aria-live="polite"
-                    hidden
-                ></p>
-                <ol id="leaderboardList"></ol>
+            </form>
+            <div id="overlayActions">
+                <button id="overlayButton" type="button" disabled aria-disabled="true">Confirm Callsign</button>
+                <button id="overlaySecondaryButton" type="button" class="secondary" hidden aria-disabled="true">Skip Submission</button>
             </div>
-        </div>
-        <div id="sharePanel">
-            <div class="panel-title">Broadcast Run</div>
-            <div class="share-buttons">
-                <button id="shareButton" class="share-button" type="button">Share Flight Log</button>
+            <div id="overlayPanels">
+                <div id="highScorePanel">
+                    <div id="highScoreTitle">Top Flight Times</div>
+                    <ol id="highScoreList"></ol>
+                </div>
+                <div id="leaderboardPanel">
+                    <div class="panel-header">
+                        <div class="panel-title" id="leaderboardTitle">Galaxy Standings</div>
+                        <div class="panel-tabs" role="tablist" aria-label="Leaderboard scope">
+                            <button
+                                type="button"
+                                class="leaderboard-tab active"
+                                data-leaderboard-scope="global"
+                                aria-pressed="true"
+                            >
+                                Global
+                            </button>
+                            <button
+                                type="button"
+                                class="leaderboard-tab"
+                                data-leaderboard-scope="weekly"
+                                aria-pressed="false"
+                            >
+                                Weekly
+                            </button>
+                        </div>
+                    </div>
+                    <p
+                        id="leaderboardStatus"
+                        class="panel-status"
+                        role="status"
+                        aria-live="polite"
+                        hidden
+                    ></p>
+                    <ol id="leaderboardList"></ol>
+                </div>
             </div>
-            <p id="shareStatus" role="status" aria-live="polite"></p>
+            <div id="sharePanel">
+                <div class="panel-title">Broadcast Run</div>
+                <div class="share-buttons">
+                    <button id="shareButton" class="share-button" type="button">Share Flight Log</button>
+                </div>
+                <p id="shareStatus" role="status" aria-live="polite"></p>
+            </div>
         </div>
     </div>
     <div id="characterSelectModal" hidden aria-hidden="true">
