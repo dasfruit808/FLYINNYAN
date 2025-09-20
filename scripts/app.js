@@ -5975,6 +5975,19 @@ document.addEventListener('DOMContentLoaded', () => {
         Spacebar: 'Space',
         ' ': 'Space'
     };
+    const keyCodeAliasMap = {
+        13: 'Enter',
+        27: 'Escape',
+        32: 'Space',
+        37: 'ArrowLeft',
+        38: 'ArrowUp',
+        39: 'ArrowRight',
+        40: 'ArrowDown',
+        65: 'KeyA',
+        68: 'KeyD',
+        83: 'KeyS',
+        87: 'KeyW'
+    };
     const preventDefaultKeys = new Set([
         'ArrowUp',
         'ArrowDown',
@@ -6002,6 +6015,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (upper >= 'A' && upper <= 'Z') {
                 return `Key${upper}`;
             }
+        }
+        if (typeof event.keyCode === 'number' && keyCodeAliasMap[event.keyCode]) {
+            return keyCodeAliasMap[event.keyCode];
+        }
+        if (typeof event.which === 'number' && keyCodeAliasMap[event.which]) {
+            return keyCodeAliasMap[event.which];
         }
         return key ?? code;
     }
