@@ -384,51 +384,14 @@
             aria-labelledby="characterSelectTitle"
         >
             <h2 id="characterSelectTitle">Select Your Pilot</h2>
-            <p id="characterSelectSummary">
-                Each pilot tunes the starfighter differently. Hover or focus to reveal their loadout, then lock in the
-                approach that fits this run.
-            </p>
-            <div class="character-grid" role="list">
-                <button type="button" class="character-card" data-character-id="nova" role="listitem">
-                    <img src="assets/player.png" alt="Nova Navigator" loading="lazy" />
-                    <div class="character-name">Nova Navigator</div>
-                    <div class="character-role">Balanced Ace</div>
-                    <div class="character-details">
-                        <strong>Flight Profile</strong>
-                        <ul>
-                            <li>Factory-tuned thrusters for adaptable handling.</li>
-                            <li>Even dash burst and recovery for reliable escapes.</li>
-                            <li>Baseline plasma cadence ready for any mission.</li>
-                        </ul>
-                    </div>
-                </button>
-                <button type="button" class="character-card" data-character-id="comet" role="listitem">
-                    <img src="assets/player2.png" alt="Comet Vanguard" loading="lazy" />
-                    <div class="character-name">Comet Vanguard</div>
-                    <div class="character-role">Speed Specialist</div>
-                    <div class="character-details">
-                        <strong>Flight Profile</strong>
-                        <ul>
-                            <li>High-output engines spike acceleration and top speed.</li>
-                            <li>Shorter dash cooldown built for aggressive weaving.</li>
-                            <li>Rapid-fire bolts keep pressure on debris clusters.</li>
-                        </ul>
-                    </div>
-                </button>
-                <button type="button" class="character-card" data-character-id="nebula" role="listitem">
-                    <img src="assets/player3.png" alt="Nebula Warden" loading="lazy" />
-                    <div class="character-name">Nebula Warden</div>
-                    <div class="character-role">Shielded Scout</div>
-                    <div class="character-details">
-                        <strong>Flight Profile</strong>
-                        <ul>
-                            <li>Compact hull trims the hitbox for precision dodges.</li>
-                            <li>Extended dash window excels at sustained evasions.</li>
-                            <li>Heavy plasma rounds punch through asteroid armor.</li>
-                        </ul>
-                    </div>
-                </button>
+            <div id="characterSelectSummary" aria-live="polite">
+                <p class="character-summary-description" data-character-summary-description>
+                    Each pilot tunes the starfighter differently. Hover or focus to reveal their loadout, then lock in
+                    the approach that fits this run.
+                </p>
+                <ul class="character-summary-ongoing" data-character-summary-ongoing hidden></ul>
             </div>
+            <div class="character-grid" role="list" data-character-grid></div>
             <div class="character-select-actions">
                 <button id="characterSelectConfirm" type="button" disabled aria-disabled="true">
                     Select a Pilot

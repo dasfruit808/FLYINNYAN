@@ -1545,19 +1545,44 @@ body.character-select-open {
 }
 
 #characterSelectSummary {
-    margin: 0;
-    font-size: clamp(0.72rem, 1.9vw, 0.9rem);
     width: min(72ch, 100%);
     max-width: 72ch;
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(10px, 2.4vw, 16px);
     color: rgba(191, 219, 254, 0.86);
     line-height: 1.5;
-    min-height: clamp(64px, 12vh, 96px);
-    max-height: clamp(120px, 24vh, 160px);
+    min-height: clamp(64px, 12vh, 108px);
+    max-height: clamp(140px, 26vh, 188px);
     overflow-y: auto;
+    text-align: center;
     scrollbar-gutter: stable both-edges;
     overscroll-behavior: contain;
     padding-right: clamp(0px, 1vw, 10px);
+}
+
+#characterSelectSummary .character-summary-description {
+    margin: 0;
+    font-size: clamp(0.72rem, 1.9vw, 0.9rem);
+}
+
+#characterSelectSummary .character-summary-ongoing {
+    width: 100%;
+    margin: 0;
+    padding: 0 0 0 1.25em;
+    list-style: disc;
+    text-align: left;
+    font-size: clamp(0.68rem, 1.7vw, 0.82rem);
+    color: rgba(226, 232, 240, 0.92);
+}
+
+#characterSelectSummary .character-summary-ongoing li {
+    margin-bottom: 0.35em;
+}
+
+#characterSelectSummary .character-summary-ongoing[hidden] {
+    display: none;
 }
 
 .character-grid {
