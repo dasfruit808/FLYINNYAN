@@ -7175,7 +7175,7 @@
             };
             const defaultCollectScore = 80;
 
-            const defaultConfig = {
+            const baseGameConfig = {
                 baseGameSpeed: 160,
                 speedGrowth: 5,
                 obstacleSpawnInterval: 950,
@@ -7298,7 +7298,7 @@
                     villainEscape: 140
                 }
             };
-            const config = applyOverrides(cloneConfig(defaultConfig), gameplayOverrides ?? {});
+            const config = applyOverrides(cloneConfig(baseGameConfig), gameplayOverrides ?? {});
             const basePlayerConfig = cloneConfig(config.player);
             const baseDashConfig = cloneConfig(config.player.dash);
             const baseProjectileSettings = {
@@ -7594,7 +7594,7 @@
                 ? Math.max(1, Number(baseCollectScoreRaw))
                 : defaultCollectScore;
             if (!config.score || !isPlainObject(config.score)) {
-                config.score = { ...defaultConfig.score };
+                config.score = { ...baseGameConfig.score };
             }
             config.score.collect = baseCollectScore;
 
