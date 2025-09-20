@@ -35,12 +35,14 @@
         }
 
         #gameShell {
+            --layout-gap: clamp(20px, 4vw, 32px);
             position: relative;
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-            gap: clamp(20px, 4vw, 32px);
+            gap: var(--layout-gap);
             align-items: start;
             width: min(1400px, 100%);
+            padding-inline: var(--layout-gap);
             z-index: 0;
         }
 
@@ -250,7 +252,7 @@
             max-height: calc(100vh - 160px);
             overflow-y: auto;
             padding-right: 4px;
-            margin-left: clamp(24px, 4vw, 60px);
+            margin-inline: 0;
         }
 
         #instructions .hud-card {
