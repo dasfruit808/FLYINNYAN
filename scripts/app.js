@@ -10538,7 +10538,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let lastTime = null;
     let accumulatedDelta = 0;
-    const FIXED_TIMESTEP = 16;
+    const FIXED_TIMESTEP = 1000 / 60; // Use a precise 60 Hz simulation step to avoid browser-specific rounding.
     const MAX_ACCUMULATED_TIME = FIXED_TIMESTEP * 6;
 
     function gameLoop(timestamp = performance.now()) {
