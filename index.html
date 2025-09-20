@@ -214,50 +214,154 @@
             <div id="overlayActions">
                 <button id="overlayButton" type="button" disabled aria-disabled="true">Confirm Callsign</button>
                 <button id="overlaySecondaryButton" type="button" class="secondary" hidden aria-disabled="true">Skip Submission</button>
+                <button id="swapPilotButton" type="button" class="tertiary">Swap Pilot</button>
+            </div>
+            <div id="pilotPreview" aria-live="polite">
+                <div class="pilot-preview-header">
+                    <h2>Pilot Loadouts</h2>
+                    <p id="pilotPreviewDescription">Each pilot tweaks the ship's handling. Compare at a glance, then open the hangar to inspect full specs.</p>
+                </div>
+                <div id="pilotPreviewGrid" class="pilot-preview-grid" role="list"></div>
             </div>
             <div id="overlayPanels">
-                <div id="highScorePanel">
-                    <div id="highScoreTitle">Top Flight Times</div>
-                    <ol id="highScoreList"></ol>
-                </div>
-                <div id="leaderboardPanel">
-                    <div class="panel-header">
-                        <div class="panel-title" id="leaderboardTitle">Galaxy Standings</div>
-                        <div class="panel-tabs" role="tablist" aria-label="Leaderboard scope">
+                <article id="summaryCard" class="summary-card" aria-label="Flight summary">
+                    <header class="summary-card-header">
+                        <h2 class="summary-card-title">Flight Debrief</h2>
+                        <div class="summary-tabs" role="tablist" aria-label="Debrief categories">
                             <button
                                 type="button"
-                                class="leaderboard-tab active"
-                                data-leaderboard-scope="global"
-                                aria-pressed="true"
+                                class="summary-tab active"
+                                id="summaryTab-run"
+                                data-summary-tab="run"
+                                aria-selected="true"
+                                aria-controls="summarySectionRun"
+                                role="tab"
                             >
-                                Global
+                                Your run
                             </button>
                             <button
                                 type="button"
-                                class="leaderboard-tab"
-                                data-leaderboard-scope="weekly"
-                                aria-pressed="false"
+                                class="summary-tab"
+                                id="summaryTab-rank"
+                                data-summary-tab="rank"
+                                aria-selected="false"
+                                aria-controls="summarySectionRank"
+                                role="tab"
+                                tabindex="-1"
                             >
-                                Weekly
+                                Global rank
+                            </button>
+                            <button
+                                type="button"
+                                class="summary-tab"
+                                id="summaryTab-share"
+                                data-summary-tab="share"
+                                aria-selected="false"
+                                aria-controls="summarySectionShare"
+                                role="tab"
+                                tabindex="-1"
+                            >
+                                Share
                             </button>
                         </div>
+                    </header>
+                    <div class="summary-body">
+                        <section
+                            id="summarySectionRun"
+                            class="summary-section active"
+                            data-summary-section="run"
+                            role="tabpanel"
+                            aria-labelledby="summaryTab-run"
+                        >
+                            <header class="summary-section-header">
+                                <h3>Your run</h3>
+                                <p id="runSummaryStatus" class="summary-status" role="status" aria-live="polite"></p>
+                            </header>
+                            <div class="run-summary-grid" role="list">
+                                <div class="run-summary-metric" role="listitem">
+                                    <span class="label">Flight time</span>
+                                    <span class="value" id="runSummaryTime">&mdash;</span>
+                                </div>
+                                <div class="run-summary-metric" role="listitem">
+                                    <span class="label">Score</span>
+                                    <span class="value" id="runSummaryScore">&mdash;</span>
+                                </div>
+                                <div class="run-summary-metric" role="listitem">
+                                    <span class="label">Best tail</span>
+                                    <span class="value" id="runSummaryStreak">&mdash;</span>
+                                </div>
+                                <div class="run-summary-metric" role="listitem">
+                                    <span class="label">Pickups</span>
+                                    <span class="value" id="runSummaryNyan">&mdash;</span>
+                                </div>
+                            </div>
+                            <div class="run-summary-meta">
+                                <span id="runSummaryPlacement" class="meta-item"></span>
+                                <span id="runSummaryRuns" class="meta-item"></span>
+                            </div>
+                            <div id="highScorePanel" class="summary-subpanel" aria-live="polite">
+                                <div id="highScoreTitle" class="summary-subtitle">Top Flight Times</div>
+                                <ol id="highScoreList"></ol>
+                            </div>
+                        </section>
+                        <section
+                            id="summarySectionRank"
+                            class="summary-section"
+                            data-summary-section="rank"
+                            role="tabpanel"
+                            aria-labelledby="summaryTab-rank"
+                            hidden
+                        >
+                            <div id="leaderboardPanel" class="summary-subpanel">
+                                <div class="panel-header">
+                                    <div class="panel-title" id="leaderboardTitle">Galaxy Standings</div>
+                                    <div class="panel-tabs" role="tablist" aria-label="Leaderboard scope">
+                                        <button
+                                            type="button"
+                                            class="leaderboard-tab active"
+                                            data-leaderboard-scope="global"
+                                            aria-pressed="true"
+                                        >
+                                            Global
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="leaderboard-tab"
+                                            data-leaderboard-scope="weekly"
+                                            aria-pressed="false"
+                                        >
+                                            Weekly
+                                        </button>
+                                    </div>
+                                </div>
+                                <p
+                                    id="leaderboardStatus"
+                                    class="panel-status"
+                                    role="status"
+                                    aria-live="polite"
+                                    hidden
+                                ></p>
+                                <ol id="leaderboardList"></ol>
+                            </div>
+                        </section>
+                        <section
+                            id="summarySectionShare"
+                            class="summary-section"
+                            data-summary-section="share"
+                            role="tabpanel"
+                            aria-labelledby="summaryTab-share"
+                            hidden
+                        >
+                            <div id="sharePanel" class="summary-subpanel">
+                                <div class="panel-title">Broadcast Run</div>
+                                <div class="share-buttons">
+                                    <button id="shareButton" class="share-button" type="button">Share Flight Log</button>
+                                </div>
+                                <p id="shareStatus" role="status" aria-live="polite"></p>
+                            </div>
+                        </section>
                     </div>
-                    <p
-                        id="leaderboardStatus"
-                        class="panel-status"
-                        role="status"
-                        aria-live="polite"
-                        hidden
-                    ></p>
-                    <ol id="leaderboardList"></ol>
-                </div>
-            </div>
-            <div id="sharePanel">
-                <div class="panel-title">Broadcast Run</div>
-                <div class="share-buttons">
-                    <button id="shareButton" class="share-button" type="button">Share Flight Log</button>
-                </div>
-                <p id="shareStatus" role="status" aria-live="polite"></p>
+                </article>
             </div>
         </div>
     </div>
