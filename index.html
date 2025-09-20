@@ -274,6 +274,12 @@
             margin-inline: 0;
         }
 
+        #instructionPanels {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
         #instructions .hud-card {
             background: linear-gradient(165deg, rgba(15, 23, 42, 0.85), rgba(8, 16, 32, 0.78));
             border-radius: 16px;
@@ -1012,18 +1018,143 @@
         }
 
         @media (max-width: 768px) {
+            :root {
+                --mobile-hud-collapsed-height: clamp(64px, 16vw, 96px);
+            }
+
             body {
                 padding: clamp(16px, 4vw, 28px);
+                padding-bottom: calc(var(--mobile-hud-collapsed-height) + clamp(18px, 4vw, 32px));
+                align-items: stretch;
             }
 
             #gameShell {
                 gap: clamp(16px, 5vw, 24px);
+                grid-template-columns: 1fr;
+                width: 100%;
+                padding-inline: 0;
+            }
+
+            #playfield {
+                width: 100%;
+            }
+
+            canvas {
+                width: 100%;
+                height: auto;
+                max-width: 100%;
             }
 
             #loadingStatus {
                 width: min(480px, 100%);
             }
 
+            #instructions {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-width: none;
+                margin: 0;
+                padding: 14px clamp(16px, 5vw, 22px) clamp(18px, 5vw, 26px);
+                border-radius: 22px 22px 0 0;
+                background: linear-gradient(165deg, rgba(15, 23, 42, 0.92), rgba(8, 16, 32, 0.9));
+                box-shadow: 0 -18px 40px rgba(2, 6, 23, 0.65);
+                max-height: min(70vh, 420px);
+                overflow: hidden;
+            }
+
+            #instructionNav {
+                position: static;
+                order: 2;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                padding: 0;
+                margin: 0;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                overflow-x: auto;
+            }
+
+            #instructionNav a {
+                flex: 1;
+                min-width: max(68px, 18%);
+                padding: 10px 12px;
+                font-size: 0.62rem;
+                letter-spacing: 0.12em;
+                border-radius: 999px;
+                border: 1px solid rgba(148, 210, 255, 0.28);
+                background: rgba(15, 23, 42, 0.6);
+                color: rgba(191, 219, 254, 0.92);
+                box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.1);
+                white-space: nowrap;
+            }
+
+            #instructionNav a:hover,
+            #instructionNav a:focus-visible {
+                transform: none;
+            }
+
+            #instructionNav a.mobile-active {
+                background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(99, 102, 241, 0.82));
+                color: rgba(12, 18, 32, 0.92);
+                box-shadow: 0 8px 18px rgba(56, 189, 248, 0.35);
+            }
+
+            #instructionPanels {
+                order: 1;
+                flex: 1;
+                overflow: hidden;
+                display: none;
+                padding-right: 2px;
+            }
+
+            #instructions[data-mobile-open] {
+                overflow: hidden;
+            }
+
+            #instructions[data-mobile-open] #instructionPanels {
+                display: block;
+                overflow-y: auto;
+            }
+
+            #instructions[data-mobile-open] #instructionPanels > * {
+                display: none;
+            }
+
+            #instructions[data-mobile-open="stats"] #instructionPanels > #stats,
+            #instructions[data-mobile-open="controlsCard"] #instructionPanels > #controlsCard,
+            #instructions[data-mobile-open="missionCard"] #instructionPanels > #missionCard,
+            #instructions[data-mobile-open="intelCard"] #instructionPanels > #intelCard,
+            #instructions[data-mobile-open="socialCard"] #instructionPanels > #socialCard {
+                display: block;
+            }
+
+            #instructions:not([data-mobile-open]) {
+                max-height: var(--mobile-hud-collapsed-height);
+            }
+
+            #instructions:not([data-mobile-open]) #instructionNav {
+                padding-bottom: 2px;
+            }
+
+            #instructions:not([data-mobile-open]) #instructionPanels {
+                display: none;
+            }
+
+            #joystickZone {
+                left: clamp(12px, 6vw, 24px);
+                bottom: calc(var(--mobile-hud-collapsed-height) + clamp(14px, 5vw, 28px));
+            }
+
+            #fireButton {
+                right: clamp(12px, 6vw, 24px);
+                bottom: calc(var(--mobile-hud-collapsed-height) + clamp(18px, 5vw, 32px));
+            }
         }
     </style>
 </head>
@@ -1047,101 +1178,110 @@
         </div>
         <aside id="instructions" aria-label="Flight telemetry, controls, and mission information">
             <nav id="instructionNav" aria-label="Quick mission links">
-                <a href="#stats">Telemetry</a>
-                <a href="#controlsCard">Controls</a>
-                <a href="#missionCard">Mission</a>
-                <a href="#intelCard">Intel</a>
-                <a href="#socialCard">Feed</a>
+                <a href="#stats" data-panel-target="stats" aria-controls="stats" aria-expanded="false">Telemetry</a>
+                <a href="#controlsCard" data-panel-target="controlsCard" aria-controls="controlsCard" aria-expanded="false">Controls</a>
+                <a href="#missionCard" data-panel-target="missionCard" aria-controls="missionCard" aria-expanded="false">Mission</a>
+                <a href="#intelCard" data-panel-target="intelCard" aria-controls="intelCard" aria-expanded="false">Intel</a>
+                <a href="#socialCard" data-panel-target="socialCard" aria-controls="socialCard" aria-expanded="false">Feed</a>
             </nav>
-            <section id="stats" role="complementary" aria-live="polite">
-                <h2 class="card-title">Flight Telemetry</h2>
-                <div class="stat-list" role="presentation">
-                    <div class="stat-row">
-                        <span class="stat-label">Score</span>
-                    <span class="value" id="score">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Points</span>
-                    <span class="value" id="nyan">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Streak</span>
-                    <span class="value" id="streak">x1</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Best Tail</span>
-                    <span class="value" id="bestStreak">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">MCAP</span>
-                    <span class="value" id="mcap">6.6K</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">VOL</span>
-                    <span class="value" id="vol">2.8K</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Boosts</span>
-                    <span class="value" id="powerUps">None</span>
-                </div>
-            </div>
-            <div id="comboMeter" role="progressbar" aria-label="Combo charge" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                <div id="comboFill"></div>
-            </div>
-        </section>
-        <section class="hud-card" id="controlsCard" aria-labelledby="controlsCardTitle">
-            <h2 class="card-title" id="controlsCardTitle">Flight Controls</h2>
-            <div class="card-body">
-                <div class="control-list" role="list">
-                    <div class="control-row" role="listitem">
-                        <div class="control-keys" aria-label="Movement keys">
-                            <span class="keycap" aria-hidden="true">←</span>
-                            <span class="keycap" aria-hidden="true">↑</span>
-                            <span class="keycap" aria-hidden="true">↓</span>
-                            <span class="keycap" aria-hidden="true">→</span>
+            <div id="instructionPanels">
+                <section id="stats" role="complementary" aria-live="polite">
+                    <h2 class="card-title">Flight Telemetry</h2>
+                    <div class="stat-list" role="presentation">
+                        <div class="stat-row">
+                            <span class="stat-label">Score</span>
+                            <span class="value" id="score">0</span>
                         </div>
-                        <div class="control-action">Vector the catship through hazards.</div>
-                    </div>
-                    <div class="control-row" role="listitem">
-                        <div class="control-keys" aria-label="Fire control">
-                            <span class="keycap wide" aria-hidden="true">Space</span>
+                        <div class="stat-row">
+                            <span class="stat-label">Points</span>
+                            <span class="value" id="nyan">0</span>
                         </div>
-                        <div class="control-action">Launch precision plasma bolts.</div>
-                    </div>
-                    <div class="control-row" role="listitem">
-                        <div class="control-keys" aria-label="Touch controls">
-                            <span class="keycap wide" aria-hidden="true">Touch</span>
+                        <div class="stat-row">
+                            <span class="stat-label">Streak</span>
+                            <span class="value" id="streak">x1</span>
                         </div>
-                        <div class="control-action">Drag the left pad to steer, tap Fire to engage.</div>
+                        <div class="stat-row">
+                            <span class="stat-label">Best Tail</span>
+                            <span class="value" id="bestStreak">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">MCAP</span>
+                            <span class="value" id="mcap">6.6K</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">VOL</span>
+                            <span class="value" id="vol">2.8K</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Boosts</span>
+                            <span class="value" id="powerUps">None</span>
+                        </div>
                     </div>
-                </div>
+                    <div
+                        id="comboMeter"
+                        role="progressbar"
+                        aria-label="Combo charge"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow="0"
+                    >
+                        <div id="comboFill"></div>
+                    </div>
+                </section>
+                <section class="hud-card" id="controlsCard" aria-labelledby="controlsCardTitle">
+                    <h2 class="card-title" id="controlsCardTitle">Flight Controls</h2>
+                    <div class="card-body">
+                        <div class="control-list" role="list">
+                            <div class="control-row" role="listitem">
+                                <div class="control-keys" aria-label="Movement keys">
+                                    <span class="keycap" aria-hidden="true">←</span>
+                                    <span class="keycap" aria-hidden="true">↑</span>
+                                    <span class="keycap" aria-hidden="true">↓</span>
+                                    <span class="keycap" aria-hidden="true">→</span>
+                                </div>
+                                <div class="control-action">Vector the catship through hazards.</div>
+                            </div>
+                            <div class="control-row" role="listitem">
+                                <div class="control-keys" aria-label="Fire control">
+                                    <span class="keycap wide" aria-hidden="true">Space</span>
+                                </div>
+                                <div class="control-action">Launch precision plasma bolts.</div>
+                            </div>
+                            <div class="control-row" role="listitem">
+                                <div class="control-keys" aria-label="Touch controls">
+                                    <span class="keycap wide" aria-hidden="true">Touch</span>
+                                </div>
+                                <div class="control-action">Drag the left pad to steer, tap Fire to engage.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section class="hud-card" id="missionCard" aria-labelledby="missionCardTitle">
+                    <h2 class="card-title" id="missionCardTitle">Mission Brief</h2>
+                    <div class="card-body">
+                        <ul class="mission-list">
+                            <li>Collect Points to fuel the escape and grow your score.</li>
+                            <li>Slip between asteroids and hostile fire to stay in the fight.</li>
+                            <li>Secure booster cores for temporary firepower and agility.</li>
+                            <li>Snag the Radiant Shield to ricochet villains and asteroids away.</li>
+                            <li>Channel Hyper Beam cores to carve safe corridors when the lane is crowded.</li>
+                            <li>Keep the combo meter charged to amplify every point.</li>
+                        </ul>
+                    </div>
+                </section>
+                <section class="hud-card" id="intelCard" aria-labelledby="intelCardTitle">
+                    <h2 class="card-title" id="intelCardTitle">Tactical Intel</h2>
+                    <div class="card-body">
+                        <ul class="intel-log" id="intelLog" role="list" aria-live="polite"></ul>
+                    </div>
+                </section>
+                <section class="hud-card" id="socialCard" aria-labelledby="socialCardTitle">
+                    <h2 class="card-title" id="socialCardTitle">Squadron Feed</h2>
+                    <div class="card-body">
+                        <ul id="socialFeed" role="list"></ul>
+                    </div>
+                </section>
             </div>
-        </section>
-        <section class="hud-card" id="missionCard" aria-labelledby="missionCardTitle">
-            <h2 class="card-title" id="missionCardTitle">Mission Brief</h2>
-            <div class="card-body">
-                <ul class="mission-list">
-                    <li>Collect Points to fuel the escape and grow your score.</li>
-                    <li>Slip between asteroids and hostile fire to stay in the fight.</li>
-                    <li>Secure booster cores for temporary firepower and agility.</li>
-                    <li>Snag the Radiant Shield to ricochet villains and asteroids away.</li>
-                    <li>Channel Hyper Beam cores to carve safe corridors when the lane is crowded.</li>
-                    <li>Keep the combo meter charged to amplify every point.</li>
-                </ul>
-            </div>
-        </section>
-        <section class="hud-card" id="intelCard" aria-labelledby="intelCardTitle">
-            <h2 class="card-title" id="intelCardTitle">Tactical Intel</h2>
-            <div class="card-body">
-                <ul class="intel-log" id="intelLog" role="list" aria-live="polite"></ul>
-            </div>
-        </section>
-        <section class="hud-card" id="socialCard" aria-labelledby="socialCardTitle">
-            <h2 class="card-title" id="socialCardTitle">Squadron Feed</h2>
-            <div class="card-body">
-                <ul id="socialFeed" role="list"></ul>
-            </div>
-        </section>
         </aside>
     </div>
     <div id="touchControls" aria-hidden="true">
@@ -1945,6 +2085,93 @@
             const shareStatusEl = document.getElementById('shareStatus');
             const socialFeedEl = document.getElementById('socialFeed');
             const intelLogEl = document.getElementById('intelLog');
+            const instructionsEl = document.getElementById('instructions');
+            const instructionNavEl = document.getElementById('instructionNav');
+            const instructionPanelsEl = document.getElementById('instructionPanels');
+            const instructionLinks = instructionNavEl
+                ? Array.from(instructionNavEl.querySelectorAll('a[data-panel-target]'))
+                : [];
+            const instructionPanelNodes = instructionPanelsEl
+                ? Array.from(instructionPanelsEl.children).filter((node) => node instanceof HTMLElement)
+                : [];
+            const mobileInstructionQuery = window.matchMedia('(max-width: 768px)');
+            let isMobileInstructionLayout = mobileInstructionQuery.matches;
+
+            const syncInstructionPanels = (activePanelId) => {
+                if (!instructionsEl) {
+                    return;
+                }
+
+                if (isMobileInstructionLayout && activePanelId) {
+                    instructionsEl.setAttribute('data-mobile-open', activePanelId);
+                } else {
+                    instructionsEl.removeAttribute('data-mobile-open');
+                }
+
+                instructionLinks.forEach((link) => {
+                    const targetId = link.dataset.panelTarget;
+                    const isActive = Boolean(activePanelId) && targetId === activePanelId && isMobileInstructionLayout;
+                    link.classList.toggle('mobile-active', isActive);
+                    if (isMobileInstructionLayout) {
+                        link.setAttribute('aria-expanded', String(isActive));
+                        link.setAttribute('aria-selected', String(isActive));
+                    } else {
+                        link.setAttribute('aria-expanded', 'false');
+                        link.removeAttribute('aria-selected');
+                    }
+                });
+
+                instructionPanelNodes.forEach((panel) => {
+                    if (!(panel instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    if (isMobileInstructionLayout) {
+                        const isActive = Boolean(activePanelId) && panel.id === activePanelId;
+                        panel.setAttribute('aria-hidden', String(!isActive));
+                    } else {
+                        panel.removeAttribute('aria-hidden');
+                    }
+                });
+            };
+
+            const resetInstructionPanels = () => {
+                syncInstructionPanels(null);
+            };
+
+            if (instructionNavEl && instructionsEl && instructionPanelsEl) {
+                instructionLinks.forEach((link) => {
+                    link.addEventListener('click', (event) => {
+                        const targetId = link.dataset.panelTarget;
+                        if (!targetId) {
+                            return;
+                        }
+
+                        if (isMobileInstructionLayout) {
+                            event.preventDefault();
+                            const currentOpen = instructionsEl.getAttribute('data-mobile-open');
+                            if (currentOpen === targetId) {
+                                syncInstructionPanels(null);
+                            } else {
+                                syncInstructionPanels(targetId);
+                            }
+                        }
+                    });
+                });
+
+                const handleInstructionLayoutChange = (event) => {
+                    isMobileInstructionLayout = event.matches;
+                    resetInstructionPanels();
+                };
+
+                if (typeof mobileInstructionQuery.addEventListener === 'function') {
+                    mobileInstructionQuery.addEventListener('change', handleInstructionLayoutChange);
+                } else if (typeof mobileInstructionQuery.addListener === 'function') {
+                    mobileInstructionQuery.addListener(handleInstructionLayoutChange);
+                }
+
+                resetInstructionPanels();
+            }
 
             const intelLoreEntries = [
                 {
