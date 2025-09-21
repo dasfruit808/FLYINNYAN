@@ -4928,6 +4928,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (weaponId !== activeWeaponId) {
             activeWeaponId = weaponId;
             pendingWeaponId = weaponId;
+            resetWeaponPatternState(weaponId);
         }
         refreshWeaponSelectionDisplay();
     }
@@ -5163,6 +5164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (equipped.weapon !== activeWeaponId) {
                 activeWeaponId = equipped.weapon;
                 pendingWeaponId = equipped.weapon;
+                resetWeaponPatternState(equipped.weapon);
                 refreshWeaponSelectionDisplay();
             } else if (isWeaponSelectOpen()) {
                 refreshWeaponSelectionDisplay();
@@ -6099,6 +6101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         activeWeaponId = profile.id;
         pendingWeaponId = profile.id;
+        resetWeaponPatternState(profile.id);
         refreshWeaponSelectionDisplay();
         let selectionApplied = false;
         if (challengeManager && typeof challengeManager.equipCosmetic === 'function') {
@@ -6205,37 +6208,233 @@ document.addEventListener('DOMContentLoaded', () => {
             colors: ['#f97316', '#fb7185', '#fde047']
         }
     };
+    const createWeaponPatternState = () => ({
+        pulse: { burstStep: -1, wavePhase: 0, resonanceCycle: 0 },
+        scatter: { volleyStep: -1, sweepDirection: 1, twistPhase: 0 },
+        lance: { chargeLevel: -1, arcFlip: 1 }
+    });
+
+    let weaponPatternState = createWeaponPatternState();
+
+    function resetWeaponPatternState(weaponId) {
+        const defaults = createWeaponPatternState();
+        if (!weaponId) {
+            weaponPatternState = defaults;
+            return;
+        }
+        if (Object.prototype.hasOwnProperty.call(defaults, weaponId)) {
+            weaponPatternState[weaponId] = defaults[weaponId];
+        }
+    }
+
     const weaponLoadouts = {
         pulse: {
             id: 'pulse',
             label: 'Pulse Blaster',
-            description: 'Baseline plasma bolt tuned for steady precision.',
+            description: 'Resonant bolts braid into spiraling duets before collapsing into a finisher.',
             cooldownMultiplier: 1,
             speedMultiplier: 1,
             pattern: (createProjectile) => {
-                createProjectile(0, 'standard');
+                const stateRef =
+                    weaponPatternState.pulse ?? (weaponPatternState.pulse = createWeaponPatternState().pulse);
+                stateRef.burstStep = (stateRef.burstStep + 1) % 4;
+                stateRef.wavePhase = (stateRef.wavePhase + Math.PI / 5) % (Math.PI * 2);
+                stateRef.resonanceCycle = (stateRef.resonanceCycle + 1) % 6;
+
+                if (stateRef.burstStep === 0) {
+                    const tilt = Math.sin(stateRef.wavePhase) * 0.08;
+                    createProjectile(tilt, 'pulseCore', {
+                        speedMultiplier: 1.18,
+                        audioType: 'standard'
+                    });
+                    return;
+                }
+
+                if (stateRef.burstStep === 1) {
+                    const offset = Math.sin(stateRef.wavePhase) * 8;
+                    createProjectile(-0.08, 'pulseWing', {
+                        offsetY: -offset,
+                        speedMultiplier: 1.05,
+                        audioType: 'standard'
+                    });
+                    createProjectile(0.08, 'pulseWing', {
+                        offsetY: offset,
+                        speedMultiplier: 1.05,
+                        audioType: 'standard'
+                    });
+                    return;
+                }
+
+                if (stateRef.burstStep === 2) {
+                    const sweep = Math.cos(stateRef.wavePhase) * 0.12;
+                    createProjectile(-sweep, 'pulseResonance', {
+                        offsetY: -4,
+                        speedMultiplier: 0.92,
+                        life: 2400,
+                        audioType: 'standard'
+                    });
+                    createProjectile(sweep, 'pulseResonance', {
+                        offsetY: 4,
+                        speedMultiplier: 0.92,
+                        life: 2400,
+                        audioType: 'standard'
+                    });
+                    return;
+                }
+
+                const side = stateRef.resonanceCycle % 2 === 0 ? -1 : 1;
+                const arc = side * 0.18;
+                createProjectile(0, 'pulseCore', {
+                    offsetX: 6 * side,
+                    speedMultiplier: 1.22,
+                    damage: 2,
+                    audioType: 'standard'
+                });
+                createProjectile(arc, 'pulseWing', {
+                    offsetY: side * -10,
+                    speedMultiplier: 1.08,
+                    audioType: 'standard'
+                });
+                createProjectile(-arc, 'pulseWing', {
+                    offsetY: side * 10,
+                    speedMultiplier: 1.08,
+                    audioType: 'standard'
+                });
             }
         },
         scatter: {
             id: 'scatter',
             label: 'Scatter Burst',
-            description: 'Twin ember shards fan forward for wide coverage.',
+            description: 'Chaotic fans whip sideways cyclones and ember blooms across the lane.',
             cooldownMultiplier: 1.12,
             speedMultiplier: 0.95,
             pattern: (createProjectile) => {
-                const spread = 0.18;
-                createProjectile(-spread, 'scatter', { offsetY: -6 });
-                createProjectile(spread, 'scatter', { offsetY: 6 });
+                const stateRef =
+                    weaponPatternState.scatter ?? (weaponPatternState.scatter = createWeaponPatternState().scatter);
+                stateRef.volleyStep = (stateRef.volleyStep + 1) % 3;
+                stateRef.twistPhase = (stateRef.twistPhase + 1) % 9;
+                if (stateRef.volleyStep === 0) {
+                    stateRef.sweepDirection *= -1;
+                    const bloom = 0.18 + stateRef.twistPhase * 0.01;
+                    createProjectile(-bloom, 'scatterBloom', {
+                        offsetY: -12,
+                        audioType: 'scatter'
+                    });
+                    createProjectile(-0.06, 'scatter', {
+                        offsetY: -4,
+                        audioType: 'scatter'
+                    });
+                    createProjectile(0.06, 'scatter', {
+                        offsetY: 4,
+                        audioType: 'scatter'
+                    });
+                    createProjectile(bloom, 'scatterBloom', {
+                        offsetY: 12,
+                        audioType: 'scatter'
+                    });
+                    return;
+                }
+
+                if (stateRef.volleyStep === 1) {
+                    const twist = stateRef.sweepDirection * (0.16 + stateRef.twistPhase * 0.01);
+                    createProjectile(-twist * 0.5, 'scatterTwist', {
+                        offsetY: -stateRef.sweepDirection * 6,
+                        speedMultiplier: 0.96,
+                        audioType: 'scatter'
+                    });
+                    createProjectile(0, 'scatterTwist', {
+                        speedMultiplier: 1.04,
+                        audioType: 'scatter'
+                    });
+                    createProjectile(twist * 0.5, 'scatterTwist', {
+                        offsetY: stateRef.sweepDirection * 6,
+                        speedMultiplier: 0.96,
+                        audioType: 'scatter'
+                    });
+                    return;
+                }
+
+                const drift = 0.12 + (stateRef.twistPhase % 3) * 0.05;
+                createProjectile(-0.16, 'scatterDrift', {
+                    offsetY: -14,
+                    speedMultiplier: 0.82,
+                    life: 2200,
+                    audioType: 'scatter'
+                });
+                createProjectile(0, 'scatterBurst', {
+                    speedMultiplier: 1.08,
+                    damage: 2,
+                    audioType: 'scatter'
+                });
+                createProjectile(0.16, 'scatterDrift', {
+                    offsetY: 14,
+                    speedMultiplier: 0.82,
+                    life: 2200,
+                    audioType: 'scatter'
+                });
+                createProjectile(stateRef.sweepDirection * drift, 'scatterBloom', {
+                    offsetY: -stateRef.sweepDirection * 18,
+                    speedMultiplier: 0.9,
+                    audioType: 'scatter'
+                });
             }
         },
         lance: {
             id: 'lance',
             label: 'Star Lance',
-            description: 'Charged beam that strikes hard through armored debris.',
+            description: 'Builds charge through arcing jabs before releasing a radiant piercing nova.',
             cooldownMultiplier: 1.35,
             speedMultiplier: 1.1,
             pattern: (createProjectile) => {
-                createProjectile(0, 'lance', { offsetX: 8 });
+                const stateRef =
+                    weaponPatternState.lance ?? (weaponPatternState.lance = createWeaponPatternState().lance);
+                stateRef.chargeLevel = (stateRef.chargeLevel + 1) % 4;
+                stateRef.arcFlip *= -1;
+
+                if (stateRef.chargeLevel === 0) {
+                    createProjectile(0, 'lanceCore', {
+                        offsetX: 10,
+                        damage: 3,
+                        speedMultiplier: 1.25,
+                        audioType: 'lance'
+                    });
+                    createProjectile(-0.12, 'lanceEcho', {
+                        offsetX: 4,
+                        offsetY: -12,
+                        speedMultiplier: 0.95,
+                        audioType: 'lance'
+                    });
+                    createProjectile(0.12, 'lanceEcho', {
+                        offsetX: 4,
+                        offsetY: 12,
+                        speedMultiplier: 0.95,
+                        audioType: 'lance'
+                    });
+                    return;
+                }
+
+                const taper = 0.04 * stateRef.chargeLevel;
+                const sway = stateRef.arcFlip * (0.03 + stateRef.chargeLevel * 0.02);
+                createProjectile(sway, 'lance', {
+                    offsetX: 8 + stateRef.chargeLevel * 2,
+                    speedMultiplier: 1.1 + taper,
+                    audioType: 'lance'
+                });
+                createProjectile(-sway, 'lanceTracer', {
+                    offsetX: 2,
+                    offsetY: stateRef.arcFlip * 10,
+                    speedMultiplier: 0.85 + stateRef.chargeLevel * 0.05,
+                    life: 2600,
+                    audioType: 'lance'
+                });
+                if (stateRef.chargeLevel === 3) {
+                    createProjectile(stateRef.arcFlip * -0.18, 'lanceEcho', {
+                        offsetX: 4,
+                        offsetY: -stateRef.arcFlip * 14,
+                        speedMultiplier: 0.88,
+                        audioType: 'lance'
+                    });
+                }
             }
         }
     };
@@ -6251,8 +6450,8 @@ document.addEventListener('DOMContentLoaded', () => {
             summary: weaponLoadouts.pulse?.description ?? fallbackWeaponSummaryText,
             image: weaponImages.pulse,
             highlights: [
-                'Reliable cadence maintains constant pressure on debris.',
-                'Balanced projectile speed keeps handling predictable.'
+                'Burst cadence cycles between braided duos and a finishing strike.',
+                'Wave-phased bolts weave across the lane for artful crowd control.'
             ]
         },
         {
@@ -6261,8 +6460,8 @@ document.addEventListener('DOMContentLoaded', () => {
             summary: weaponLoadouts.scatter?.description ?? fallbackWeaponSummaryText,
             image: weaponImages.scatter,
             highlights: [
-                'Dual shots fan forward to clear wider lanes.',
-                'Slightly lower speed rewards closer engagements.'
+                'Alternating blooms, twists, and drifts keep lanes in motion.',
+                'Sidewinding shards can peel off flanking debris as they arc.'
             ]
         },
         {
@@ -6271,8 +6470,8 @@ document.addEventListener('DOMContentLoaded', () => {
             summary: weaponLoadouts.lance?.description ?? fallbackWeaponSummaryText,
             image: weaponImages.lance,
             highlights: [
-                'Charged beam punches through armored threats.',
-                'Increased velocity rewards precise aim.'
+                'Successive jabs crescendo into a radiant core eruption.',
+                'Orbiting echoes trail each strike to scrape away stragglers.'
             ]
         }
     ];
@@ -6303,6 +6502,39 @@ document.addEventListener('DOMContentLoaded', () => {
             speedMultiplier: 0.85,
             damage: 2
         },
+        pulseCore: {
+            width: 26,
+            height: 12,
+            life: 2100,
+            speedMultiplier: 1.1,
+            damage: 1,
+            gradient: ['#38bdf8', '#a855f7'],
+            glow: 'rgba(168, 85, 247, 0.6)',
+            shadowColor: 'rgba(56, 189, 248, 0.45)',
+            shadowBlur: 12
+        },
+        pulseWing: {
+            width: 20,
+            height: 10,
+            life: 1900,
+            speedMultiplier: 1.05,
+            damage: 1,
+            gradient: ['#22d3ee', '#818cf8'],
+            glow: 'rgba(129, 140, 248, 0.5)',
+            shadowColor: 'rgba(45, 212, 191, 0.4)',
+            shadowBlur: 8
+        },
+        pulseResonance: {
+            width: 18,
+            height: 10,
+            life: 2500,
+            speedMultiplier: 0.9,
+            damage: 1,
+            gradient: ['#67e8f9', '#c4b5fd'],
+            glow: 'rgba(103, 232, 249, 0.55)',
+            shadowColor: 'rgba(147, 197, 253, 0.4)',
+            shadowBlur: 10
+        },
         scatter: {
             width: 22,
             height: 10,
@@ -6314,6 +6546,50 @@ document.addEventListener('DOMContentLoaded', () => {
             shadowColor: 'rgba(255, 140, 66, 0.35)',
             shadowBlur: 8
         },
+        scatterBloom: {
+            width: 20,
+            height: 10,
+            life: 1850,
+            speedMultiplier: 0.94,
+            damage: 1,
+            gradient: ['#f97316', '#f472b6'],
+            glow: 'rgba(249, 115, 22, 0.45)',
+            shadowColor: 'rgba(236, 72, 153, 0.35)',
+            shadowBlur: 10
+        },
+        scatterTwist: {
+            width: 18,
+            height: 9,
+            life: 2000,
+            speedMultiplier: 0.98,
+            damage: 1,
+            gradient: ['#fb7185', '#fbbf24'],
+            glow: 'rgba(251, 113, 133, 0.4)',
+            shadowColor: 'rgba(251, 191, 36, 0.3)',
+            shadowBlur: 8
+        },
+        scatterDrift: {
+            width: 22,
+            height: 11,
+            life: 2300,
+            speedMultiplier: 0.85,
+            damage: 1,
+            gradient: ['#fcd34d', '#f97316'],
+            glow: 'rgba(252, 211, 77, 0.4)',
+            shadowColor: 'rgba(251, 146, 60, 0.35)',
+            shadowBlur: 12
+        },
+        scatterBurst: {
+            width: 24,
+            height: 12,
+            life: 2000,
+            speedMultiplier: 1,
+            damage: 2,
+            gradient: ['#fed7aa', '#fb923c'],
+            glow: 'rgba(251, 191, 36, 0.4)',
+            shadowColor: 'rgba(251, 146, 60, 0.35)',
+            shadowBlur: 12
+        },
         lance: {
             width: 34,
             height: 16,
@@ -6324,6 +6600,40 @@ document.addEventListener('DOMContentLoaded', () => {
             glow: 'rgba(14, 165, 233, 0.7)',
             shadowColor: 'rgba(125, 211, 252, 0.5)',
             shadowBlur: 14,
+            shape: 'lance'
+        },
+        lanceTracer: {
+            width: 28,
+            height: 12,
+            life: 2600,
+            speedMultiplier: 1.05,
+            damage: 1,
+            gradient: ['#bae6fd', '#818cf8'],
+            glow: 'rgba(125, 211, 252, 0.55)',
+            shadowColor: 'rgba(129, 140, 248, 0.35)',
+            shadowBlur: 12
+        },
+        lanceEcho: {
+            width: 20,
+            height: 10,
+            life: 2400,
+            speedMultiplier: 0.92,
+            damage: 1,
+            gradient: ['#f0abfc', '#38bdf8'],
+            glow: 'rgba(192, 132, 252, 0.5)',
+            shadowColor: 'rgba(56, 189, 248, 0.35)',
+            shadowBlur: 10
+        },
+        lanceCore: {
+            width: 42,
+            height: 18,
+            life: 2600,
+            speedMultiplier: 1.25,
+            damage: 3,
+            gradient: ['#fef3c7', '#38bdf8', '#0ea5e9'],
+            glow: 'rgba(56, 189, 248, 0.8)',
+            shadowColor: 'rgba(191, 219, 254, 0.6)',
+            shadowBlur: 16,
             shape: 'lance'
         }
     };
@@ -8128,6 +8438,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hyperBeamState.wave = 0;
         hyperBeamState.sparkTimer = 0;
         hyperBeamState.bounds = null;
+        resetWeaponPatternState(activeWeaponId);
         player.x = viewport.width * 0.18;
         player.y = viewport.height * 0.5;
         player.vx = 0;
