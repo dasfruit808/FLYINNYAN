@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
     const controllerCursorEl = document.getElementById('controllerCursor');
+    const gamepadCursorBounds = { left: 0, top: 0, right: 0, bottom: 0 };
 
     const supportsResizeObserver =
         typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
@@ -6536,7 +6537,6 @@ document.addEventListener('DOMContentLoaded', () => {
         pointerDownTarget: null,
         buttonHeld: false
     };
-    let gamepadCursorBounds = { left: 0, top: 0, right: 0, bottom: 0 };
     const previousGamepadButtons = [];
     const previousGamepadDirection = { x: 0, y: 0 };
     let activeGamepadIndex = null;
