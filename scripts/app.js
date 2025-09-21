@@ -7,6 +7,14 @@ let baseDashConfig = null;
 let baseProjectileSettings = null;
 let activeDifficultyPreset = 'medium';
 let spawnTimers = { obstacle: 0, collectible: 0, powerUp: 0 };
+const DOUBLE_TEAM_POWER = 'doubleTeam';
+const HYPER_BEAM_POWER = 'hyperBeam';
+const SHIELD_POWER = 'radiantShield';
+const PUMP_POWER = 'pumpDrive';
+const TIME_DILATION_POWER = 'timeDilation';
+const SCORE_SURGE_POWER = 'scoreSurge';
+const MAGNET_POWER = 'starlightMagnet';
+const FLAME_WHIP_POWER = 'flameWhip';
 const gamepadCursorBounds = { left: 0, top: 0, right: 0, bottom: 0 };
 const gamepadCursorState = {
     x: 0,
@@ -75,14 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const particleColorStyleCache = typeof WeakMap === 'function' ? new WeakMap() : null;
     const STAR_FILL_COLOR = '#ffffff';
     const INV_PARTICLE_LIFE = 1 / 500;
-    const DOUBLE_TEAM_POWER = 'doubleTeam';
-    const HYPER_BEAM_POWER = 'hyperBeam';
-    const SHIELD_POWER = 'radiantShield';
-    const PUMP_POWER = 'pumpDrive';
-    const TIME_DILATION_POWER = 'timeDilation';
-    const SCORE_SURGE_POWER = 'scoreSurge';
-    const MAGNET_POWER = 'starlightMagnet';
-    const FLAME_WHIP_POWER = 'flameWhip';
     const powerUpTypes = [
         'powerBomb',
         'bulletSpread',
