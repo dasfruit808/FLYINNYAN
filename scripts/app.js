@@ -7,9 +7,9 @@ let baseDashConfig = null;
 let baseProjectileSettings = null;
 let activeDifficultyPreset = 'medium';
 let spawnTimers = { obstacle: 0, collectible: 0, powerUp: 0 };
-const GAMEPAD_CURSOR_HALF_SIZE = 11;
 
 document.addEventListener('DOMContentLoaded', () => {
+    const GAMEPAD_CURSOR_HALF_SIZE = 11;
     // Reset onboarding flags whenever the game reinitializes. This ensures that
     // subsequent reloads (such as during development hot-reloads) don't carry
     // over stale values from previous executions.
