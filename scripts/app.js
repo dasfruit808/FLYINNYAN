@@ -7,6 +7,7 @@ let baseDashConfig = null;
 let baseProjectileSettings = null;
 let activeDifficultyPreset = 'medium';
 let spawnTimers = { obstacle: 0, collectible: 0, powerUp: 0 };
+const gamepadCursorBounds = { left: 0, top: 0, right: 0, bottom: 0 };
 
 document.addEventListener('DOMContentLoaded', () => {
     const GAMEPAD_CURSOR_HALF_SIZE = 11;
@@ -18,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
     const controllerCursorEl = document.getElementById('controllerCursor');
-    const gamepadCursorBounds = { left: 0, top: 0, right: 0, bottom: 0 };
 
     const supportsResizeObserver =
         typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
