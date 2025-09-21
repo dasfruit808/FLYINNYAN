@@ -1761,14 +1761,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function measureAvailableCanvasSize() {
         const parent = canvas?.parentElement ?? null;
         const parentRect = parent?.getBoundingClientRect();
-        const scale = shellScale || 1;
         const measuredWidth = Number.isFinite(parentRect?.width) ? parentRect.width : viewport.width;
         const measuredHeight = Number.isFinite(parentRect?.height) ? parentRect.height : viewport.height;
-        const availableWidth = Math.max(240, Math.floor(measuredWidth / scale));
-        let availableHeight = Math.floor(measuredHeight / scale);
+        const availableWidth = Math.max(240, Math.floor(measuredWidth));
+        let availableHeight = Math.floor(measuredHeight);
         if (!Number.isFinite(availableHeight) || availableHeight <= 0) {
             const fallbackHeight = (window.innerHeight || viewport.height) - 48;
-            availableHeight = Math.max(240, Math.floor(fallbackHeight / scale));
+            availableHeight = Math.max(240, Math.floor(fallbackHeight));
         }
         return { width: availableWidth, height: Math.max(240, availableHeight) };
     }
