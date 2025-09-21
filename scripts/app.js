@@ -19,6 +19,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
     const controllerCursorEl = document.getElementById('controllerCursor');
+    const gamepadCursorState = {
+        x: 0,
+        y: 0,
+        axisX: 0,
+        axisY: 0,
+        active: false,
+        lastUpdate: null,
+        lastInputTime: 0,
+        pointerDownTarget: null,
+        buttonHeld: false
+    };
 
     const supportsResizeObserver =
         typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
@@ -6525,17 +6536,6 @@ document.addEventListener('DOMContentLoaded', () => {
         moveX: 0,
         moveY: 0,
         firing: false
-    };
-    const gamepadCursorState = {
-        x: 0,
-        y: 0,
-        axisX: 0,
-        axisY: 0,
-        active: false,
-        lastUpdate: null,
-        lastInputTime: 0,
-        pointerDownTarget: null,
-        buttonHeld: false
     };
     const previousGamepadButtons = [];
     const previousGamepadDirection = { x: 0, y: 0 };
