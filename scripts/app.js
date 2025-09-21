@@ -131,12 +131,16 @@ document.addEventListener('DOMContentLoaded', () => {
             ]
         };
         const comboMilestones = [3, 5, 8, 12, 16, 20, 30];
-        const MIN_SETBACK_INTERVAL = 4500;
+        const MIN_SETBACK_INTERVAL = 9000;
+        const GLOBAL_APPEARANCE_COOLDOWN = 10000;
+        const COMBO_APPEARANCE_WEIGHT = 0.35;
+        const SETBACK_APPEARANCE_WEIGHT = 0.45;
         const DEFAULT_HIDE_DELAY = 5200;
         let hideTimeout = null;
         let ariaHideTimeout = null;
         let lastComboCelebrated = 0;
         let lastSetbackAt = 0;
+        let lastShownAt = 0;
 
         const toLocaleOrString = (value) => {
             if (typeof value === 'number' && Number.isFinite(value)) {
@@ -162,6 +166,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 return '';
             }
             return template.replace(/\{\{(\w+)\}\}/g, (_, key) => context[key] ?? '');
+        };
+
+        const nowTime = () => {
+            if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+                return performance.now();
+            }
+            return Date.now();
+        };
+
+        const canTrigger = (weight = 1, { force = false } = {}) => {
+            if (force) {
+                return true;
+            }
+            if (weight <= 0) {
+                return false;
+            }
+            const now = nowTime();
+            if (now - lastShownAt < GLOBAL_APPEARANCE_COOLDOWN) {
+                return false;
+            }
+            return Math.random() < Math.min(1, weight);
         };
 
         const hide = ({ immediate = false } = {}) => {
@@ -199,6 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             textEl.textContent = message.trim();
             container.classList.add('is-visible');
             container.setAttribute('aria-hidden', 'false');
+            lastShownAt = nowTime();
             hideTimeout = window.setTimeout(() => {
                 hide();
             }, DEFAULT_HIDE_DELAY);
@@ -218,6 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const cheerForCombo = (streak) => {
             if (!shouldCheerForStreak(streak)) {
+                return;
+            }
+            if (!canTrigger(COMBO_APPEARANCE_WEIGHT)) {
                 return;
             }
             const pool = streak >= 10 ? messagePools.highCombo : messagePools.combo;
@@ -253,6 +282,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             lastSetbackAt = now;
+            if (!canTrigger(SETBACK_APPEARANCE_WEIGHT, { force })) {
+                return;
+            }
             const message = randomFrom(messagePools.setback);
             show('sad', message);
         };
@@ -260,6 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const reset = ({ immediate = false } = {}) => {
             lastComboCelebrated = 0;
             lastSetbackAt = 0;
+            lastShownAt = 0;
             hide({ immediate });
         };
 
@@ -1589,7 +1622,9 @@ document.addEventListener('DOMContentLoaded', () => {
             (window.innerHeight || designHeight) - verticalPadding
         );
 
-        const scale = Math.min(1, availableWidth / designWidth, availableHeight / designHeight);
+        const widthScale = designWidth > 0 ? availableWidth / designWidth : 1;
+        const heightScale = designHeight > 0 ? availableHeight / designHeight : 1;
+        const scale = Math.min(widthScale, heightScale);
         shellScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
         rootElement?.style.setProperty('--shell-scale', shellScale.toString());
     }

@@ -423,9 +423,10 @@ body.touch-enabled #settingsButton {
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    width: var(--shell-width);
+    width: min(var(--shell-width), calc(100% - 20px));
     height: var(--shell-height);
     margin: 0 auto;
+    margin-bottom: max(0px, calc((var(--shell-scale) - 1) * var(--shell-height)));
     z-index: 0;
     transform-origin: top center;
     transform: scale(var(--shell-scale));
@@ -437,7 +438,7 @@ body.touch-enabled #settingsButton {
     grid-template-rows: minmax(0, 1fr) auto;
     align-items: stretch;
     justify-items: center;
-    gap: 16px;
+    gap: clamp(18px, 3vw, 28px);
     width: 100%;
     height: 100%;
     margin: 0;
@@ -2532,14 +2533,14 @@ body.weapon-select-open {
     background: linear-gradient(90deg, rgba(16, 185, 129, 0.9), rgba(59, 130, 246, 0.9));
 }
 #instructions {
-    width: min(var(--shell-width), calc(100% - 20px));
-    margin: 5px 10px 0;
-    margin-top: auto;
+    width: calc(100% - 20px);
+    max-width: calc(100% - 20px);
+    margin: clamp(24px, 5vh, 48px) auto 0;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
-    padding-top: clamp(18px, 4vh, 36px);
+    gap: clamp(20px, 4vw, 32px);
+    padding-top: 0;
 }
 
 #instructionButtonBar {
@@ -2714,12 +2715,12 @@ body.weapon-select-open {
 
 .mascot-callout {
     position: fixed;
-    left: 0;
-    bottom: clamp(18px, 4vw, 32px);
+    left: clamp(10px, 3vw, 24px);
+    bottom: clamp(10px, 4vw, 28px);
     display: flex;
     align-items: flex-end;
     gap: clamp(12px, 2vw, 18px);
-    max-width: min(360px, 82vw);
+    max-width: min(320px, 70vw);
     transform: translateX(calc(-100% - 28px));
     opacity: 0;
     pointer-events: none;
@@ -2728,7 +2729,7 @@ body.weapon-select-open {
 }
 
 .mascot-callout.is-visible {
-    transform: translateX(clamp(12px, 4vw, 32px));
+    transform: translateX(0);
     opacity: 1;
 }
 
