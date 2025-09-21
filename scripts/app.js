@@ -1527,6 +1527,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const trailOptionsEl = document.getElementById('trailOptions');
     const customLoadoutGrid =
         document.getElementById('customLoadoutSection')?.querySelector('[data-loadout-grid]') ?? null;
+    const loadoutEditorModal = document.getElementById('loadoutEditorModal');
+    const loadoutEditorContent =
+        loadoutEditorModal?.querySelector('.loadout-editor-content') ?? null;
+    const loadoutEditorBackdrop =
+        loadoutEditorModal?.querySelector('[data-loadout-editor-dismiss="backdrop"]') ?? null;
+    const loadoutEditorTitle = document.getElementById('loadoutEditorTitle');
+    const loadoutEditorSubtitle = document.getElementById('loadoutEditorSubtitle');
+    const loadoutEditorPilotGrid =
+        loadoutEditorModal?.querySelector('[data-loadout-editor-pilots]') ?? null;
+    const loadoutEditorWeaponGrid =
+        loadoutEditorModal?.querySelector('[data-loadout-editor-weapons]') ?? null;
+    const loadoutEditorSaveButton = document.getElementById('loadoutEditorSave');
+    const loadoutEditorCancelButton = document.getElementById('loadoutEditorCancel');
+    const loadoutEditorCloseButton = document.getElementById('loadoutEditorClose');
     const instructionsEl = document.getElementById('instructions');
     const instructionPanelsEl = document.getElementById('instructionPanels');
     const instructionButtonBar = document.getElementById('instructionButtonBar');
@@ -2806,6 +2820,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let latestCosmeticSnapshot = null;
     let activeLoadoutId = null;
     let suppressActiveLoadoutSync = 0;
+    let loadoutEditorActiveSlotId = null;
+    let loadoutEditorReturnFocus = null;
+    let loadoutEditorPilotButtons = [];
+    let loadoutEditorWeaponButtons = [];
+    let loadoutEditorPendingCharacterId = null;
+    let loadoutEditorPendingWeaponId = null;
 
     function setActiveLoadoutId(slotId) {
         if (slotId && getCustomLoadout(slotId)) {
@@ -5906,6 +5926,63 @@ document.addEventListener('DOMContentLoaded', () => {
         customLoadoutGrid.addEventListener('change', handleCustomLoadoutChange);
     }
 
+    if (loadoutEditorSaveButton) {
+        loadoutEditorSaveButton.addEventListener('click', () => {
+            saveLoadoutEditorSelection();
+        });
+    }
+    if (loadoutEditorCancelButton) {
+        loadoutEditorCancelButton.addEventListener('click', () => {
+            closeLoadoutEditor();
+        });
+    }
+    if (loadoutEditorCloseButton) {
+        loadoutEditorCloseButton.addEventListener('click', () => {
+            closeLoadoutEditor();
+        });
+    }
+    if (loadoutEditorBackdrop) {
+        loadoutEditorBackdrop.addEventListener('click', () => {
+            closeLoadoutEditor();
+        });
+    }
+    if (loadoutEditorModal) {
+        loadoutEditorModal.addEventListener('click', (event) => {
+            if (event.target === loadoutEditorModal) {
+                closeLoadoutEditor();
+            }
+        });
+        loadoutEditorModal.addEventListener('keydown', (event) => {
+            if (!isLoadoutEditorOpen()) {
+                return;
+            }
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeLoadoutEditor();
+                return;
+            }
+            if (event.key === 'Tab') {
+                const focusable = getLoadoutEditorFocusableElements();
+                if (!focusable.length) {
+                    event.preventDefault();
+                    return;
+                }
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                const activeElement = document.activeElement;
+                if (event.shiftKey) {
+                    if (!loadoutEditorModal.contains(activeElement) || activeElement === first) {
+                        event.preventDefault();
+                        last.focus();
+                    }
+                } else if (activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            }
+        });
+    }
+
     if (openWeaponSelectButton) {
         openWeaponSelectButton.addEventListener('click', () => {
             if (openWeaponSelectButton.disabled) {
@@ -7399,6 +7476,286 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'linear-gradient(90deg, rgba(56, 189, 248, 0.85), rgba(129, 140, 248, 0.85))';
     }
 
+    function isLoadoutEditorOpen() {
+        return Boolean(loadoutEditorModal && loadoutEditorModal.hidden === false);
+    }
+
+    function getLoadoutEditorFocusableElements() {
+        if (!loadoutEditorContent) {
+            return [];
+        }
+        const nodes = loadoutEditorContent.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        return Array.from(nodes).filter(
+            (node) =>
+                node instanceof HTMLElement &&
+                !node.hasAttribute('disabled') &&
+                node.getAttribute('aria-hidden') !== 'true'
+        );
+    }
+
+    function refreshLoadoutEditorSelectionState() {
+        for (const button of loadoutEditorPilotButtons) {
+            if (!(button instanceof HTMLElement)) {
+                continue;
+            }
+            const characterId = button.dataset.characterId ?? '';
+            const isSelected = characterId === loadoutEditorPendingCharacterId;
+            button.classList.toggle('selected', isSelected);
+            button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        }
+        for (const button of loadoutEditorWeaponButtons) {
+            if (!(button instanceof HTMLElement)) {
+                continue;
+            }
+            const weaponId = button.dataset.weaponId ?? '';
+            const isSelected = weaponId === loadoutEditorPendingWeaponId;
+            button.classList.toggle('selected', isSelected);
+            button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        }
+    }
+
+    function updateLoadoutEditorSaveState() {
+        if (!loadoutEditorSaveButton) {
+            return;
+        }
+        const hasCharacter = typeof loadoutEditorPendingCharacterId === 'string' && loadoutEditorPendingCharacterId;
+        const hasWeapon = typeof loadoutEditorPendingWeaponId === 'string' && loadoutEditorPendingWeaponId;
+        const disabled = !(hasCharacter && hasWeapon);
+        loadoutEditorSaveButton.disabled = disabled;
+        loadoutEditorSaveButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    }
+
+    function setLoadoutEditorSelection(type, value) {
+        if (type === 'character' && typeof value === 'string') {
+            loadoutEditorPendingCharacterId = value;
+        }
+        if (type === 'weapon' && typeof value === 'string') {
+            loadoutEditorPendingWeaponId = value;
+        }
+        refreshLoadoutEditorSelectionState();
+        updateLoadoutEditorSaveState();
+    }
+
+    function renderLoadoutEditorOptions() {
+        if (!loadoutEditorPilotGrid || !loadoutEditorWeaponGrid) {
+            loadoutEditorPilotButtons = [];
+            loadoutEditorWeaponButtons = [];
+            return;
+        }
+
+        loadoutEditorPilotGrid.innerHTML = '';
+        const pilotFragment = document.createDocumentFragment();
+        const pilotButtons = [];
+        for (const profile of characterProfiles) {
+            if (!profile || typeof profile.id !== 'string') {
+                continue;
+            }
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'character-card';
+            card.dataset.characterId = profile.id;
+            card.setAttribute('role', 'listitem');
+
+            const image = document.createElement('img');
+            const imageSource = profile.image?.src ?? playerBaseImage?.src ?? 'assets/player.png';
+            image.src = imageSource;
+            image.alt = profile.name ?? profile.id ?? 'Pilot';
+            image.loading = 'lazy';
+            card.appendChild(image);
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'character-name';
+            nameEl.textContent = profile.name ?? profile.id ?? 'Pilot';
+            card.appendChild(nameEl);
+
+            const roleEl = document.createElement('div');
+            roleEl.className = 'character-role';
+            roleEl.textContent = profile.role ?? '';
+            card.appendChild(roleEl);
+
+            const details = document.createElement('div');
+            details.className = 'character-details';
+            const detailsHeading = document.createElement('strong');
+            detailsHeading.textContent = 'Flight Profile';
+            details.appendChild(detailsHeading);
+            if (profile.summary) {
+                const summary = document.createElement('p');
+                summary.textContent = profile.summary;
+                details.appendChild(summary);
+            }
+            if (Array.isArray(profile.ongoing) && profile.ongoing.length) {
+                const list = document.createElement('ul');
+                for (const entry of profile.ongoing) {
+                    if (!entry) {
+                        continue;
+                    }
+                    const item = document.createElement('li');
+                    item.textContent = entry;
+                    list.appendChild(item);
+                }
+                details.appendChild(list);
+            }
+            card.appendChild(details);
+
+            card.addEventListener('click', () => {
+                if (profile.id) {
+                    setLoadoutEditorSelection('character', profile.id);
+                }
+            });
+
+            pilotFragment.appendChild(card);
+            pilotButtons.push(card);
+        }
+        loadoutEditorPilotGrid.appendChild(pilotFragment);
+        loadoutEditorPilotButtons = pilotButtons;
+
+        loadoutEditorWeaponGrid.innerHTML = '';
+        const weaponFragment = document.createDocumentFragment();
+        const weaponButtons = [];
+        for (const profile of weaponProfiles) {
+            if (!profile || typeof profile.id !== 'string') {
+                continue;
+            }
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'character-card weapon-card';
+            card.dataset.weaponId = profile.id;
+            card.setAttribute('role', 'listitem');
+
+            const image = document.createElement('img');
+            const imageSource = profile.image?.src ?? defaultWeaponImageSrc;
+            image.src = imageSource;
+            image.alt = profile.name ?? profile.id ?? 'Weapon';
+            image.loading = 'lazy';
+            card.appendChild(image);
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'character-name';
+            nameEl.textContent = profile.name ?? profile.id ?? 'Weapon';
+            card.appendChild(nameEl);
+
+            const details = document.createElement('div');
+            details.className = 'character-details';
+            const summary = document.createElement('p');
+            summary.textContent = profile.summary ?? '';
+            details.appendChild(summary);
+            if (Array.isArray(profile.highlights) && profile.highlights.length) {
+                const list = document.createElement('ul');
+                for (const entry of profile.highlights) {
+                    if (!entry) {
+                        continue;
+                    }
+                    const item = document.createElement('li');
+                    item.textContent = entry;
+                    list.appendChild(item);
+                }
+                details.appendChild(list);
+            }
+            card.appendChild(details);
+
+            card.addEventListener('click', () => {
+                if (profile.id) {
+                    setLoadoutEditorSelection('weapon', profile.id);
+                }
+            });
+
+            weaponFragment.appendChild(card);
+            weaponButtons.push(card);
+        }
+        loadoutEditorWeaponGrid.appendChild(weaponFragment);
+        loadoutEditorWeaponButtons = weaponButtons;
+
+        refreshLoadoutEditorSelectionState();
+        updateLoadoutEditorSaveState();
+    }
+
+    function closeLoadoutEditor({ restoreFocus = true } = {}) {
+        if (!loadoutEditorModal) {
+            return;
+        }
+        loadoutEditorModal.hidden = true;
+        loadoutEditorModal.setAttribute('aria-hidden', 'true');
+        document.body?.classList.remove('loadout-editor-open');
+        loadoutEditorActiveSlotId = null;
+        loadoutEditorPilotButtons = [];
+        loadoutEditorWeaponButtons = [];
+        loadoutEditorPendingCharacterId = null;
+        loadoutEditorPendingWeaponId = null;
+        if (restoreFocus && loadoutEditorReturnFocus instanceof HTMLElement) {
+            try {
+                loadoutEditorReturnFocus.focus({ preventScroll: true });
+            } catch (error) {
+                loadoutEditorReturnFocus.focus();
+            }
+        }
+        loadoutEditorReturnFocus = null;
+    }
+
+    function openLoadoutEditor(slotId, { trigger = null } = {}) {
+        if (!loadoutEditorModal) {
+            return;
+        }
+        const loadout = getCustomLoadout(slotId);
+        if (!loadout) {
+            return;
+        }
+        setLoadoutStatus(slotId, null);
+        loadoutEditorActiveSlotId = slotId;
+        loadoutEditorReturnFocus = trigger instanceof HTMLElement ? trigger : null;
+        loadoutEditorPendingCharacterId = loadout.characterId ?? activeCharacterId ?? 'nova';
+        loadoutEditorPendingWeaponId = loadout.weaponId ?? activeWeaponId ?? 'pulse';
+        if (loadoutEditorTitle) {
+            const presetName = loadout.name ?? 'Custom Loadout';
+            loadoutEditorTitle.textContent = `Customize ${presetName}`;
+        }
+        if (loadoutEditorSubtitle) {
+            const presetName = loadout.name ?? 'this preset';
+            loadoutEditorSubtitle.textContent = `Browse pilots and weapons to tailor ${presetName}. Saving will store the selections to the chosen loadout slot.`;
+        }
+        renderLoadoutEditorOptions();
+        refreshLoadoutEditorSelectionState();
+        updateLoadoutEditorSaveState();
+
+        loadoutEditorModal.hidden = false;
+        loadoutEditorModal.setAttribute('aria-hidden', 'false');
+        document.body?.classList.add('loadout-editor-open');
+
+        const focusTarget =
+            loadoutEditorPilotButtons.find(
+                (button) => button instanceof HTMLElement && button.dataset.characterId === loadoutEditorPendingCharacterId
+            ) ?? loadoutEditorCloseButton ?? loadoutEditorSaveButton;
+        if (focusTarget instanceof HTMLElement) {
+            try {
+                focusTarget.focus({ preventScroll: true });
+            } catch (error) {
+                focusTarget.focus();
+            }
+        }
+    }
+
+    function saveLoadoutEditorSelection() {
+        if (!loadoutEditorActiveSlotId) {
+            return;
+        }
+        const characterId = loadoutEditorPendingCharacterId;
+        const weaponId = loadoutEditorPendingWeaponId;
+        if (!characterId || !weaponId) {
+            return;
+        }
+        const slotId = loadoutEditorActiveSlotId;
+        updateCustomLoadout(slotId, { characterId, weaponId }, { persist: true });
+        setLoadoutStatus(slotId, 'Loadout updated.', 'success');
+        renderCustomLoadouts(latestCosmeticSnapshot);
+        if (customLoadoutGrid) {
+            loadoutEditorReturnFocus = customLoadoutGrid.querySelector(
+                `[data-loadout-id="${slotId}"] [data-loadout-action="edit"]`
+            );
+        }
+        closeLoadoutEditor({ restoreFocus: true });
+    }
+
     function renderCustomLoadouts(snapshot = latestCosmeticSnapshot) {
         if (!customLoadoutGrid) {
             return;
@@ -7486,12 +7843,26 @@ document.addEventListener('DOMContentLoaded', () => {
             nameField.appendChild(nameInput);
             header.appendChild(nameField);
 
+            const headerActions = document.createElement('div');
+            headerActions.className = 'custom-loadout-header-actions';
+
             const saveButton = document.createElement('button');
             saveButton.type = 'button';
             saveButton.className = 'custom-loadout-save';
             saveButton.dataset.loadoutAction = 'save';
             saveButton.textContent = 'Save Current Setup';
-            header.appendChild(saveButton);
+            headerActions.appendChild(saveButton);
+
+            const editButton = document.createElement('button');
+            editButton.type = 'button';
+            editButton.className = 'custom-loadout-edit';
+            editButton.dataset.loadoutAction = 'edit';
+            editButton.textContent = 'Customize Preset';
+            const presetName = loadout.name ?? slotMeta?.defaultName ?? `Custom Loadout ${index + 1}`;
+            editButton.setAttribute('aria-label', `Customize ${presetName}`);
+            headerActions.appendChild(editButton);
+
+            header.appendChild(headerActions);
             card.appendChild(header);
 
             const body = document.createElement('div');
@@ -7797,14 +8168,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleCustomLoadoutClick(event) {
-        const trigger =
-            event.target instanceof HTMLElement ? event.target.closest('[data-loadout-action]') : null;
-        if (!trigger || trigger.disabled) {
+        const origin = event.target instanceof HTMLElement ? event.target : null;
+        if (!origin) {
             return;
         }
-        const slotElement = trigger.closest('[data-loadout-id]');
+        const slotElement = origin.closest('[data-loadout-id]');
         const slotId = slotElement?.dataset.loadoutId;
         if (!slotId) {
+            return;
+        }
+        const trigger = origin.closest('[data-loadout-action]');
+        if (!trigger) {
+            const interactive = origin.closest(
+                'button, input, select, textarea, label, [data-loadout-action], [data-loadout-control]'
+            );
+            if (!interactive) {
+                event.preventDefault();
+                openLoadoutEditor(slotId, { trigger: slotElement });
+            }
+            return;
+        }
+        if (trigger.disabled) {
             return;
         }
         const action = trigger.dataset.loadoutAction;
@@ -7840,6 +8224,11 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault();
             setLoadoutStatus(slotId, null);
             focusCosmeticOption(trailOptionsEl, 'trail-id', getCustomLoadout(slotId)?.trailId);
+            return;
+        }
+        if (action === 'edit') {
+            event.preventDefault();
+            openLoadoutEditor(slotId, { trigger });
             return;
         }
     }
