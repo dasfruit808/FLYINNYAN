@@ -580,6 +580,8 @@ canvas {
     background: linear-gradient(180deg, rgba(5, 18, 55, 0.95) 0%, rgba(8, 27, 70, 0.95) 45%, rgba(0, 4, 20, 0.98) 100%);
     border-radius: 10px;
     box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
+    display: block;
+    margin-inline: auto;
 }
 
 #debugOverlay {
