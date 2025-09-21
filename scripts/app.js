@@ -1,6 +1,12 @@
 let firstRunExperience = true;
 let quickStartUsed = false;
 let state = { gameState: 'ready' };
+let config = null;
+let basePlayerConfig = null;
+let baseDashConfig = null;
+let baseProjectileSettings = null;
+let activeDifficultyPreset = 'medium';
+let spawnTimers = { obstacle: 0, collectible: 0, powerUp: 0 };
 
 document.addEventListener('DOMContentLoaded', () => {
     // Reset onboarding flags whenever the game reinitializes. This ensures that
@@ -1012,6 +1018,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const sfxToggleStatus = document.getElementById('sfxToggleStatus');
     const reducedEffectsToggle = document.getElementById('reducedEffectsToggle');
     const reducedEffectsStatus = document.getElementById('reducedEffectsStatus');
+    const difficultySelector = document.getElementById('difficultySelector');
+    const difficultyRadios = difficultySelector
+        ? Array.from(difficultySelector.querySelectorAll('input[name="difficultySetting"]'))
+        : [];
+    const difficultyDescriptionEl = document.getElementById('difficultyDescription');
     const bodyElement = document.body;
     let reducedEffectsMode = false;
     let reducedMotionListenerCleanup = null;
@@ -2522,6 +2533,97 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let hasStoredSettings = false;
 
+    const AVAILABLE_DIFFICULTY_IDS = ['easy', 'medium', 'hard', 'hyper'];
+    const DEFAULT_DIFFICULTY_ID = 'medium';
+
+    const DIFFICULTY_PRESETS = {
+        easy: {
+            id: 'easy',
+            label: 'Easy',
+            description: 'Gentler calibration with slower drift, fewer hostiles, and more support drops.',
+            overrides: {
+                baseGameSpeed: 140,
+                speedGrowth: 3.4,
+                obstacleSpawnInterval: 1150,
+                collectibleSpawnInterval: 1200,
+                powerUpSpawnInterval: 9500,
+                difficulty: {
+                    rampDuration: 110000,
+                    speedRamp: { start: 0.22, end: 0.75 },
+                    spawnIntensity: {
+                        obstacle: { start: 0.28, end: 0.85 },
+                        collectible: { start: 0.74, end: 1.05 },
+                        powerUp: { start: 0.65, end: 1.08 }
+                    },
+                    healthRamp: { start: 0.6, end: 1.0 }
+                }
+            }
+        },
+        medium: {
+            id: 'medium',
+            label: 'Medium',
+            description: 'Balanced sortie tuned for most pilots.',
+            overrides: {}
+        },
+        hard: {
+            id: 'hard',
+            label: 'Hard',
+            description: 'Accelerated pace with denser hazards and lean support drops.',
+            overrides: {
+                baseGameSpeed: 185,
+                speedGrowth: 6.5,
+                obstacleSpawnInterval: 820,
+                collectibleSpawnInterval: 1550,
+                powerUpSpawnInterval: 12500,
+                difficulty: {
+                    rampDuration: 82000,
+                    speedRamp: { start: 0.36, end: 1.05 },
+                    spawnIntensity: {
+                        obstacle: { start: 0.52, end: 1.32 },
+                        collectible: { start: 0.6, end: 0.92 },
+                        powerUp: { start: 0.5, end: 0.82 }
+                    },
+                    healthRamp: { start: 0.9, end: 1.45 }
+                }
+            }
+        },
+        hyper: {
+            id: 'hyper',
+            label: 'Hyper',
+            description: 'Maximum threat environment demanding expert reflexes.',
+            overrides: {
+                baseGameSpeed: 208,
+                speedGrowth: 8.2,
+                obstacleSpawnInterval: 720,
+                collectibleSpawnInterval: 1650,
+                powerUpSpawnInterval: 15000,
+                difficulty: {
+                    rampDuration: 70000,
+                    speedRamp: { start: 0.45, end: 1.24 },
+                    spawnIntensity: {
+                        obstacle: { start: 0.68, end: 1.55 },
+                        collectible: { start: 0.55, end: 0.8 },
+                        powerUp: { start: 0.45, end: 0.72 }
+                    },
+                    healthRamp: { start: 1.05, end: 1.62 }
+                }
+            }
+        }
+    };
+
+    function normalizeDifficultySetting(value) {
+        if (typeof value !== 'string') {
+            return DEFAULT_DIFFICULTY_ID;
+        }
+        const normalized = value.toLowerCase();
+        return AVAILABLE_DIFFICULTY_IDS.includes(normalized) ? normalized : DEFAULT_DIFFICULTY_ID;
+    }
+
+    function getDifficultyPreset(id) {
+        const normalized = normalizeDifficultySetting(id);
+        return DIFFICULTY_PRESETS[normalized] ?? DIFFICULTY_PRESETS[DEFAULT_DIFFICULTY_ID];
+    }
+
     const DEFAULT_SETTINGS = {
         masterVolume: typeof audioManager.getMasterVolume === 'function'
             ? audioManager.getMasterVolume()
@@ -2532,7 +2634,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sfxEnabled: typeof audioManager.isSfxEnabled === 'function'
             ? audioManager.isSfxEnabled()
             : true,
-        reducedEffects: systemPrefersReducedEffects()
+        reducedEffects: systemPrefersReducedEffects(),
+        difficulty: DEFAULT_DIFFICULTY_ID
     };
 
     let settingsState = { ...DEFAULT_SETTINGS };
@@ -2560,12 +2663,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (Object.prototype.hasOwnProperty.call(partial, 'reducedEffects')) {
                 source.reducedEffects = partial.reducedEffects;
             }
+            if (Object.prototype.hasOwnProperty.call(partial, 'difficulty')) {
+                source.difficulty = partial.difficulty;
+            }
         }
         return {
             masterVolume: sanitizeVolume(source.masterVolume, base.masterVolume ?? DEFAULT_SETTINGS.masterVolume),
             musicEnabled: source.musicEnabled !== false,
             sfxEnabled: source.sfxEnabled !== false,
-            reducedEffects: source.reducedEffects === true
+            reducedEffects: source.reducedEffects === true,
+            difficulty: normalizeDifficultySetting(source.difficulty ?? base.difficulty)
         };
     }
 
@@ -2597,7 +2704,8 @@ document.addEventListener('DOMContentLoaded', () => {
             masterVolume: Number(settingsState.masterVolume.toFixed(3)),
             musicEnabled: settingsState.musicEnabled,
             sfxEnabled: settingsState.sfxEnabled,
-            reducedEffects: settingsState.reducedEffects
+            reducedEffects: settingsState.reducedEffects,
+            difficulty: settingsState.difficulty
         };
         writeStorage(STORAGE_KEYS.settings, JSON.stringify(payload));
     }
@@ -3332,15 +3440,45 @@ document.addEventListener('DOMContentLoaded', () => {
         if (reducedEffectsStatus) {
             reducedEffectsStatus.textContent = settingsState.reducedEffects ? 'On' : 'Off';
         }
+        if (difficultyRadios.length) {
+            const normalizedDifficulty = normalizeDifficultySetting(settingsState.difficulty);
+            for (const radio of difficultyRadios) {
+                const isSelected = radio.value === normalizedDifficulty;
+                radio.checked = isSelected;
+                radio.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+                const option = radio.closest('.difficulty-option');
+                if (option) {
+                    option.classList.toggle('selected', isSelected);
+                }
+            }
+            if (difficultyDescriptionEl) {
+                const preset = getDifficultyPreset(normalizedDifficulty);
+                difficultyDescriptionEl.textContent = preset?.description
+                    ? `${preset.label}: ${preset.description}`
+                    : '';
+            }
+        } else if (difficultyDescriptionEl) {
+            difficultyDescriptionEl.textContent = '';
+        }
     }
 
-    function applySettingsPreferences(partial, { persist = false } = {}) {
+    function applySettingsPreferences(partial, { persist = false, announceDifficulty = false } = {}) {
+        const previousDifficulty = settingsState?.difficulty;
         settingsState = coerceSettings(partial, settingsState);
         audioManager.setMasterVolume(settingsState.masterVolume);
         audioManager.toggleMusic(settingsState.musicEnabled);
         audioManager.toggleSfx(settingsState.sfxEnabled);
         applyReducedEffectsFlag(settingsState.reducedEffects);
         updateSettingsUI();
+        const normalizedDifficulty = normalizeDifficultySetting(settingsState.difficulty);
+        const difficultyChanged = normalizeDifficultySetting(previousDifficulty) !== normalizedDifficulty;
+        if (!config) {
+            activeDifficultyPreset = normalizedDifficulty;
+        } else {
+            applyDifficultyPreset(normalizedDifficulty, {
+                announce: announceDifficulty && difficultyChanged
+            });
+        }
         if (persist) {
             persistSettingsPreferences();
             hasStoredSettings = true;
@@ -3471,6 +3609,21 @@ document.addEventListener('DOMContentLoaded', () => {
         reducedEffectsToggle.addEventListener('change', () => {
             applySettingsPreferences({ reducedEffects: reducedEffectsToggle.checked }, { persist: true });
         });
+    }
+
+    if (difficultyRadios.length) {
+        for (const radio of difficultyRadios) {
+            radio.addEventListener('change', () => {
+                if (!radio.checked) {
+                    return;
+                }
+                const normalized = normalizeDifficultySetting(radio.value);
+                applySettingsPreferences(
+                    { difficulty: normalized },
+                    { persist: true, announceDifficulty: true }
+                );
+            });
+        }
     }
 
     function ensureSubmissionLogEntry(name) {
@@ -5641,10 +5794,22 @@ document.addEventListener('DOMContentLoaded', () => {
             villainEscape: 140
         }
     };
-    const config = applyOverrides(cloneConfig(baseGameConfig), gameplayOverrides ?? {});
-    const basePlayerConfig = cloneConfig(config.player);
-    const baseDashConfig = cloneConfig(config.player.dash);
-    const baseProjectileSettings = {
+
+    function buildConfigForPreset(presetId) {
+        const preset = getDifficultyPreset(presetId);
+        const baseClone = cloneConfig(baseGameConfig);
+        const withPreset = applyOverrides(baseClone, preset?.overrides ?? {});
+        return applyOverrides(withPreset, gameplayOverrides ?? {});
+    }
+
+    const initialDifficultyPreset = normalizeDifficultySetting(
+        settingsState?.difficulty ?? activeDifficultyPreset ?? DEFAULT_DIFFICULTY_ID
+    );
+    activeDifficultyPreset = initialDifficultyPreset;
+    config = buildConfigForPreset(initialDifficultyPreset);
+    basePlayerConfig = cloneConfig(config.player);
+    baseDashConfig = cloneConfig(config.player.dash);
+    baseProjectileSettings = {
         cooldown: config.projectileCooldown,
         speed: config.projectileSpeed
     };
@@ -5691,6 +5856,78 @@ document.addEventListener('DOMContentLoaded', () => {
             player.width = config.player.width;
             player.height = config.player.height;
         }
+    }
+
+    function applyDifficultyPreset(presetId, { announce = false } = {}) {
+        const normalized = normalizeDifficultySetting(presetId);
+        if (!config) {
+            activeDifficultyPreset = normalized;
+            return normalized;
+        }
+        if (normalized === activeDifficultyPreset) {
+            return normalized;
+        }
+
+        const previousConfig = config;
+        const previousRampDuration =
+            previousConfig?.difficulty?.rampDuration ?? baseGameConfig.difficulty.rampDuration;
+        const previousProgress =
+            previousRampDuration > 0 ? clamp(state.elapsedTime / previousRampDuration, 0, 1) : 0;
+
+        const nextConfig = buildConfigForPreset(normalized);
+        config = nextConfig;
+        basePlayerConfig = cloneConfig(config.player);
+        baseDashConfig = cloneConfig(config.player.dash);
+        baseProjectileSettings = {
+            cooldown: config.projectileCooldown,
+            speed: config.projectileSpeed
+        };
+        activeDifficultyPreset = normalized;
+
+        const activeProfile = getCharacterProfile(activeCharacterId);
+        if (activeProfile) {
+            applyCharacterOverrides(activeProfile);
+        } else {
+            resetCharacterTuning();
+        }
+
+        const nextRampDuration = config.difficulty?.rampDuration ?? previousRampDuration;
+        if (Number.isFinite(nextRampDuration) && nextRampDuration > 0) {
+            state.elapsedTime = clamp(previousProgress, 0, 1) * nextRampDuration;
+        } else {
+            state.elapsedTime = 0;
+        }
+
+        if (state.gameState !== 'running') {
+            state.gameSpeed = config.baseGameSpeed;
+        } else {
+            const approxSpeed = config.baseGameSpeed + config.speedGrowth * clamp(previousProgress, 0, 1);
+            state.gameSpeed = Math.max(config.baseGameSpeed, approxSpeed);
+        }
+
+        if (spawnTimers) {
+            spawnTimers.obstacle = 0;
+            spawnTimers.collectible = 0;
+            spawnTimers.powerUp = -Math.random() * 2000;
+        }
+
+        const baseCollectScoreRaw = config?.score?.collect;
+        const baseCollectScore = Number.isFinite(Number(baseCollectScoreRaw))
+            ? Math.max(1, Number(baseCollectScoreRaw))
+            : defaultCollectScore;
+        if (!config.score || !isPlainObject(config.score)) {
+            config.score = { ...baseGameConfig.score };
+        }
+        config.score.collect = baseCollectScore;
+
+        if (announce) {
+            const preset = getDifficultyPreset(normalized);
+            if (preset && typeof addSocialMoment === 'function') {
+                addSocialMoment(`${preset.label} difficulty calibrated.`, { type: 'system' });
+            }
+        }
+
+        return normalized;
     }
 
     function setActiveCharacter(profile) {
@@ -6278,7 +6515,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sparkTimer: 0,
         bounds: null
     };
-    const spawnTimers = {
+    spawnTimers = {
         obstacle: 0,
         collectible: 0,
         powerUp: 0

@@ -478,6 +478,40 @@
                         <span id="reducedEffectsStatus" class="toggle-status">Off</span>
                     </label>
                 </div>
+                <div class="settings-row difficulty-row">
+                    <div class="setting-label" id="difficultyLabel">
+                        Difficulty
+                        <span>Flight intensity</span>
+                    </div>
+                    <div
+                        id="difficultySelector"
+                        class="difficulty-selector"
+                        role="radiogroup"
+                        aria-labelledby="difficultyLabel"
+                    >
+                        <label class="difficulty-option" data-difficulty-option="easy">
+                            <input type="radio" name="difficultySetting" value="easy" />
+                            <span class="difficulty-name">Easy</span>
+                            <span class="difficulty-note">Gentle patrol</span>
+                        </label>
+                        <label class="difficulty-option" data-difficulty-option="medium">
+                            <input type="radio" name="difficultySetting" value="medium" />
+                            <span class="difficulty-name">Medium</span>
+                            <span class="difficulty-note">Standard sortie</span>
+                        </label>
+                        <label class="difficulty-option" data-difficulty-option="hard">
+                            <input type="radio" name="difficultySetting" value="hard" />
+                            <span class="difficulty-name">Hard</span>
+                            <span class="difficulty-note">Hostile skies</span>
+                        </label>
+                        <label class="difficulty-option" data-difficulty-option="hyper">
+                            <input type="radio" name="difficultySetting" value="hyper" />
+                            <span class="difficulty-name">Hyper</span>
+                            <span class="difficulty-note">Maximum threat</span>
+                        </label>
+                    </div>
+                </div>
+                <p id="difficultyDescription" class="difficulty-description" aria-live="polite"></p>
             </div>
         </div>
     </div>
