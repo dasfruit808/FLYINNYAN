@@ -1,6 +1,10 @@
 :root {
     color-scheme: dark;
     --primary-font-stack: "Flight Time", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    --shell-width: 1180px;
+    --shell-height: 720px;
+    --shell-scale: 1;
+    --shell-padding: clamp(24px, 5vw, 36px);
 }
 
 @font-face {
@@ -24,13 +28,13 @@ body {
     background: #000;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
     min-height: 100vh;
-    padding: clamp(24px, 5vw, 48px);
+    padding: var(--shell-padding);
     font-family: var(--primary-font-stack);
     color: #fff;
-    overflow: auto;
+    overflow: hidden;
     position: relative;
 }
 
@@ -412,30 +416,41 @@ body.touch-enabled #settingsButton {
 }
 
 #gameShell {
-    --layout-gap: clamp(20px, 4vw, 32px);
+    --layout-gap: 24px;
     position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    display: grid;
+    grid-template-columns:
+        minmax(0, 720px)
+        minmax(0, calc(var(--shell-width) - 720px - var(--layout-gap)));
+    grid-auto-rows: minmax(0, 1fr);
+    align-items: stretch;
     justify-content: center;
     gap: var(--layout-gap);
-    width: 100%;
-    padding-inline: clamp(12px, 4vw, 32px);
+    width: min(var(--shell-width), calc(100vw - var(--shell-padding) * 2));
+    max-width: var(--shell-width);
+    height: min(var(--shell-height), calc(100vh - var(--shell-padding) * 2));
+    max-height: var(--shell-height);
+    margin: 0 auto;
     z-index: 0;
-    margin-inline: auto;
-    align-self: stretch;
+    transform-origin: top center;
+    transform: scale(var(--shell-scale));
 }
 
 #playfield {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(12px, 2vw, 20px);
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: stretch;
+    justify-items: center;
+    gap: 16px;
     width: 100%;
-    max-width: none;
-    margin-inline: auto;
+    height: 100%;
+    margin: 0;
+}
+
+#gameCanvas {
+    max-width: 100%;
+    max-height: 100%;
 }
 
 #loadingScreen {
@@ -2533,26 +2548,38 @@ body.weapon-select-open {
 }
 #instructions {
     width: 100%;
-    margin: clamp(24px, 5vw, 40px) auto 0;
+    margin: 0;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: clamp(16px, 4vw, 24px);
-}
-
-#instructionPanels[hidden] {
-    display: none !important;
+    align-items: stretch;
+    justify-content: stretch;
+    gap: 16px;
+    height: 100%;
 }
 
 #instructionButtonBar {
     display: flex;
     align-items: stretch;
-    justify-content: center;
-    gap: clamp(8px, 2vw, 18px);
-    width: min(1180px, 100%);
-    margin-inline: auto;
-    padding: 0 clamp(12px, 4vw, 24px);
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    margin: 0;
+    padding: 0;
     flex-wrap: nowrap;
+}
+
+#instructionPanels {
+    flex: 1 1 auto;
+    width: 100%;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-right: 8px;
+}
+
+#instructionPanels[hidden] {
+    display: none !important;
 }
 
 .instruction-button {
@@ -2562,8 +2589,8 @@ body.weapon-select-open {
     border-radius: 999px;
     background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 64, 175, 0.6));
     color: rgba(224, 242, 254, 0.92);
-    padding: clamp(10px, 1.8vw, 14px) clamp(14px, 3vw, 22px);
-    font-size: clamp(0.62rem, 1.5vw, 0.85rem);
+    padding: 12px 18px;
+    font-size: 0.78rem;
     letter-spacing: 0.16em;
     text-transform: uppercase;
     font-weight: 600;

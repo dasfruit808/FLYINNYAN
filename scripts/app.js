@@ -7,6 +7,7 @@ let baseDashConfig = null;
 let baseProjectileSettings = null;
 let activeDifficultyPreset = 'medium';
 let spawnTimers = { obstacle: 0, collectible: 0, powerUp: 0 };
+let shellScale = 1;
 const DOUBLE_TEAM_POWER = 'doubleTeam';
 const HYPER_BEAM_POWER = 'hyperBeam';
 const SHIELD_POWER = 'radiantShield';
@@ -1329,6 +1330,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const TOUCH_SMOOTHING_RATE = 26;
     const DEBUG_OVERLAY_STORAGE_KEY = 'nyanEscape.debugOverlay';
     const TARGET_ASPECT_RATIO = 3 / 2;
+    const gameShell = document.getElementById('gameShell');
+    const rootElement = document.documentElement;
     const viewport = {
         width: 900,
         height: 600,
@@ -1354,6 +1357,48 @@ document.addEventListener('DOMContentLoaded', () => {
     let resizeObserver = null;
     let backgroundGradient = null;
     let backgroundGradientHeight = 0;
+
+    function parsePixelValue(value, fallback = 0) {
+        const numeric = Number.parseFloat(value);
+        return Number.isFinite(numeric) ? numeric : fallback;
+    }
+
+    function updateShellScale() {
+        if (!gameShell || !bodyElement) {
+            shellScale = 1;
+            rootElement?.style.setProperty('--shell-scale', '1');
+            return;
+        }
+
+        const rootStyles = rootElement ? getComputedStyle(rootElement) : null;
+        const bodyStyles = getComputedStyle(bodyElement);
+        const designWidth = parsePixelValue(
+            rootStyles?.getPropertyValue('--shell-width'),
+            gameShell.offsetWidth || viewport.width
+        );
+        const designHeight = parsePixelValue(
+            rootStyles?.getPropertyValue('--shell-height'),
+            gameShell.offsetHeight || viewport.height
+        );
+
+        const horizontalPadding =
+            parsePixelValue(bodyStyles.paddingLeft) + parsePixelValue(bodyStyles.paddingRight);
+        const verticalPadding =
+            parsePixelValue(bodyStyles.paddingTop) + parsePixelValue(bodyStyles.paddingBottom);
+
+        const availableWidth = Math.max(
+            0,
+            (window.innerWidth || designWidth) - horizontalPadding
+        );
+        const availableHeight = Math.max(
+            0,
+            (window.innerHeight || designHeight) - verticalPadding
+        );
+
+        const scale = Math.min(1, availableWidth / designWidth, availableHeight / designHeight);
+        shellScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+        rootElement?.style.setProperty('--shell-scale', shellScale.toString());
+    }
 
     function measureElementSize(element) {
         if (!element) {
@@ -1464,10 +1509,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function measureAvailableCanvasSize() {
         const parent = canvas?.parentElement ?? null;
         const parentRect = parent?.getBoundingClientRect();
-        const availableWidth = Math.max(240, Math.floor(parentRect?.width ?? window.innerWidth ?? viewport.width));
-        let availableHeight = Math.floor((window.innerHeight ?? viewport.height) - (parentRect?.top ?? 0) - 32);
+        const scale = shellScale || 1;
+        const measuredWidth = Number.isFinite(parentRect?.width) ? parentRect.width : viewport.width;
+        const measuredHeight = Number.isFinite(parentRect?.height) ? parentRect.height : viewport.height;
+        const availableWidth = Math.max(240, Math.floor(measuredWidth / scale));
+        let availableHeight = Math.floor(measuredHeight / scale);
         if (!Number.isFinite(availableHeight) || availableHeight <= 0) {
-            availableHeight = Math.max(240, Math.floor((window.innerHeight ?? viewport.height) * 0.8));
+            const fallbackHeight = (window.innerHeight || viewport.height) - 48;
+            availableHeight = Math.max(240, Math.floor(fallbackHeight / scale));
         }
         return { width: availableWidth, height: Math.max(240, availableHeight) };
     }
@@ -1538,6 +1587,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const previousWidth = viewport.width;
         const previousHeight = viewport.height;
+        updateShellScale();
         const available = measureAvailableCanvasSize();
 
         let cssWidth = Math.min(available.width, available.height * TARGET_ASPECT_RATIO);
@@ -1594,6 +1644,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function requestViewportUpdate() {
+        updateShellScale();
         if (pendingResizeFrame !== null) {
             return;
         }
@@ -1650,6 +1701,7 @@ document.addEventListener('DOMContentLoaded', () => {
         devicePixelRatioQuery = query;
     }
 
+    updateShellScale();
     updateViewportMetrics({ preserveEntities: false });
     refreshGamepadCursorBounds({ recenter: true });
     watchDevicePixelRatio();
