@@ -476,11 +476,9 @@ body.touch-enabled #settingsButton {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: clamp(24px, 4vw, 48px);
+    gap: 5px;
     padding: clamp(28px, 6vw, 80px);
-    background:
-        linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.9)),
-        url('../assets/background.png') center / cover no-repeat;
+    background: #fff;
     z-index: 999;
     transition: opacity 400ms ease;
     text-align: center;
@@ -498,6 +496,13 @@ body.touch-enabled #settingsButton {
     display: block;
     margin: 0 auto;
     align-self: center;
+}
+
+.loading-credit {
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    font-size: 1rem;
+    color: #0f172a;
+    margin: 0;
 }
 
 #loadingStatus {
