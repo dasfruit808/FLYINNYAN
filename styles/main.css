@@ -2015,7 +2015,7 @@ body.loadout-editor-open {
 #loadoutEditorModal {
     position: fixed;
     inset: 0;
-    z-index: 8;
+    z-index: 120;
     display: flex;
     justify-content: center;
     align-items: center;
