@@ -1,0 +1,49 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Double Team Power Core</title>
+  <desc id="desc">Stylized icon showing two mirrored cat pilots linked by a glowing arc.</desc>
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <radialGradient id="orbGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(148, 197, 255, 0.85)" />
+      <stop offset="100%" stop-color="rgba(56, 189, 248, 0)" />
+    </radialGradient>
+    <linearGradient id="pilotGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#9fd7ff" />
+      <stop offset="60%" stop-color="#6f9dff" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+    <linearGradient id="linkGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="rgba(147, 197, 253, 0.8)" />
+      <stop offset="100%" stop-color="rgba(192, 132, 252, 0.65)" />
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="120" height="120" rx="18" fill="url(#bgGradient)" />
+  <circle cx="60" cy="60" r="44" fill="url(#orbGlow)" />
+  <path d="M34 66 C44 58 76 58 86 66 C76 74 44 74 34 66 Z" fill="url(#linkGradient)" opacity="0.8" filter="url(#softGlow)" />
+  <g transform="translate(24 12)">
+    <path d="M12 46 L24 20 L30 40" fill="#93c5fd" opacity="0.85" />
+    <path d="M44 40 L50 20 L62 46" fill="#93c5fd" opacity="0.85" />
+    <circle cx="32" cy="56" r="24" fill="url(#pilotGradient)" stroke="#e0f2ff" stroke-width="2" />
+    <circle cx="26" cy="52" r="5" fill="#0f172a" />
+    <circle cx="38" cy="52" r="5" fill="#0f172a" />
+    <path d="M24 64 Q32 70 40 64" stroke="#0f172a" stroke-width="3" stroke-linecap="round" fill="none" />
+  </g>
+  <g transform="translate(56 12)">
+    <path d="M12 46 L24 20 L30 40" fill="#c4b5fd" opacity="0.85" />
+    <path d="M44 40 L50 20 L62 46" fill="#c4b5fd" opacity="0.85" />
+    <circle cx="32" cy="56" r="24" fill="url(#pilotGradient)" stroke="#ede9fe" stroke-width="2" />
+    <circle cx="26" cy="52" r="5" fill="#0f172a" />
+    <circle cx="38" cy="52" r="5" fill="#0f172a" />
+    <path d="M24 64 Q32 70 40 64" stroke="#0f172a" stroke-width="3" stroke-linecap="round" fill="none" />
+  </g>
+</svg>

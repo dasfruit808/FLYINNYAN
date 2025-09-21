@@ -75,6 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const particleColorStyleCache = typeof WeakMap === 'function' ? new WeakMap() : null;
     const STAR_FILL_COLOR = '#ffffff';
     const INV_PARTICLE_LIFE = 1 / 500;
+    const doubleTeamState = {
+        clone: null,
+        trail: [],
+        wobble: 0,
+        linkPulse: 0,
+        side: 1
+    };
+    const activePlayerBuffer = [];
 
     const getParticleColorStyle = (color) => {
         if (!color) {
@@ -1262,6 +1270,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     -verticalBleed,
                     Math.max(0, nextHeight - player.height + verticalBleed)
                 );
+            }
+
+            if (doubleTeamState.clone) {
+                doubleTeamState.clone.x *= scaleX;
+                doubleTeamState.clone.y *= scaleY;
+                doubleTeamState.clone.x = clamp(
+                    doubleTeamState.clone.x,
+                    0,
+                    Math.max(0, nextWidth - doubleTeamState.clone.width)
+                );
+                const verticalBleed = nextHeight * (config?.player?.verticalBleed ?? 0);
+                doubleTeamState.clone.y = clamp(
+                    doubleTeamState.clone.y,
+                    -verticalBleed,
+                    Math.max(0, nextHeight - doubleTeamState.clone.height + verticalBleed)
+                );
+            }
+
+            if (doubleTeamState.trail.length) {
+                for (const point of doubleTeamState.trail) {
+                    point.x *= scaleX;
+                    point.y *= scaleY;
+                }
             }
 
             for (const star of stars) {
@@ -6723,6 +6754,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 bulletSpread: 6200,
                 flameWhip: 6200,
                 missiles: 5600,
+                [DOUBLE_TEAM_POWER]: 6200,
                 hyperBeam: 5600,
                 radiantShield: 7200,
                 pumpDrive: 6200,
@@ -6766,6 +6798,13 @@ document.addEventListener('DOMContentLoaded', () => {
             pullRadius: 320,
             pullStrength: 820,
             maxSpeed: 520
+        },
+        doubleTeamPower: {
+            separation: 140,
+            catchUpRate: 6.5,
+            trailSpacingScale: 0.85,
+            wobbleSpeed: 3.2,
+            wobbleAmplitude: 6.5
         },
         star: {
             count: 120,
@@ -6842,6 +6881,7 @@ document.addEventListener('DOMContentLoaded', () => {
         config.player.dash.dragMultiplier = baseDashConfig.dragMultiplier;
         config.projectileCooldown = baseProjectileSettings.cooldown;
         config.projectileSpeed = baseProjectileSettings.speed;
+        ensureDoubleTeamCloneDimensions();
     }
 
     function applyCharacterOverrides(profile) {
@@ -6867,6 +6907,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (player) {
             player.width = config.player.width;
             player.height = config.player.height;
+            ensureDoubleTeamCloneDimensions();
         }
     }
 
@@ -7273,6 +7314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bulletSpread: 'assets/powerburger.png',
         flameWhip: 'assets/powerember.svg',
         missiles: 'assets/powerpizza.png',
+        [DOUBLE_TEAM_POWER]: 'assets/powerdouble.svg',
         hyperBeam: 'assets/powerbeam.svg',
         pumpDrive: 'assets/pump.png',
         timeDilation: 'assets/powerchrono.svg',
@@ -7386,6 +7428,7 @@ document.addEventListener('DOMContentLoaded', () => {
             bulletSpread: 0,
             flameWhip: 0,
             missiles: 0,
+            [DOUBLE_TEAM_POWER]: 0,
             hyperBeam: 0,
             radiantShield: 0,
             pumpDrive: 0,
@@ -8205,6 +8248,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const DOUBLE_TEAM_POWER = 'doubleTeam';
     const HYPER_BEAM_POWER = 'hyperBeam';
     const SHIELD_POWER = 'radiantShield';
     const PUMP_POWER = 'pumpDrive';
@@ -8217,6 +8261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'bulletSpread',
         FLAME_WHIP_POWER,
         'missiles',
+        DOUBLE_TEAM_POWER,
         HYPER_BEAM_POWER,
         SHIELD_POWER,
         PUMP_POWER,
@@ -8228,6 +8273,7 @@ document.addEventListener('DOMContentLoaded', () => {
         powerBomb: 'Nova Pulse',
         bulletSpread: 'Starlight Spread',
         missiles: 'Comet Missiles',
+        [DOUBLE_TEAM_POWER]: 'Double Team',
         [FLAME_WHIP_POWER]: 'Ember Whip',
         [HYPER_BEAM_POWER]: 'Hyper Beam',
         [SHIELD_POWER]: 'Radiant Shield',
@@ -8240,6 +8286,7 @@ document.addEventListener('DOMContentLoaded', () => {
         powerBomb: { r: 255, g: 168, b: 112 },
         bulletSpread: { r: 255, g: 128, b: 255 },
         missiles: { r: 255, g: 182, b: 92 },
+        [DOUBLE_TEAM_POWER]: { r: 188, g: 224, b: 255 },
         [FLAME_WHIP_POWER]: { r: 214, g: 64, b: 56 },
         [HYPER_BEAM_POWER]: { r: 147, g: 197, b: 253 },
         [SHIELD_POWER]: { r: 148, g: 210, b: 255 },
@@ -8437,6 +8484,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.powerUpTimers.bulletSpread = 0;
         state.powerUpTimers[FLAME_WHIP_POWER] = 0;
         state.powerUpTimers.missiles = 0;
+        state.powerUpTimers[DOUBLE_TEAM_POWER] = 0;
         state.powerUpTimers.radiantShield = 0;
         state.powerUpTimers[HYPER_BEAM_POWER] = 0;
         state.powerUpTimers.pumpDrive = 0;
@@ -8470,6 +8518,7 @@ document.addEventListener('DOMContentLoaded', () => {
         villainExplosions.length = 0;
         particles.length = 0;
         trail.length = 0;
+        endDoubleTeam(true);
         pumpTailState.active = false;
         pumpTailState.bars.length = 0;
         pumpTailState.fade = 0;
@@ -8903,9 +8952,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (state.gameState === 'running') {
                 const collisionRadius = asteroid.radius * (settings.collisionRadiusMultiplier ?? 1);
-                if (circleRectOverlap({ x: asteroid.x, y: asteroid.y, radius: collisionRadius }, player)) {
+                const activePlayers = getActivePlayerEntities();
+                let collidedEntity = null;
+                for (const entity of activePlayers) {
+                    if (circleRectOverlap({ x: asteroid.x, y: asteroid.y, radius: collisionRadius }, entity)) {
+                        collidedEntity = entity;
+                        break;
+                    }
+                }
+                if (collidedEntity) {
                     if (isShieldActive() && asteroid.shieldCooldown <= 0) {
-                        repelAsteroidFromPlayer(asteroid);
+                        repelAsteroidFromPlayer(asteroid, collidedEntity);
                         continue;
                     }
                     triggerGameOver('An asteroid shattered your shields!');
@@ -8918,17 +8975,41 @@ document.addEventListener('DOMContentLoaded', () => {
                         continue;
                     }
                 } else {
-                    for (let j = trail.length - 1; j >= 0; j--) {
-                        const t = trail[j];
-                        if (Math.hypot(asteroid.x - t.x, asteroid.y - t.y) <= collisionRadius + 10) {
-                            if (isShieldActive()) {
-                                if (asteroid.shieldCooldown <= 0) {
-                                    repelAsteroidFromPlayer(asteroid);
+                    const evaluateTailCollision = (points, sourceEntity) => {
+                        if (!points?.length) {
+                            return 'none';
+                        }
+                        for (let j = points.length - 1; j >= 0; j--) {
+                            const t = points[j];
+                            if (Math.hypot(asteroid.x - t.x, asteroid.y - t.y) <= collisionRadius + 10) {
+                                if (isShieldActive()) {
+                                    if (asteroid.shieldCooldown <= 0) {
+                                        repelAsteroidFromPlayer(asteroid, sourceEntity ?? player);
+                                    }
+                                    return 'shielded';
                                 }
-                                break;
+                                triggerGameOver('Your tail clipped an asteroid!');
+                                return 'gameOver';
                             }
-                            triggerGameOver('Your tail clipped an asteroid!');
+                        }
+                        return 'none';
+                    };
+
+                    const tailResult = evaluateTailCollision(trail, player);
+                    if (tailResult === 'gameOver') {
+                        return;
+                    }
+                    if (tailResult === 'shielded') {
+                        continue;
+                    }
+
+                    if (isDoubleTeamActive()) {
+                        const cloneTailResult = evaluateTailCollision(doubleTeamState.trail, doubleTeamState.clone);
+                        if (cloneTailResult === 'gameOver') {
                             return;
+                        }
+                        if (cloneTailResult === 'shielded') {
+                            continue;
                         }
                     }
                 }
@@ -9995,6 +10076,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return delta * getSpawnTimeScale();
     }
 
+    function isDoubleTeamActive() {
+        return Boolean(doubleTeamState.clone && state.powerUpTimers[DOUBLE_TEAM_POWER] > 0);
+    }
+
+    function getActivePlayerEntities() {
+        activePlayerBuffer.length = 0;
+        activePlayerBuffer.push(player);
+        if (isDoubleTeamActive()) {
+            activePlayerBuffer.push(doubleTeamState.clone);
+        }
+        return activePlayerBuffer;
+    }
+
+    function ensureDoubleTeamCloneDimensions() {
+        if (doubleTeamState.clone) {
+            doubleTeamState.clone.width = config.player.width;
+            doubleTeamState.clone.height = config.player.height;
+        }
+    }
+
     function getScoreSurgeMultiplier() {
         if (!isPowerUpActive(SCORE_SURGE_POWER)) {
             return 1;
@@ -10010,7 +10111,28 @@ document.addEventListener('DOMContentLoaded', () => {
         return isPowerUpActive(SHIELD_POWER);
     }
 
-    function getPlayerCenter() {
+    function getPlayerCenter(entity = null) {
+        if (entity) {
+            return {
+                x: entity.x + entity.width * 0.5,
+                y: entity.y + entity.height * 0.5
+            };
+        }
+        const players = getActivePlayerEntities();
+        if (players.length > 1) {
+            const sum = players.reduce(
+                (acc, current) => {
+                    acc.x += current.x + current.width * 0.5;
+                    acc.y += current.y + current.height * 0.5;
+                    return acc;
+                },
+                { x: 0, y: 0 }
+            );
+            return {
+                x: sum.x / players.length,
+                y: sum.y / players.length
+            };
+        }
         return {
             x: player.x + player.width * 0.5,
             y: player.y + player.height * 0.5
@@ -10034,9 +10156,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.shieldHitPulse = Math.min(1.2, (state.shieldHitPulse ?? 0) + 0.5);
     }
 
-    function repelObstacleFromPlayer(obstacle) {
+    function repelObstacleFromPlayer(obstacle, source = player) {
         const shieldConfig = config.defensePower ?? {};
-        const { x: playerCenterX, y: playerCenterY } = getPlayerCenter();
+        const { x: playerCenterX, y: playerCenterY } = getPlayerCenter(source);
         const obstacleCenterX = obstacle.x + obstacle.width * 0.5;
         const obstacleCenterY = obstacle.y + obstacle.height * 0.5;
         const dx = obstacleCenterX - playerCenterX;
@@ -10045,8 +10167,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const normalX = dx / distance;
         const normalY = dy / distance;
         const clearance = shieldConfig.clearance ?? 12;
-        const playerHalfWidth = player.width * 0.5;
-        const playerHalfHeight = player.height * 0.5;
+        const playerHalfWidth = source.width * 0.5;
+        const playerHalfHeight = source.height * 0.5;
         const obstacleHalfWidth = obstacle.width * 0.5;
         const obstacleHalfHeight = obstacle.height * 0.5;
         const targetCenterX = playerCenterX + normalX * (playerHalfWidth + obstacleHalfWidth + clearance);
@@ -10067,16 +10189,16 @@ document.addEventListener('DOMContentLoaded', () => {
         triggerShieldImpact(targetCenterX, targetCenterY, normalX, normalY);
     }
 
-    function repelAsteroidFromPlayer(asteroid) {
+    function repelAsteroidFromPlayer(asteroid, source = player) {
         const shieldConfig = config.defensePower ?? {};
-        const { x: playerCenterX, y: playerCenterY } = getPlayerCenter();
+        const { x: playerCenterX, y: playerCenterY } = getPlayerCenter(source);
         const dx = asteroid.x - playerCenterX;
         const dy = asteroid.y - playerCenterY;
         const distance = Math.max(Math.hypot(dx, dy), 1);
         const normalX = dx / distance;
         const normalY = dy / distance;
         const clearance = shieldConfig.clearance ?? 12;
-        const playerRadius = Math.max(player.width, player.height) * 0.5;
+        const playerRadius = Math.max(source.width, source.height) * 0.5;
         const targetDistance = playerRadius + asteroid.radius + clearance;
         asteroid.x = playerCenterX + normalX * targetDistance;
         asteroid.y = clamp(playerCenterY + normalY * targetDistance, asteroid.radius, viewport.height - asteroid.radius);
@@ -10104,9 +10226,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function spawnProjectiles() {
-        const originX = player.x + player.width - 12;
-        const originY = player.y + player.height * 0.5 - 6;
         const firedTypes = new Set();
+        const shooters = getActivePlayerEntities();
+        for (const shooter of shooters) {
+            spawnProjectilesFromEntity(shooter, firedTypes);
+        }
+        for (const type of firedTypes) {
+            audioManager.playProjectile(type);
+        }
+    }
+
+    function spawnProjectilesFromEntity(entity, firedTypes) {
+        if (!entity) {
+            return;
+        }
+        const originX = entity.x + entity.width - 12;
+        const originY = entity.y + entity.height * 0.5 - 6;
         const loadout = activeWeaponLoadout ?? weaponLoadouts.pulse;
         const loadoutSpeedMultiplier = loadout?.speedMultiplier ?? 1;
         const createProjectile = (angle, type = 'standard', overrides = {}) => {
@@ -10143,7 +10278,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (overrides.segmentCount !== undefined) projectile.segmentCount = overrides.segmentCount;
             if (overrides.curve !== undefined) projectile.curve = overrides.curve;
             projectiles.push(projectile);
-            firedTypes.add(overrides.audioType ?? type);
+            if (firedTypes) {
+                firedTypes.add(overrides.audioType ?? type);
+            }
             return projectile;
         };
 
@@ -10209,10 +10346,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             createProjectile(0, 'standard');
         }
-
-        for (const type of firedTypes) {
-            audioManager.playProjectile(type);
-        }
     }
 
     function updateTailLength(delta) {
@@ -10228,6 +10361,182 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.tailLength - config.tailSmoothing.shrink * deltaSeconds
             );
         }
+    }
+
+    function updateDoubleTeamTrail(deltaSeconds) {
+        if (!doubleTeamState.clone) {
+            if (doubleTeamState.trail.length) {
+                doubleTeamState.trail.length = 0;
+            }
+            return;
+        }
+
+        const clone = doubleTeamState.clone;
+        const centerX = clone.x + clone.width * 0.45;
+        const centerY = clone.y + clone.height * 0.55;
+        const powerConfig = config.doubleTeamPower ?? {};
+        const spacing = Math.max(6, config.trailSpacing * (powerConfig.trailSpacingScale ?? 0.85));
+        const last = doubleTeamState.trail[doubleTeamState.trail.length - 1];
+        if (!last || Math.hypot(centerX - last.x, centerY - last.y) > spacing) {
+            doubleTeamState.trail.push({ x: centerX, y: centerY });
+        }
+
+        const maxLength = Math.max(4, Math.round(state.tailLength * (powerConfig.trailSpacingScale ?? 0.85)));
+        while (doubleTeamState.trail.length > maxLength) {
+            doubleTeamState.trail.shift();
+        }
+    }
+
+    function updateDoubleTeamFormation(deltaSeconds) {
+        if (!doubleTeamState.clone) {
+            doubleTeamState.linkPulse = Math.max(0, doubleTeamState.linkPulse - deltaSeconds);
+            doubleTeamState.wobble = 0;
+            return;
+        }
+
+        const powerConfig = config.doubleTeamPower ?? {};
+        const clone = doubleTeamState.clone;
+        ensureDoubleTeamCloneDimensions();
+
+        const separation = powerConfig.separation ?? Math.max(120, player.width * 0.9);
+        const catchUpRate = Math.max(0, powerConfig.catchUpRate ?? 6.5);
+        const wobbleAmplitude = powerConfig.wobbleAmplitude ?? 6.5;
+        const playerCenter = getPlayerCenter(player);
+        const cloneCenter = getPlayerCenter(clone);
+        const offsetX = cloneCenter.x - playerCenter.x;
+        const offsetY = cloneCenter.y - playerCenter.y;
+        const side = Math.abs(offsetX) > 2 ? Math.sign(offsetX) || 1 : doubleTeamState.side || 1;
+        doubleTeamState.side = side || 1;
+
+        const targetOffsetX = separation * doubleTeamState.side;
+        const targetOffsetY = wobbleAmplitude
+            ? Math.sin(doubleTeamState.wobble) * wobbleAmplitude
+            : 0;
+        const diffX = targetOffsetX - offsetX;
+        const diffY = targetOffsetY - offsetY;
+        const catchUpFactor = clamp(catchUpRate * deltaSeconds, 0, 0.92);
+
+        if (catchUpFactor > 0) {
+            clone.x += diffX * catchUpFactor;
+            clone.y += diffY * catchUpFactor;
+
+            if (deltaSeconds > 0) {
+                const invDelta = 1 / deltaSeconds;
+                const velocityBlend = Math.min(1, catchUpRate * deltaSeconds) * 0.45;
+                clone.vx += (diffX * invDelta) * velocityBlend;
+                clone.vy += (diffY * invDelta) * velocityBlend;
+            }
+        }
+
+        const verticalBleed = viewport.height * config.player.verticalBleed;
+        clone.x = clamp(clone.x, 0, viewport.width - clone.width);
+        clone.y = clamp(clone.y, -verticalBleed, viewport.height - clone.height + verticalBleed);
+
+        const wobbleSpeed = powerConfig.wobbleSpeed ?? 3.2;
+        doubleTeamState.wobble += deltaSeconds * wobbleSpeed;
+        if (doubleTeamState.wobble > Math.PI * 2) {
+            doubleTeamState.wobble %= Math.PI * 2;
+        }
+        doubleTeamState.linkPulse = Math.max(0, doubleTeamState.linkPulse - deltaSeconds * 0.6);
+    }
+
+    function createDoubleTeamClone() {
+        return {
+            x: player.x,
+            y: player.y,
+            width: config.player.width,
+            height: config.player.height,
+            vx: player.vx ?? 0,
+            vy: player.vy ?? 0
+        };
+    }
+
+    function startDoubleTeam() {
+        ensureDoubleTeamCloneDimensions();
+        if (!doubleTeamState.clone) {
+            doubleTeamState.clone = createDoubleTeamClone();
+        } else {
+            doubleTeamState.clone.x = player.x;
+            doubleTeamState.clone.y = player.y;
+        }
+        const clone = doubleTeamState.clone;
+        clone.vx = player.vx;
+        clone.vy = player.vy;
+        const powerConfig = config.doubleTeamPower ?? {};
+        const separation = powerConfig.separation ?? Math.max(120, player.width * 0.9);
+        const halfGap = separation * 0.5;
+        const centerX = player.x + player.width * 0.5;
+        let leftCenter = centerX - halfGap;
+        let rightCenter = centerX + halfGap;
+        const playerHalf = player.width * 0.5;
+        const cloneHalf = clone.width * 0.5;
+        const minLeftCenter = playerHalf;
+        const maxLeftCenter = viewport.width - playerHalf;
+        const minRightCenter = cloneHalf;
+        const maxRightCenter = viewport.width - cloneHalf;
+        if (leftCenter < minLeftCenter) {
+            const diff = minLeftCenter - leftCenter;
+            leftCenter += diff;
+            rightCenter += diff;
+        }
+        if (rightCenter > maxRightCenter) {
+            const diff = rightCenter - maxRightCenter;
+            leftCenter -= diff;
+            rightCenter -= diff;
+        }
+        leftCenter = clamp(leftCenter, minLeftCenter, maxLeftCenter);
+        rightCenter = clamp(rightCenter, minRightCenter, maxRightCenter);
+        player.x = clamp(leftCenter - playerHalf, 0, viewport.width - player.width);
+        const verticalBleed = viewport.height * config.player.verticalBleed;
+        player.y = clamp(player.y, -verticalBleed, viewport.height - player.height + verticalBleed);
+        clone.x = clamp(rightCenter - cloneHalf, 0, viewport.width - clone.width);
+        clone.y = clamp(clone.y, -verticalBleed, viewport.height - clone.height + verticalBleed);
+        doubleTeamState.side = clone.x >= player.x ? 1 : -1;
+        doubleTeamState.trail.length = 0;
+        doubleTeamState.linkPulse = 1.1;
+        doubleTeamState.wobble = 0;
+
+        const color = powerUpColors[DOUBLE_TEAM_POWER] ?? { r: 188, g: 224, b: 255 };
+        const center = getPlayerCenter();
+        createParticles({
+            x: center.x,
+            y: center.y,
+            color,
+            count: reducedEffectsMode ? 10 : 18,
+            speedRange: [160, 420],
+            sizeRange: [1, 2.6],
+            lifeRange: [320, 560]
+        });
+    }
+
+    function endDoubleTeam(force = false) {
+        if (!doubleTeamState.clone) {
+            doubleTeamState.trail.length = 0;
+            if (force) {
+                doubleTeamState.linkPulse = 0;
+            }
+            return;
+        }
+
+        if (!force) {
+            const color = powerUpColors[DOUBLE_TEAM_POWER] ?? { r: 188, g: 224, b: 255 };
+            const center = getPlayerCenter(doubleTeamState.clone);
+            createParticles({
+                x: center.x,
+                y: center.y,
+                color,
+                count: reducedEffectsMode ? 6 : 12,
+                speedRange: [140, 360],
+                sizeRange: [0.9, 2.2],
+                lifeRange: [280, 520]
+            });
+        }
+
+        doubleTeamState.clone = null;
+        doubleTeamState.trail.length = 0;
+        doubleTeamState.wobble = 0;
+        doubleTeamState.linkPulse = force ? 0 : Math.max(doubleTeamState.linkPulse, 0.5);
+        doubleTeamState.side = 1;
     }
 
     function updatePlayer(delta) {
@@ -10255,23 +10564,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const isDashing = state.dashTimer > 0;
         const effectiveDrag = isDashing ? drag * dashConfig.dragMultiplier : drag;
         const maxSpeed = isDashing ? dashConfig.boostSpeed : config.player.maxSpeed;
+        const verticalBleed = viewport.height * config.player.verticalBleed;
+        const moveEntity = (entity) => {
+            if (!entity) {
+                return;
+            }
+            entity.vx += (inputX * accel - entity.vx * effectiveDrag) * deltaSeconds;
+            entity.vy += (inputY * accel - entity.vy * effectiveDrag) * deltaSeconds;
+            entity.vx = clamp(entity.vx, -maxSpeed, maxSpeed);
+            entity.vy = clamp(entity.vy, -maxSpeed, maxSpeed);
+            entity.x += entity.vx * deltaSeconds;
+            entity.y += entity.vy * deltaSeconds;
+            entity.x = clamp(entity.x, 0, viewport.width - entity.width);
+            entity.y = clamp(entity.y, -verticalBleed, viewport.height - entity.height + verticalBleed);
+        };
 
-        player.vx += (inputX * accel - player.vx * effectiveDrag) * deltaSeconds;
-        player.vy += (inputY * accel - player.vy * effectiveDrag) * deltaSeconds;
-
-        player.vx = clamp(player.vx, -maxSpeed, maxSpeed);
-        player.vy = clamp(player.vy, -maxSpeed, maxSpeed);
-
-        player.x += player.vx * deltaSeconds;
-        player.y += player.vy * deltaSeconds;
+        const players = getActivePlayerEntities();
+        for (const entity of players) {
+            moveEntity(entity);
+        }
 
         if (state.dashTimer > 0) {
             state.dashTimer = Math.max(0, state.dashTimer - delta);
         }
-
-        player.x = clamp(player.x, 0, viewport.width - player.width);
-        const verticalBleed = viewport.height * config.player.verticalBleed;
-        player.y = clamp(player.y, -verticalBleed, viewport.height - player.height + verticalBleed);
 
         attemptShoot(delta);
 
@@ -10283,6 +10598,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             updateTrail();
         }
+
+        updateDoubleTeamFormation(deltaSeconds);
+        updateDoubleTeamTrail(deltaSeconds);
     }
 
     function updateTrail() {
@@ -10921,7 +11239,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             }
             case 'tracker': {
-                const targetY = player.y + player.height * 0.5 - obstacle.height * 0.5;
+                const { y: trackerY } = getPlayerCenter();
+                const targetY = trackerY - obstacle.height * 0.5;
                 const direction = targetY - obstacle.y;
                 const accel = Math.sign(direction) * (behaviorState.acceleration ?? villainBehavior.acceleration ?? 120);
                 behaviorState.vy += accel * deltaSeconds;
@@ -10986,27 +11305,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 continue;
             }
 
-            if (rectOverlap(player, obstacle)) {
+            const activePlayers = getActivePlayerEntities();
+            let collidedEntity = null;
+            for (const entity of activePlayers) {
+                if (rectOverlap(entity, obstacle)) {
+                    collidedEntity = entity;
+                    break;
+                }
+            }
+            if (collidedEntity) {
                 if (isBoss) {
                     return triggerGameOver('The boss crushed your ship!');
                 }
                 if (isShieldActive() && obstacle.shieldCooldown <= 0) {
-                    repelObstacleFromPlayer(obstacle);
+                    repelObstacleFromPlayer(obstacle, collidedEntity);
                     continue;
                 }
                 return triggerGameOver('Your rainbow ship took a direct hit!');
             }
 
             if (!isPumpTailDamaging()) {
-                for (let j = trail.length - 1; j >= 0; j--) {
-                    const t = trail[j];
-                    if (circleRectOverlap({ x: t.x, y: t.y, radius: 10 }, obstacle)) {
-                        if (isShieldActive() && !isBoss) {
-                            if (obstacle.shieldCooldown <= 0) {
-                                repelObstacleFromPlayer(obstacle);
+                const evaluateTailCollision = (points, sourceEntity) => {
+                    if (!points?.length) {
+                        return 'none';
+                    }
+                    for (let j = points.length - 1; j >= 0; j--) {
+                        const t = points[j];
+                        if (circleRectOverlap({ x: t.x, y: t.y, radius: 10 }, obstacle)) {
+                            if (isShieldActive() && !isBoss) {
+                                if (obstacle.shieldCooldown <= 0) {
+                                    repelObstacleFromPlayer(obstacle, sourceEntity ?? player);
+                                }
+                                return 'shielded';
                             }
-                            break;
+                            return 'hit';
                         }
+                    }
+                    return 'none';
+                };
+
+                const tailResult = evaluateTailCollision(trail, player);
+                if (tailResult === 'shielded') {
+                    continue;
+                }
+                if (tailResult === 'hit') {
+                    return triggerGameOver(
+                        isBoss
+                            ? 'The boss shattered your tail formation!'
+                            : 'Your tail tangled with space junk!'
+                    );
+                }
+
+                if (isDoubleTeamActive()) {
+                    const cloneTailResult = evaluateTailCollision(doubleTeamState.trail, doubleTeamState.clone);
+                    if (cloneTailResult === 'shielded') {
+                        continue;
+                    }
+                    if (cloneTailResult === 'hit') {
                         return triggerGameOver(
                             isBoss
                                 ? 'The boss shattered your tail formation!'
@@ -11058,7 +11413,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 continue;
             }
 
-            if (rectOverlap(player, collectible)) {
+            const activePlayers = getActivePlayerEntities();
+            let collected = false;
+            for (const entity of activePlayers) {
+                if (rectOverlap(entity, collectible)) {
+                    collected = true;
+                    break;
+                }
+            }
+            if (collected) {
                 collectibles.splice(i, 1);
                 awardCollect(collectible);
                 createParticles({
@@ -11071,8 +11434,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function triggerPowerBombPulse() {
-        const centerX = player.x + player.width * 0.5;
-        const centerY = player.y + player.height * 0.5;
+        const { x: centerX, y: centerY } = getPlayerCenter();
         const burst = {
             x: centerX,
             y: centerY,
@@ -11146,6 +11508,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 variant: 'score',
                 multiplier: getScoreSurgeMultiplier()
             });
+        } else if (type === DOUBLE_TEAM_POWER) {
+            startDoubleTeam();
         } else if (type === MAGNET_POWER) {
             const { x, y } = getPlayerCenter();
             const color = powerUpColors[MAGNET_POWER] ?? { r: 156, g: 220, b: 255 };
@@ -11176,7 +11540,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 continue;
             }
 
-            if (rectOverlap(player, powerUp)) {
+            const activePlayers = getActivePlayerEntities();
+            let collected = false;
+            for (const entity of activePlayers) {
+                if (rectOverlap(entity, powerUp)) {
+                    collected = true;
+                    break;
+                }
+            }
+            if (collected) {
                 powerUps.splice(i, 1);
                 activatePowerUp(powerUp.type);
                 if (challengeManager) {
@@ -11208,6 +11580,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (type === PUMP_POWER && state.powerUpTimers[type] === 0) {
                     stopPumpTailEffect();
+                }
+                if (type === DOUBLE_TEAM_POWER && state.powerUpTimers[type] === 0) {
+                    endDoubleTeam();
                 }
             }
         }
@@ -12063,10 +12438,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function awardDodge() {
         state.score += config.score.dodge;
         state.comboTimer = Math.max(0, state.comboTimer - 400);
+        const center = getPlayerCenter();
         spawnFloatingText({
             text: `+${config.score.dodge} Dodge`,
-            x: player.x + player.width,
-            y: player.y + player.height * 0.5,
+            x: center.x + player.width * 0.5,
+            y: center.y,
             color: '#fde68a',
             life: 900,
             variant: 'dodge'
@@ -12084,10 +12460,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const penalty = getVillainEscapePenalty(obstacle);
         if (penalty > 0) {
             state.score = Math.max(0, state.score - penalty);
+            const center = getPlayerCenter();
             spawnFloatingText({
                 text: `-${penalty} pts`,
-                x: player.x + player.width * 0.5,
-                y: player.y + player.height * 0.5,
+                x: center.x,
+                y: center.y,
                 color: '#f87171',
                 life: 1100,
                 variant: 'penalty'
@@ -12096,9 +12473,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         state.comboTimer = config.comboDecayWindow;
         resetStreak();
+        const sparkCenter = getPlayerCenter();
         createHitSpark({
-            x: player.x + player.width * 0.5,
-            y: player.y + player.height * 0.5,
+            x: sparkCenter.x,
+            y: sparkCenter.y,
             color: { r: 255, g: 120, b: 120 }
         });
     }
@@ -12533,37 +12911,62 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.restore();
     }
 
-    function drawTrail() {
-        if (isPowerUpActive(PUMP_POWER) || pumpTailState.fade > 0) {
-            drawPumpTail();
+    function drawTrailSegments(points, style, now, { width = 72, height = 12, alphaScale = 1, hueOffset = 0 } = {}) {
+        if (!points || points.length < 2) {
             return;
         }
-        if (trail.length < 2) return;
-        const style = activeTrailStyle ?? trailStyles.rainbow;
-        const now = performance.now();
+        const halfWidth = width / 2;
+        const halfHeight = height / 2;
+
         ctx.save();
         if (style.type === 'palette' && Array.isArray(style.colors) && style.colors.length) {
-            for (let i = 0; i < trail.length; i++) {
-                const t = trail[i];
-                const alpha = i / trail.length;
-                const colorIndex = Math.min(style.colors.length - 1, Math.floor(alpha * style.colors.length));
+            for (let i = 0; i < points.length; i++) {
+                const point = points[i];
+                const progress = i / points.length;
+                const alpha = Math.max(0, Math.min(1, progress * alphaScale));
+                if (alpha <= 0) {
+                    continue;
+                }
+                const colorIndex = Math.min(style.colors.length - 1, Math.floor(progress * style.colors.length));
                 ctx.globalAlpha = alpha;
                 ctx.fillStyle = style.colors[colorIndex] ?? '#7dd3fc';
-                ctx.fillRect(t.x - 36, t.y - 6, 72, 12);
+                ctx.fillRect(point.x - halfWidth, point.y - halfHeight, width, height);
             }
         } else {
-            for (let i = 0; i < trail.length; i++) {
-                const t = trail[i];
-                const alpha = i / trail.length;
-                const hue = (alpha * 300 + now * 0.05) % 360;
+            for (let i = 0; i < points.length; i++) {
+                const point = points[i];
+                const progress = i / points.length;
+                const alpha = Math.max(0, Math.min(1, progress * alphaScale));
+                if (alpha <= 0) {
+                    continue;
+                }
+                const hue = (progress * 300 + now * 0.05 + hueOffset) % 360;
                 ctx.fillStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
-                ctx.fillRect(t.x - 36, t.y - 6, 72, 12);
+                ctx.fillRect(point.x - halfWidth, point.y - halfHeight, width, height);
             }
         }
         ctx.restore();
     }
 
-    function drawShieldAura(drawX, drawY, time = performance.now()) {
+    function drawTrail() {
+        if (isPowerUpActive(PUMP_POWER) || pumpTailState.fade > 0) {
+            drawPumpTail();
+            return;
+        }
+        const style = activeTrailStyle ?? trailStyles.rainbow;
+        const now = performance.now();
+        drawTrailSegments(trail, style, now, { width: 72, height: 12, alphaScale: 1 });
+        if (doubleTeamState.trail.length >= 2) {
+            drawTrailSegments(doubleTeamState.trail, style, now, {
+                width: 58,
+                height: 10,
+                alphaScale: 0.85,
+                hueOffset: 36
+            });
+        }
+    }
+
+    function drawShieldAura(entity, drawX, drawY, time = performance.now()) {
         if (!isShieldActive()) return;
         const shieldConfig = config.defensePower ?? {};
         const auraColor = shieldConfig.auraColor ?? { r: 150, g: 214, b: 255 };
@@ -12571,9 +12974,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const remaining = clamp(state.powerUpTimers[SHIELD_POWER] / duration, 0, 1);
         const pulseStrength = Math.sin(time * 0.007) * (shieldConfig.auraPulse ?? 0.18);
         const hitPulse = state.shieldHitPulse ?? 0;
-        const baseRadius = Math.max(player.width, player.height) * (0.65 + pulseStrength + hitPulse * 0.18);
-        const centerX = drawX + player.width * 0.5;
-        const centerY = drawY + player.height * 0.5;
+        const baseRadius = Math.max(entity.width, entity.height) * (0.65 + pulseStrength + hitPulse * 0.18);
+        const centerX = drawX + entity.width * 0.5;
+        const centerY = drawY + entity.height * 0.5;
 
         ctx.save();
         ctx.translate(centerX, centerY);
@@ -12615,25 +13018,97 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.restore();
     }
 
-    function drawPlayer() {
-        const now = performance.now();
-        const bob = Math.sin(now * 0.005) * 4;
-        const drawX = player.x;
-        const drawY = player.y + bob;
-        drawShieldAura(drawX, drawY, now);
+    function drawDoubleTeamLink(time) {
+        if (!isDoubleTeamActive()) {
+            return;
+        }
+        const clone = doubleTeamState.clone;
+        const origin = getPlayerCenter(player);
+        const cloneCenter = getPlayerCenter(clone);
+        const dx = cloneCenter.x - origin.x;
+        const dy = cloneCenter.y - origin.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance < 6) {
+            return;
+        }
+        const color = powerUpColors[DOUBLE_TEAM_POWER] ?? { r: 188, g: 224, b: 255 };
+        const pulse = 0.6 + Math.sin(time * 0.006 + doubleTeamState.wobble) * 0.2;
+        const alpha = 0.32 + (doubleTeamState.linkPulse ?? 0) * 0.2;
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineCap = 'round';
+        ctx.lineWidth = Math.max(3, 6 * pulse);
+        const gradient = ctx.createLinearGradient(origin.x, origin.y, cloneCenter.x, cloneCenter.y);
+        gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`);
+        gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.85})`);
+        ctx.strokeStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(cloneCenter.x, cloneCenter.y);
+        ctx.stroke();
+
+        const midX = (origin.x + cloneCenter.x) / 2;
+        const midY = (origin.y + cloneCenter.y) / 2;
+        const orbRadius = Math.min(18, 6 + distance * 0.05) * pulse;
+        const orbGradient = ctx.createRadialGradient(midX, midY, 0, midX, midY, orbRadius);
+        orbGradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${0.38 + pulse * 0.2})`);
+        orbGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = orbGradient;
+        ctx.beginPath();
+        ctx.arc(midX, midY, orbRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawPlayerSprite(entity, time, index) {
+        if (!entity) {
+            return;
+        }
+        const isClone = entity !== player;
+        const bobOffset = isClone ? (index + 1) * 120 : 0;
+        const bob = Math.sin((time + bobOffset) * 0.005) * 4;
+        const drawX = entity.x;
+        const drawY = entity.y + bob;
+
+        drawShieldAura(entity, drawX, drawY, time);
+
+        ctx.save();
+        if (isClone) {
+            ctx.globalAlpha = 0.9;
+        }
         if (activePlayerImage.complete && activePlayerImage.naturalWidth !== 0) {
-            ctx.drawImage(activePlayerImage, drawX, drawY, player.width, player.height);
+            ctx.drawImage(activePlayerImage, drawX, drawY, entity.width, entity.height);
         } else {
-            const gradient = ctx.createLinearGradient(drawX, drawY, drawX + player.width, drawY + player.height);
+            const gradient = ctx.createLinearGradient(drawX, drawY, drawX + entity.width, drawY + entity.height);
             gradient.addColorStop(0, '#ff9a9e');
             gradient.addColorStop(0.5, '#fad0c4');
             gradient.addColorStop(1, '#fad0c4');
             ctx.fillStyle = gradient;
-            ctx.fillRect(drawX, drawY, player.width, player.height);
+            ctx.fillRect(drawX, drawY, entity.width, entity.height);
         }
+        if (isClone) {
+            const color = powerUpColors[DOUBLE_TEAM_POWER] ?? { r: 188, g: 224, b: 255 };
+            ctx.globalCompositeOperation = 'lighter';
+            const overlay = ctx.createLinearGradient(drawX, drawY, drawX + entity.width, drawY + entity.height);
+            overlay.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.45)`);
+            overlay.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = overlay;
+            ctx.fillRect(drawX, drawY, entity.width, entity.height);
+        }
+        ctx.restore();
 
         if (isShieldActive()) {
-            drawShieldAura(drawX, drawY, now + 40);
+            drawShieldAura(entity, drawX, drawY, time + 40);
+        }
+    }
+
+    function drawPlayer() {
+        const now = performance.now();
+        drawDoubleTeamLink(now);
+        const players = getActivePlayerEntities();
+        for (let i = 0; i < players.length; i++) {
+            drawPlayerSprite(players[i], now, i);
         }
     }
 
