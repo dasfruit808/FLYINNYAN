@@ -1,5 +1,6 @@
 let firstRunExperience = true;
 let quickStartUsed = false;
+let state = { gameState: 'ready' };
 
 document.addEventListener('DOMContentLoaded', () => {
     // Reset onboarding flags whenever the game reinitializes. This ensures that
@@ -6061,7 +6062,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const totalCollectibleWeight = collectibleTiers.reduce((sum, tier) => sum + tier.weight, 0);
 
-    const state = {
+    state = {
         score: 0,
         nyan: 0,
         streak: 0,
