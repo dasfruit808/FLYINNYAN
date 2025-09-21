@@ -2540,72 +2540,88 @@ document.addEventListener('DOMContentLoaded', () => {
         easy: {
             id: 'easy',
             label: 'Easy',
-            description: 'Gentler calibration with slower drift, fewer hostiles, and more support drops.',
+            description: 'Gentler calibration with slower drift, sparse hostiles, and generous support drops.',
             overrides: {
-                baseGameSpeed: 140,
-                speedGrowth: 3.4,
-                obstacleSpawnInterval: 1150,
+                baseGameSpeed: 135,
+                speedGrowth: 2.6,
+                obstacleSpawnInterval: 1300,
                 collectibleSpawnInterval: 1200,
-                powerUpSpawnInterval: 9500,
+                powerUpSpawnInterval: 8500,
                 difficulty: {
-                    rampDuration: 110000,
-                    speedRamp: { start: 0.22, end: 0.75 },
+                    rampDuration: 125000,
+                    speedRamp: { start: 0.18, end: 0.68 },
                     spawnIntensity: {
-                        obstacle: { start: 0.28, end: 0.85 },
-                        collectible: { start: 0.74, end: 1.05 },
-                        powerUp: { start: 0.65, end: 1.08 }
+                        obstacle: { start: 0.2, end: 0.72 },
+                        collectible: { start: 0.85, end: 1.12 },
+                        powerUp: { start: 0.82, end: 1.18 }
                     },
-                    healthRamp: { start: 0.6, end: 1.0 }
+                    healthRamp: { start: 0.5, end: 0.9 }
                 }
             }
         },
         medium: {
             id: 'medium',
             label: 'Medium',
-            description: 'Balanced sortie tuned for most pilots.',
-            overrides: {}
+            description: 'Balanced sortie tuned for comfortable daily flights.',
+            overrides: {
+                baseGameSpeed: 150,
+                speedGrowth: 4.2,
+                obstacleSpawnInterval: 1025,
+                collectibleSpawnInterval: 1325,
+                powerUpSpawnInterval: 10000,
+                difficulty: {
+                    rampDuration: 100000,
+                    speedRamp: { start: 0.24, end: 0.84 },
+                    spawnIntensity: {
+                        obstacle: { start: 0.34, end: 1.0 },
+                        collectible: { start: 0.72, end: 1.06 },
+                        powerUp: { start: 0.64, end: 1.02 }
+                    },
+                    healthRamp: { start: 0.7, end: 1.2 }
+                }
+            }
         },
         hard: {
             id: 'hard',
             label: 'Hard',
-            description: 'Accelerated pace with denser hazards and lean support drops.',
+            description: 'Aggressive pacing with denser hazards and lean support drops.',
             overrides: {
-                baseGameSpeed: 185,
-                speedGrowth: 6.5,
-                obstacleSpawnInterval: 820,
-                collectibleSpawnInterval: 1550,
-                powerUpSpawnInterval: 12500,
+                baseGameSpeed: 190,
+                speedGrowth: 7.2,
+                obstacleSpawnInterval: 780,
+                collectibleSpawnInterval: 1600,
+                powerUpSpawnInterval: 13500,
                 difficulty: {
                     rampDuration: 82000,
-                    speedRamp: { start: 0.36, end: 1.05 },
+                    speedRamp: { start: 0.4, end: 1.12 },
                     spawnIntensity: {
-                        obstacle: { start: 0.52, end: 1.32 },
-                        collectible: { start: 0.6, end: 0.92 },
-                        powerUp: { start: 0.5, end: 0.82 }
+                        obstacle: { start: 0.56, end: 1.4 },
+                        collectible: { start: 0.58, end: 0.88 },
+                        powerUp: { start: 0.48, end: 0.8 }
                     },
-                    healthRamp: { start: 0.9, end: 1.45 }
+                    healthRamp: { start: 0.95, end: 1.5 }
                 }
             }
         },
         hyper: {
             id: 'hyper',
             label: 'Hyper',
-            description: 'Maximum threat environment demanding expert reflexes.',
+            description: 'Maximum threat environment demanding expert reflexes but fair windows.',
             overrides: {
-                baseGameSpeed: 208,
-                speedGrowth: 8.2,
-                obstacleSpawnInterval: 720,
-                collectibleSpawnInterval: 1650,
-                powerUpSpawnInterval: 15000,
+                baseGameSpeed: 220,
+                speedGrowth: 9,
+                obstacleSpawnInterval: 660,
+                collectibleSpawnInterval: 1800,
+                powerUpSpawnInterval: 16000,
                 difficulty: {
-                    rampDuration: 70000,
-                    speedRamp: { start: 0.45, end: 1.24 },
+                    rampDuration: 72000,
+                    speedRamp: { start: 0.5, end: 1.35 },
                     spawnIntensity: {
-                        obstacle: { start: 0.68, end: 1.55 },
-                        collectible: { start: 0.55, end: 0.8 },
-                        powerUp: { start: 0.45, end: 0.72 }
+                        obstacle: { start: 0.72, end: 1.7 },
+                        collectible: { start: 0.48, end: 0.76 },
+                        powerUp: { start: 0.4, end: 0.66 }
                     },
-                    healthRamp: { start: 1.05, end: 1.62 }
+                    healthRamp: { start: 1.1, end: 1.8 }
                 }
             }
         }
