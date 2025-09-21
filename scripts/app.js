@@ -7,6 +7,7 @@ let baseDashConfig = null;
 let baseProjectileSettings = null;
 let activeDifficultyPreset = 'medium';
 let spawnTimers = { obstacle: 0, collectible: 0, powerUp: 0 };
+const GAMEPAD_CURSOR_HALF_SIZE = 11;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Reset onboarding flags whenever the game reinitializes. This ensures that
@@ -1041,7 +1042,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const TOUCH_SMOOTHING_RATE = 26;
     const DEBUG_OVERLAY_STORAGE_KEY = 'nyanEscape.debugOverlay';
     const TARGET_ASPECT_RATIO = 3 / 2;
-    const GAMEPAD_CURSOR_HALF_SIZE = 11;
     const viewport = {
         width: 900,
         height: 600,
