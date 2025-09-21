@@ -56,8 +56,8 @@
                     </button>
                 </div>
                 <div id="settingsHint" aria-live="polite">
-                    <span class="desktop-only">Press Esc for settings</span>
-                    <span class="touch-only">Tap ⚙ for settings</span>
+                    <span class="desktop-only">Press Esc for settings · P pauses</span>
+                    <span class="touch-only">Tap ⚙ to pause &amp; adjust settings</span>
                 </div>
             </div>
         </div>
@@ -131,6 +131,12 @@
                                     <span class="keycap wide" aria-hidden="true">Space</span>
                                 </div>
                                 <div class="control-action">Launch precision plasma bolts.</div>
+                            </div>
+                            <div class="control-row" role="listitem">
+                                <div class="control-keys" aria-label="Pause control">
+                                    <span class="keycap wide" aria-hidden="true">P</span>
+                                </div>
+                                <div class="control-action">Pause or resume the flight deck.</div>
                             </div>
                             <div class="control-row" role="listitem">
                                 <div class="control-keys" aria-label="Settings shortcut">
@@ -473,6 +479,24 @@
                     </label>
                 </div>
             </div>
+        </div>
+    </div>
+    <div
+        id="pauseOverlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pauseTitle"
+        aria-hidden="true"
+        hidden
+    >
+        <div class="pause-card" role="document">
+            <h2 id="pauseTitle">Flight Paused</h2>
+            <p id="pauseMessage">Press P or tap Resume to continue your run.</p>
+            <div class="pause-actions">
+                <button id="resumeButton" type="button" class="pause-primary">Resume</button>
+                <button id="pauseSettingsButton" type="button" class="pause-secondary">Settings</button>
+            </div>
+            <p id="pauseHint" class="pause-hint" hidden></p>
         </div>
     </div>
 
