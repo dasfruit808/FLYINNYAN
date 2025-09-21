@@ -1565,16 +1565,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let isTouchInterface = coarsePointerQuery?.matches ?? ('ontouchstart' in window);
     const TOUCH_SMOOTHING_RATE = 26;
     const DEBUG_OVERLAY_STORAGE_KEY = 'nyanEscape.debugOverlay';
-    const TARGET_ASPECT_RATIO = 3 / 2;
+    const TARGET_ASPECT_RATIO = 16 / 9;
     const gameShell = document.getElementById('gameShell');
     const rootElement = document.documentElement;
     const viewport = {
-        width: 900,
-        height: 600,
-        cssWidth: 900,
-        cssHeight: 600,
-        physicalWidth: 900,
-        physicalHeight: 600,
+        width: 1280,
+        height: 720,
+        cssWidth: 1280,
+        cssHeight: 720,
+        physicalWidth: 1280,
+        physicalHeight: 720,
         dpr: window.devicePixelRatio || 1
     };
 
