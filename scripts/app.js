@@ -2585,6 +2585,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         powerUp: { start: 0.82, end: 1.18 }
                     },
                     healthRamp: { start: 0.5, end: 0.9 }
+                },
+                score: {
+                    collect: 68,
+                    destroy: 102,
+                    asteroid: 51,
+                    dodge: 15,
+                    villainEscape: 120
                 }
             }
         },
@@ -2629,6 +2636,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         powerUp: { start: 0.48, end: 0.8 }
                     },
                     healthRamp: { start: 0.95, end: 1.5 }
+                },
+                score: {
+                    collect: 96,
+                    destroy: 144,
+                    asteroid: 72,
+                    dodge: 22,
+                    villainEscape: 168
                 }
             }
         },
@@ -2651,6 +2665,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         powerUp: { start: 0.4, end: 0.66 }
                     },
                     healthRamp: { start: 1.1, end: 1.8 }
+                },
+                score: {
+                    collect: 108,
+                    destroy: 162,
+                    asteroid: 81,
+                    dodge: 24,
+                    villainEscape: 189
                 }
             }
         }
@@ -5843,7 +5864,14 @@ document.addEventListener('DOMContentLoaded', () => {
             meteorShowerInterval: 22000,
             meteorShowerVariance: 8000,
             meteorShowerCount: 5,
-            meteorShowerSpeedMultiplier: 1.15
+            meteorShowerSpeedMultiplier: 1.15,
+            trail: {
+                spacing: 34,
+                maxPoints: 14,
+                life: 520,
+                widthScale: 0.42,
+                lengthScale: 0.78
+            }
         },
         comboMultiplierStep: 0.15,
         score: {
@@ -6552,6 +6580,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const previousGamepadButtons = [];
     const previousGamepadDirection = { x: 0, y: 0 };
+    const lastGamepadMoveVector = { x: 1, y: 0 };
     let activeGamepadIndex = null;
     const hasGamepadSupport =
         typeof window !== 'undefined' &&
@@ -6582,6 +6611,7 @@ document.addEventListener('DOMContentLoaded', () => {
         DPAD_RIGHT: 15
     };
     const GAMEPAD_TRIGGER_THRESHOLD = 0.35;
+    const GAMEPAD_DASH_ASSIST_ANALOG_THRESHOLD = 0.35;
     const GAMEPAD_HAT_TOLERANCE = 0.05;
     const GAMEPAD_STANDARD_HAT_DIRECTIONS = [
         { value: -1, x: 0, y: -1 },
@@ -6939,6 +6969,56 @@ document.addEventListener('DOMContentLoaded', () => {
         previousGamepadDirection.y = digitalY;
     }
 
+    function normalizeDashAssistComponent(value, threshold = GAMEPAD_DASH_ASSIST_ANALOG_THRESHOLD) {
+        if (Math.abs(value) < threshold) {
+            return 0;
+        }
+        return value > 0 ? 1 : -1;
+    }
+
+    function resolveDashAssistDirection(dashX, dashY, axisX, axisY) {
+        let directionX = dashX;
+        let directionY = dashY;
+
+        if (directionX === 0 && directionY === 0) {
+            directionX = normalizeDashAssistComponent(axisX);
+            directionY = normalizeDashAssistComponent(axisY);
+        }
+
+        if (directionX === 0 && directionY === 0) {
+            const lastMagnitude = Math.hypot(lastGamepadMoveVector.x, lastGamepadMoveVector.y);
+            if (lastMagnitude >= 0.3) {
+                directionX = normalizeDashAssistComponent(lastGamepadMoveVector.x, 0.25);
+                directionY = normalizeDashAssistComponent(lastGamepadMoveVector.y, 0.25);
+            }
+        }
+
+        if (directionX === 0 && directionY === 0) {
+            const playerSpeed = Math.hypot(player.vx, player.vy);
+            if (playerSpeed >= 40) {
+                if (Math.abs(player.vx) >= Math.abs(player.vy)) {
+                    directionX = player.vx >= 0 ? 1 : -1;
+                } else {
+                    directionY = player.vy >= 0 ? 1 : -1;
+                }
+            }
+        }
+
+        if (directionX === 0 && directionY === 0) {
+            directionX = 1;
+        }
+
+        return { x: directionX, y: directionY };
+    }
+
+    function triggerDashAssist(dashX, dashY, axisX, axisY) {
+        const direction = resolveDashAssistDirection(dashX, dashY, axisX, axisY);
+        if (!direction) {
+            return;
+        }
+        triggerDash(direction);
+    }
+
     function applyGamepadDeadZone(value, threshold = GAMEPAD_DEADZONE) {
         if (Math.abs(value) < threshold) {
             return 0;
@@ -7065,6 +7145,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         handleGamepadMetaActions(buttonStates, { suppressCross: cursorConsumed });
 
+        const dashAssistQueued = state.gameState === 'running' && crossJustPressed && !cursorConsumed;
+
         let dpadX = (buttons[GAMEPAD_BUTTONS.DPAD_RIGHT]?.pressed ? 1 : 0) -
             (buttons[GAMEPAD_BUTTONS.DPAD_LEFT]?.pressed ? 1 : 0);
         let dpadY = (buttons[GAMEPAD_BUTTONS.DPAD_DOWN]?.pressed ? 1 : 0) -
@@ -7089,10 +7171,20 @@ document.addEventListener('DOMContentLoaded', () => {
         gamepadInput.moveX = clamp(axisX + dpadX, -1, 1);
         gamepadInput.moveY = clamp(axisY + dpadY, -1, 1);
 
+        const moveMagnitude = Math.hypot(gamepadInput.moveX, gamepadInput.moveY);
+        if (moveMagnitude >= 0.3) {
+            lastGamepadMoveVector.x = gamepadInput.moveX;
+            lastGamepadMoveVector.y = gamepadInput.moveY;
+        }
+
         const analogDashX = Math.abs(axisX) >= GAMEPAD_DASH_ACTIVATION_THRESHOLD ? (axisX > 0 ? 1 : -1) : 0;
         const analogDashY = Math.abs(axisY) >= GAMEPAD_DASH_ACTIVATION_THRESHOLD ? (axisY > 0 ? 1 : -1) : 0;
         const dashX = dpadX !== 0 ? dpadX : analogDashX;
         const dashY = dpadY !== 0 ? dpadY : analogDashY;
+        if (dashX !== 0 || dashY !== 0) {
+            lastGamepadMoveVector.x = dashX;
+            lastGamepadMoveVector.y = dashY;
+        }
         processGamepadDashInput(dashX, dashY);
 
         const rightTrigger = buttons[GAMEPAD_BUTTONS.R2];
@@ -7107,6 +7199,10 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         gamepadInput.firing = triggerPressed || altTriggerPressed || faceButtonPressed || bumperPressed;
+
+        if (dashAssistQueued) {
+            triggerDashAssist(dashX, dashY, axisX, axisY);
+        }
 
         previousGamepadButtons.length = buttonStates.length;
         for (let i = 0; i < buttonStates.length; i++) {
@@ -7457,7 +7553,9 @@ document.addEventListener('DOMContentLoaded', () => {
             hitFlash: 0,
             shieldCooldown: 0,
             flameSeed: Math.random() * Math.PI * 2,
-            flameScale: randomBetween(0.82, 1.18)
+            flameScale: randomBetween(0.82, 1.18),
+            trail: [],
+            trailPulse: Math.random() * Math.PI * 2
         };
         placeAsteroid(asteroid, initial);
         asteroid.vx = -asteroid.speed * (0.6 + asteroid.depth * 0.8);
@@ -7691,6 +7789,51 @@ document.addEventListener('DOMContentLoaded', () => {
         return spawnedAny;
     }
 
+    function updateAsteroidTrailState(asteroid, scaledDelta) {
+        const trailConfig = config.asteroid?.trail ?? {};
+        const spacing = Math.max(12, Number(trailConfig.spacing) || 0);
+        const maxPoints = Math.max(1, Math.round(Number(trailConfig.maxPoints) || 10));
+        const maxLife = Math.max(120, Number(trailConfig.life) || 480);
+
+        if (!Array.isArray(asteroid.trail)) {
+            asteroid.trail = [];
+        }
+
+        const points = asteroid.trail;
+        for (let i = points.length - 1; i >= 0; i--) {
+            const point = points[i];
+            point.life -= scaledDelta;
+            if (point.life <= 0) {
+                points.splice(i, 1);
+            }
+        }
+
+        const lastPoint = points[points.length - 1];
+        const needsSample =
+            !lastPoint ||
+            Math.hypot(asteroid.x - lastPoint.x, asteroid.y - lastPoint.y) >= spacing;
+
+        if (needsSample) {
+            const velocityX = asteroid.vx !== 0 ? asteroid.vx : -asteroid.speed;
+            const velocityY = asteroid.vy !== 0 ? asteroid.vy : asteroid.drift;
+            const angle = Math.atan2(-velocityY, -velocityX);
+            points.push({
+                x: asteroid.x,
+                y: asteroid.y,
+                life: maxLife,
+                maxLife,
+                angle,
+                size: asteroid.size,
+                depth: asteroid.depth,
+                seed: Math.random() * Math.PI * 2
+            });
+        }
+
+        while (points.length > maxPoints) {
+            points.shift();
+        }
+    }
+
     function updateAsteroids(delta) {
         const settings = config.asteroid ?? {};
         const spawnInterval = settings.spawnInterval ?? 0;
@@ -7747,6 +7890,8 @@ document.addEventListener('DOMContentLoaded', () => {
             asteroid.x += asteroid.vx * deltaSeconds;
             asteroid.y += asteroid.vy * deltaSeconds;
             asteroid.rotation += asteroid.rotationSpeed * deltaSeconds;
+
+            updateAsteroidTrailState(asteroid, scaledDelta);
 
             if (asteroid.hitFlash > 0) {
                 asteroid.hitFlash = Math.max(0, asteroid.hitFlash - scaledDelta);
@@ -7861,10 +8006,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function drawAsteroidTrail(asteroid, time) {
+        if (!asteroid?.trail?.length) {
+            return;
+        }
+        const trailConfig = config.asteroid?.trail ?? {};
+        const baseLengthScale = Number(trailConfig.lengthScale) || 0.78;
+        const baseWidthScale = Number(trailConfig.widthScale) || 0.42;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const point of asteroid.trail) {
+            const progress = clamp(point.life / point.maxLife, 0, 1);
+            if (progress <= 0) {
+                continue;
+            }
+            const depthFactor = 1 - clamp(point.depth ?? asteroid.depth ?? 0.5, 0, 1);
+            const flicker = 0.75 + Math.sin(time * 0.004 + (point.seed ?? 0)) * 0.25;
+            const length = (point.size ?? asteroid.size) * baseLengthScale * (0.6 + 0.4 * progress) * flicker;
+            const width = (point.size ?? asteroid.size) * baseWidthScale * (0.7 + depthFactor * 0.4);
+            const innerRadius = Math.max(2, width * 0.14);
+            const outerRadius = Math.max(width, length);
+
+            ctx.save();
+            ctx.translate(point.x, point.y);
+            ctx.rotate(point.angle ?? 0);
+            ctx.globalAlpha = Math.min(0.78, 0.18 + progress * 0.62);
+            const gradient = ctx.createRadialGradient(-length * 0.65, 0, innerRadius, -length * 0.65, 0, outerRadius);
+            gradient.addColorStop(0, 'rgba(255, 245, 218, 0.92)');
+            gradient.addColorStop(0.32, 'rgba(255, 196, 106, 0.75)');
+            gradient.addColorStop(0.7, 'rgba(255, 116, 34, 0.42)');
+            gradient.addColorStop(1, 'rgba(255, 68, 16, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.ellipse(-length * 0.65, 0, length, width, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+
     function drawAsteroids(time) {
         if (!asteroids.length) return;
         ctx.save();
         for (const asteroid of asteroids) {
+            drawAsteroidTrail(asteroid, time);
             const bob = Math.sin(time * 0.0012 + asteroid.bobOffset) * asteroid.depth * 8;
             const alpha = clamp(0.25 + asteroid.depth * 0.6, 0, 1);
             const drawSize = asteroid.size;
