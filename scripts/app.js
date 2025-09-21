@@ -246,7 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 spread: { sources: ['assets/audio/projectile-spread.mp3'], voices: 6, volume: 0.52 },
                 missile: { sources: ['assets/audio/projectile-missile.mp3'], voices: 4, volume: 0.6 },
                 scatter: { sources: ['assets/audio/projectile-spread.mp3'], voices: 6, volume: 0.5 },
-                lance: { sources: ['assets/audio/projectile-missile.mp3'], voices: 4, volume: 0.64 }
+                lance: { sources: ['assets/audio/projectile-missile.mp3'], voices: 4, volume: 0.64 },
+                tempest: { sources: ['assets/audio/projectile-spread.mp3'], voices: 6, volume: 0.56 },
+                nova: { sources: ['assets/audio/projectile-missile.mp3'], voices: 5, volume: 0.63 },
+                rift: { sources: ['assets/audio/projectile-standard.mp3'], voices: 5, volume: 0.58 }
             },
             collect: {
                 point: { sources: ['assets/audio/point.mp3'], voices: 4, volume: 0.6 }
@@ -5139,7 +5142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (weaponOptionsEl) {
-            const weaponOrder = ['pulse', 'scatter', 'lance'];
+            const weaponOrder = ['pulse', 'scatter', 'lance', 'tempest', 'nova', 'rift'];
             const items = weaponOrder
                 .map((weaponId) => weaponLoadouts[weaponId])
                 .filter((weapon) => Boolean(weapon));
@@ -5938,6 +5941,87 @@ document.addEventListener('DOMContentLoaded', () => {
             pattern: (createProjectile) => {
                 createProjectile(0, 'lance', { offsetX: 8 });
             }
+        },
+        tempest: {
+            id: 'tempest',
+            label: 'Tempest Gyre',
+            description: 'Spiraling plasma ribbons weave unpredictable helixes.',
+            cooldownMultiplier: 0.9,
+            speedMultiplier: 1.05,
+            pattern: (() => {
+                let swirlPhase = 0;
+                return (createProjectile) => {
+                    const swing = Math.sin(swirlPhase) * 0.3;
+                    const vertical = Math.cos(swirlPhase) * 16;
+                    createProjectile(swing, 'tempest', {
+                        offsetY: vertical,
+                        shadowBlur: 16,
+                        audioType: 'tempest'
+                    });
+                    createProjectile(-swing * 0.6, 'tempest', {
+                        offsetY: -vertical * 0.45,
+                        width: 18,
+                        height: 10,
+                        gradient: ['#38bdf8', '#a855f7', '#ec4899'],
+                        glow: 'rgba(168, 85, 247, 0.65)',
+                        shadowBlur: 12,
+                        audioType: 'tempest'
+                    });
+                    swirlPhase += Math.PI / 3;
+                };
+            })()
+        },
+        nova: {
+            id: 'nova',
+            label: 'Supernova Bloom',
+            description: 'Pulsing star core erupts shards in shifting constellations.',
+            cooldownMultiplier: 1.18,
+            speedMultiplier: 1,
+            pattern: (() => {
+                let phase = 0;
+                return (createProjectile) => {
+                    createProjectile(0, 'novaCore', {
+                        offsetX: 6,
+                        audioType: 'nova'
+                    });
+                    const spread = 0.22 + Math.sin(phase) * 0.08;
+                    const offset = 12 + Math.cos(phase * 1.3) * 4;
+                    createProjectile(spread, 'novaShard', {
+                        offsetY: offset,
+                        audioType: 'nova'
+                    });
+                    createProjectile(-spread, 'novaShard', {
+                        offsetY: -offset,
+                        audioType: 'nova'
+                    });
+                    phase += Math.PI / 2;
+                };
+            })()
+        },
+        rift: {
+            id: 'rift',
+            label: 'Rift Carver',
+            description: 'Gravity wells shear reality with slow-burning void orbs.',
+            cooldownMultiplier: 1.28,
+            speedMultiplier: 0.92,
+            pattern: (() => {
+                let invert = false;
+                return (createProjectile) => {
+                    const angle = invert ? -0.3 : 0.3;
+                    const vertical = invert ? -18 : 18;
+                    createProjectile(angle, 'rift', {
+                        offsetY: vertical,
+                        speedMultiplier: 0.85,
+                        audioType: 'rift'
+                    });
+                    createProjectile(-angle * 0.35, 'riftEcho', {
+                        offsetY: vertical * 0.35,
+                        speedMultiplier: 1.1,
+                        audioType: 'rift'
+                    });
+                    invert = !invert;
+                };
+            })()
         }
     };
     const projectileArchetypes = {
@@ -5986,6 +6070,66 @@ document.addEventListener('DOMContentLoaded', () => {
             shadowColor: 'rgba(125, 211, 252, 0.5)',
             shadowBlur: 14,
             shape: 'lance'
+        },
+        tempest: {
+            width: 28,
+            height: 14,
+            life: 2100,
+            speedMultiplier: 1.08,
+            damage: 1.2,
+            gradient: ['#38bdf8', '#8b5cf6', '#ec4899'],
+            glow: 'rgba(59, 130, 246, 0.65)',
+            shadowColor: 'rgba(129, 140, 248, 0.45)',
+            shadowBlur: 16,
+            shape: 'tempest'
+        },
+        novaCore: {
+            width: 30,
+            height: 30,
+            life: 2200,
+            speedMultiplier: 0.95,
+            damage: 1.6,
+            gradient: ['#f8fafc', '#fbbf24', '#f97316'],
+            glow: 'rgba(251, 191, 36, 0.7)',
+            shadowColor: 'rgba(255, 237, 213, 0.6)',
+            shadowBlur: 18,
+            shape: 'novaCore'
+        },
+        novaShard: {
+            width: 20,
+            height: 12,
+            life: 1800,
+            speedMultiplier: 1.1,
+            damage: 0.9,
+            gradient: ['#fca5a5', '#f97316', '#fde047'],
+            glow: 'rgba(252, 165, 165, 0.65)',
+            shadowColor: 'rgba(251, 191, 36, 0.45)',
+            shadowBlur: 12,
+            shape: 'novaShard'
+        },
+        rift: {
+            width: 28,
+            height: 28,
+            life: 2600,
+            speedMultiplier: 0.88,
+            damage: 1.8,
+            gradient: ['#22d3ee', '#38bdf8', '#a855f7'],
+            glow: 'rgba(56, 189, 248, 0.7)',
+            shadowColor: 'rgba(168, 85, 247, 0.45)',
+            shadowBlur: 18,
+            shape: 'rift'
+        },
+        riftEcho: {
+            width: 22,
+            height: 18,
+            life: 2000,
+            speedMultiplier: 1.05,
+            damage: 1,
+            gradient: ['#c4b5fd', '#7dd3fc', '#f0abfc'],
+            glow: 'rgba(196, 181, 253, 0.6)',
+            shadowColor: 'rgba(125, 211, 252, 0.5)',
+            shadowBlur: 14,
+            shape: 'riftEcho'
         }
     };
     const cosmeticsCatalog = {
@@ -12303,6 +12447,143 @@ document.addEventListener('DOMContentLoaded', () => {
                         ctx.lineWidth = 1.5;
                         ctx.stroke();
                     }
+                } else if (projectile.shape === 'tempest') {
+                    const colors =
+                        Array.isArray(projectile.gradient) && projectile.gradient.length
+                            ? projectile.gradient
+                            : ['#38bdf8', '#a855f7'];
+                    const halfWidth = projectile.width * 0.5;
+                    const halfHeight = projectile.height * 0.5;
+                    const angle = Math.atan2(projectile.vy, projectile.vx);
+                    ctx.translate(projectile.x + halfWidth, projectile.y + halfHeight);
+                    ctx.rotate(angle);
+                    const gradient = ctx.createLinearGradient(-halfWidth, 0, halfWidth, 0);
+                    colors.forEach((color, index) => {
+                        const stop = colors.length > 1 ? index / (colors.length - 1) : 0;
+                        gradient.addColorStop(stop, color);
+                    });
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.lineWidth = Math.max(2, projectile.height * 0.5);
+                    ctx.strokeStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(-halfWidth, -halfHeight * 0.7);
+                    ctx.quadraticCurveTo(-halfWidth * 0.1, 0, halfWidth, halfHeight * 0.6);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(-halfWidth, halfHeight * 0.7);
+                    ctx.quadraticCurveTo(-halfWidth * 0.1, 0, halfWidth, -halfHeight * 0.6);
+                    ctx.stroke();
+                    ctx.globalAlpha = 0.9;
+                    ctx.fillStyle = colors[0] ?? '#38bdf8';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, halfHeight * 0.65, halfHeight * 0.45, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                } else if (projectile.shape === 'novaCore') {
+                    const colors =
+                        Array.isArray(projectile.gradient) && projectile.gradient.length
+                            ? projectile.gradient
+                            : ['#fde68a', '#f97316'];
+                    const radius = Math.max(projectile.width, projectile.height) * 0.5;
+                    ctx.translate(projectile.x + projectile.width * 0.5, projectile.y + projectile.height * 0.5);
+                    const gradient = ctx.createRadialGradient(0, 0, radius * 0.25, 0, 0, radius);
+                    colors.forEach((color, index) => {
+                        const stop = colors.length > 1 ? index / (colors.length - 1) : 0;
+                        gradient.addColorStop(stop, color);
+                    });
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.lineWidth = Math.max(1.5, radius * 0.28);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius * 0.65, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.lineWidth = Math.max(1, radius * 0.18);
+                    ctx.strokeStyle = 'rgba(255, 248, 220, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (projectile.shape === 'novaShard') {
+                    const colors =
+                        Array.isArray(projectile.gradient) && projectile.gradient.length
+                            ? projectile.gradient
+                            : ['#f97316', '#fde047'];
+                    const halfWidth = projectile.width * 0.5;
+                    const halfHeight = projectile.height * 0.5;
+                    const angle = Math.atan2(projectile.vy, projectile.vx);
+                    ctx.translate(projectile.x + halfWidth, projectile.y + halfHeight);
+                    ctx.rotate(angle);
+                    const gradient = ctx.createLinearGradient(-halfWidth, 0, halfWidth, 0);
+                    colors.forEach((color, index) => {
+                        const stop = colors.length > 1 ? index / (colors.length - 1) : 0;
+                        gradient.addColorStop(stop, color);
+                    });
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(-halfWidth, 0);
+                    ctx.lineTo(halfWidth * 0.6, -halfHeight);
+                    ctx.lineTo(halfWidth, 0);
+                    ctx.lineTo(halfWidth * 0.6, halfHeight);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                } else if (projectile.shape === 'rift') {
+                    const colors =
+                        Array.isArray(projectile.gradient) && projectile.gradient.length
+                            ? projectile.gradient
+                            : ['#22d3ee', '#a855f7'];
+                    const halfWidth = projectile.width * 0.5;
+                    const halfHeight = projectile.height * 0.5;
+                    const radius = Math.max(halfWidth, halfHeight);
+                    ctx.translate(projectile.x + halfWidth, projectile.y + halfHeight);
+                    const gradient = ctx.createRadialGradient(0, 0, radius * 0.25, 0, 0, radius);
+                    colors.forEach((color, index) => {
+                        const stop = colors.length > 1 ? index / (colors.length - 1) : 0;
+                        gradient.addColorStop(stop, color);
+                    });
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.lineWidth = Math.max(2, radius * 0.4);
+                    ctx.strokeStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius * 0.8, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.globalAlpha = 0.85;
+                    ctx.fillStyle = 'rgba(14, 165, 233, 0.35)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius * 0.45, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                } else if (projectile.shape === 'riftEcho') {
+                    const colors =
+                        Array.isArray(projectile.gradient) && projectile.gradient.length
+                            ? projectile.gradient
+                            : ['#c4b5fd', '#7dd3fc'];
+                    const halfWidth = projectile.width * 0.5;
+                    const halfHeight = projectile.height * 0.5;
+                    ctx.translate(projectile.x + halfWidth, projectile.y + halfHeight);
+                    const angle = Math.atan2(projectile.vy, projectile.vx);
+                    ctx.rotate(angle * 0.4);
+                    const gradient = ctx.createLinearGradient(-halfWidth, 0, halfWidth, 0);
+                    colors.forEach((color, index) => {
+                        const stop = colors.length > 1 ? index / (colors.length - 1) : 0;
+                        gradient.addColorStop(stop, color);
+                    });
+                    ctx.lineWidth = Math.max(1.5, projectile.height * 0.4);
+                    ctx.strokeStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(-halfWidth, -halfHeight * 0.5);
+                    ctx.bezierCurveTo(-halfWidth * 0.2, -halfHeight * 1.1, halfWidth * 0.2, halfHeight * 1.1, halfWidth, halfHeight * 0.5);
+                    ctx.stroke();
+                    ctx.globalAlpha = 0.75;
+                    ctx.fillStyle = colors[colors.length - 1] ?? '#7dd3fc';
+                    ctx.beginPath();
+                    ctx.ellipse(halfWidth * 0.2, 0, halfHeight * 0.45, halfHeight * 0.3, angle * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
                 } else {
                     const colors =
                         Array.isArray(projectile.gradient) && projectile.gradient.length
