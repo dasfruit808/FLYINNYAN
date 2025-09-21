@@ -6922,12 +6922,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeWeaponId = 'pulse';
     let pendingWeaponId = 'pulse';
     let weaponSelectReturnFocus = null;
-    renderCharacterSelectCards();
-    renderPilotPreview();
-    refreshPilotPreviewStates();
-    updateSwapPilotButton();
-    updateWeaponInlineSummary();
-    updateSwapWeaponButtons();
     const trailStyles = {
         rainbow: { id: 'rainbow', label: 'Prismatic Stream', type: 'spectrum' },
         aurora: {
@@ -7213,6 +7207,13 @@ document.addEventListener('DOMContentLoaded', () => {
     weaponProfileMap = new Map(weaponProfiles.map((profile) => [profile.id, profile]));
     renderWeaponSelectCards();
     refreshWeaponSelectionDisplay();
+
+    renderCharacterSelectCards();
+    renderPilotPreview();
+    refreshPilotPreviewStates();
+    updateSwapPilotButton();
+    updateWeaponInlineSummary();
+    updateSwapWeaponButtons();
 
     function getCurrentCosmeticsSelection() {
         const fallbackWeapon = typeof activeWeaponId === 'string' && activeWeaponId ? activeWeaponId : 'pulse';
