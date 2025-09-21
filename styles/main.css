@@ -4,7 +4,7 @@
     --shell-width: auto;
     --shell-height: 720px;
     --shell-scale: 1;
-    --shell-padding: clamp(24px, 5vw, 36px);
+    --shell-padding: 10px;
 }
 
 @font-face {
@@ -15,6 +15,13 @@
 
 * {
     box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+
+html {
+    height: 100%;
 }
 
 img,
@@ -26,18 +33,19 @@ canvas {
 body {
     margin: 0;
     background: #000;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
     align-items: stretch;
+    justify-items: stretch;
     min-height: 100vh;
-    padding: 0 10px 10px;
-    padding-top: var(--shell-padding);
+    height: 100vh;
+    padding: var(--shell-padding);
     font-family: var(--primary-font-stack);
     color: #fff;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
     position: relative;
+    row-gap: 10px;
+    -webkit-tap-highlight-color: transparent;
 }
 
 #controllerCursor {
@@ -425,26 +433,30 @@ body.touch-enabled #settingsButton {
     justify-content: flex-start;
     width: 100%;
     max-width: 100%;
-    height: auto;
+    height: 100%;
     margin: 0;
     z-index: 0;
+    min-height: 0;
 }
 
 #playfield {
     position: relative;
     display: grid;
-    grid-template-rows: auto auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     align-items: stretch;
     justify-items: stretch;
     gap: 10px;
     width: 100%;
     height: 100%;
+    min-height: 0;
     margin: 0;
 }
 
 #gameCanvas {
     max-width: 100%;
     max-height: 100%;
+    width: 100%;
+    height: 100%;
 }
 
 #preflightBar[hidden] {
@@ -2825,14 +2837,18 @@ body.weapon-select-open {
     color: rgba(248, 113, 113, 0.88);
 }
 #instructions {
-    width: calc(100% - 20px);
-    max-width: calc(100% - 20px);
-    margin: clamp(24px, 5vh, 48px) auto 0;
-    display: flex;
-    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
     align-items: stretch;
-    gap: clamp(20px, 4vw, 32px);
+    justify-items: stretch;
+    gap: 12px;
     padding-top: 0;
+    height: clamp(200px, 35vh, 320px);
+    min-height: 0;
+    overflow: hidden;
 }
 
 #instructionButtonBar {
@@ -2855,7 +2871,8 @@ body.weapon-select-open {
     flex-direction: column;
     gap: 16px;
     padding-right: 8px;
-    max-height: clamp(320px, 50vh, 520px);
+    max-height: none;
+    min-height: 0;
 }
 
 #instructionPanels[hidden] {
