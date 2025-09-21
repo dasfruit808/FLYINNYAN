@@ -77,6 +77,201 @@ document.addEventListener('DOMContentLoaded', () => {
 
     enableHighQualitySmoothing(ctx);
 
+    const mascotAnnouncer = createMascotAnnouncer();
+    mascotAnnouncer.reset({ immediate: true });
+
+    function createMascotAnnouncer() {
+        const container = document.getElementById('mascotCallout');
+        const imageEl = container?.querySelector('[data-mascot-image]');
+        const textEl = container?.querySelector('[data-mascot-text]');
+        if (!container || !imageEl || !textEl) {
+            return {
+                cheerForCombo() {},
+                celebrateVictory() {},
+                lamentSetback() {},
+                reset() {},
+                hide() {}
+            };
+        }
+
+        const assetPaths = {
+            happy: 'assets/character-happy.png',
+            cheering: 'assets/character-cheering.png',
+            sad: 'assets/character-sad.png'
+        };
+        const assetAlt = {
+            happy: 'Mission control cat smiling',
+            cheering: 'Mission control cat cheering',
+            sad: 'Mission control cat concerned'
+        };
+        const messagePools = {
+            combo: [
+                'Thrusters synced! {{streak}} alive!',
+                'Keep threading the nebula—{{streak}} streak!',
+                'Piloting instincts on point at {{streak}}!',
+                'Mission control is buzzing—{{streak}} combo!',
+                'Flawless maneuvers! {{streak}} locked in!',
+                'Tail lasers sparkling at {{streak}}!'
+            ],
+            highCombo: [
+                '{{streak}}? The convoy is in awe!',
+                'Elite flying detected—{{streak}} streak!',
+                'Sensors melting from a {{streak}} combo!'
+            ],
+            victory: [
+                'Flight log secured — {{score}} pts in {{time}}!{{streakLine}}',
+                'Mission accomplished! {{score}} pts banked!{{streakCheer}}',
+                'Galactic cheers! {{score}} pts logged{{streakSuffix}}!'
+            ],
+            setback: [
+                'We\'ll get them next wave—regroup!',
+                'Shake it off! Recalibrating for the next run!',
+                'No worries pilot, lining up another chance!',
+                'Keep your paws steady—we\'re still in this!'
+            ]
+        };
+        const comboMilestones = [3, 5, 8, 12, 16, 20, 30];
+        const MIN_SETBACK_INTERVAL = 4500;
+        const DEFAULT_HIDE_DELAY = 5200;
+        let hideTimeout = null;
+        let ariaHideTimeout = null;
+        let lastComboCelebrated = 0;
+        let lastSetbackAt = 0;
+
+        const toLocaleOrString = (value) => {
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return value.toLocaleString();
+            }
+            const numeric = Number(value);
+            if (Number.isFinite(numeric)) {
+                return numeric.toLocaleString();
+            }
+            return value != null ? String(value) : '0';
+        };
+
+        const randomFrom = (pool) => {
+            if (!Array.isArray(pool) || pool.length === 0) {
+                return '';
+            }
+            const index = Math.floor(Math.random() * pool.length);
+            return pool[index];
+        };
+
+        const formatTemplate = (template, context = {}) => {
+            if (typeof template !== 'string' || !template.length) {
+                return '';
+            }
+            return template.replace(/\{\{(\w+)\}\}/g, (_, key) => context[key] ?? '');
+        };
+
+        const hide = ({ immediate = false } = {}) => {
+            window.clearTimeout(hideTimeout);
+            hideTimeout = null;
+            container.classList.remove('is-visible');
+            window.clearTimeout(ariaHideTimeout);
+            if (immediate) {
+                ariaHideTimeout = null;
+                container.setAttribute('aria-hidden', 'true');
+                return;
+            }
+            ariaHideTimeout = window.setTimeout(() => {
+                container.setAttribute('aria-hidden', 'true');
+            }, 360);
+        };
+
+        const setMood = (mood) => {
+            const asset = assetPaths[mood] ?? assetPaths.happy;
+            if (imageEl.getAttribute('src') !== asset) {
+                imageEl.setAttribute('src', asset);
+            }
+            const alt = assetAlt[mood] ?? assetAlt.happy;
+            imageEl.setAttribute('alt', alt);
+            imageEl.hidden = false;
+        };
+
+        const show = (mood, message) => {
+            if (!message) {
+                return;
+            }
+            window.clearTimeout(hideTimeout);
+            window.clearTimeout(ariaHideTimeout);
+            setMood(mood);
+            textEl.textContent = message.trim();
+            container.classList.add('is-visible');
+            container.setAttribute('aria-hidden', 'false');
+            hideTimeout = window.setTimeout(() => {
+                hide();
+            }, DEFAULT_HIDE_DELAY);
+        };
+
+        const shouldCheerForStreak = (streak) => {
+            if (streak <= lastComboCelebrated || streak < 3) {
+                return false;
+            }
+            const reachedMilestone = comboMilestones.includes(streak) || streak >= lastComboCelebrated + 4;
+            if (!reachedMilestone) {
+                return false;
+            }
+            lastComboCelebrated = streak;
+            return true;
+        };
+
+        const cheerForCombo = (streak) => {
+            if (!shouldCheerForStreak(streak)) {
+                return;
+            }
+            const pool = streak >= 10 ? messagePools.highCombo : messagePools.combo;
+            const message = formatTemplate(randomFrom(pool), { streak: `x${streak}` });
+            show(streak >= 8 ? 'cheering' : 'happy', message);
+        };
+
+        const celebrateVictory = (summary) => {
+            if (!summary) {
+                return;
+            }
+            const scoreText = toLocaleOrString(summary.score ?? state.score ?? 0);
+            const timeValue = summary.timeMs ?? state.elapsedTime ?? 0;
+            const timeText = formatTime(timeValue);
+            const bestStreak = Math.max(0, summary.bestStreak ?? 0);
+            const streakText = bestStreak > 1 ? `x${bestStreak}` : '';
+            lastComboCelebrated = Math.max(lastComboCelebrated, bestStreak);
+            const message = formatTemplate(randomFrom(messagePools.victory), {
+                score: scoreText,
+                time: timeText,
+                streakLine: streakText ? ` Tail peaked at ${streakText}.` : '',
+                streakCheer: streakText ? ` Tail ${streakText}!` : '',
+                streakSuffix: streakText ? ` with a ${streakText} streak` : ''
+            });
+            show('cheering', message);
+        };
+
+        const lamentSetback = ({ force = false } = {}) => {
+            const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+                ? performance.now()
+                : Date.now();
+            if (!force && now - lastSetbackAt < MIN_SETBACK_INTERVAL) {
+                return;
+            }
+            lastSetbackAt = now;
+            const message = randomFrom(messagePools.setback);
+            show('sad', message);
+        };
+
+        const reset = ({ immediate = false } = {}) => {
+            lastComboCelebrated = 0;
+            lastSetbackAt = 0;
+            hide({ immediate });
+        };
+
+        return {
+            cheerForCombo,
+            celebrateVictory,
+            lamentSetback,
+            reset,
+            hide
+        };
+    }
+
     const collectibleGradientCache = new Map();
     const powerUpGradientCache = new Map();
     const supportsPath2D = typeof Path2D === 'function';
@@ -9769,6 +9964,7 @@ document.addEventListener('DOMContentLoaded', () => {
             completeFirstRunExperience();
         }
         resetGame();
+        mascotAnnouncer.reset({ immediate: true });
         bodyElement?.classList.remove('paused');
         survivalTimerEl?.classList.remove('paused');
         hidePauseOverlay();
@@ -12660,6 +12856,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         state.tailTarget = config.baseTrailLength + state.streak * config.trailGrowthPerStreak;
+        mascotAnnouncer.cheerForCombo(state.streak);
         const comboMultiplier = 1 + state.streak * config.comboMultiplierStep;
         const surgeMultiplier = getScoreSurgeMultiplier();
         const totalMultiplier = comboMultiplier * surgeMultiplier;
@@ -12685,8 +12882,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetStreak() {
+        const hadStreak = state.streak > 0;
         state.streak = 0;
         state.tailTarget = config.baseTrailLength;
+        if (hadStreak && state.gameState === 'running') {
+            mascotAnnouncer.lamentSetback();
+        }
     }
 
     function finalizePendingSubmission({ recorded, reason = null, placement = null, runsToday = 0 } = {}) {
@@ -12726,6 +12927,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     timestamp
                 });
             }
+            mascotAnnouncer.celebrateVictory(summary);
         } else if (reason === 'limit') {
             addSocialMoment(`${summary.player} maxed out their daily flight logs for now.`, {
                 type: 'limit',
@@ -12754,6 +12956,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function triggerGameOver(message) {
         if (state.gameState !== 'running') return;
         state.gameState = 'gameover';
+        mascotAnnouncer.lamentSetback({ force: true });
         hidePauseOverlay();
         bodyElement?.classList.remove('paused');
         survivalTimerEl?.classList.remove('paused');
