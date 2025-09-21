@@ -246,7 +246,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 spread: { sources: ['assets/audio/projectile-spread.mp3'], voices: 6, volume: 0.52 },
                 missile: { sources: ['assets/audio/projectile-missile.mp3'], voices: 4, volume: 0.6 },
                 scatter: { sources: ['assets/audio/projectile-spread.mp3'], voices: 6, volume: 0.5 },
-                lance: { sources: ['assets/audio/projectile-missile.mp3'], voices: 4, volume: 0.64 }
+                lance: { sources: ['assets/audio/projectile-missile.mp3'], voices: 4, volume: 0.64 },
+                nova: { sources: ['assets/audio/projectile-spread.mp3'], voices: 6, volume: 0.57 },
+                vortex: { sources: ['assets/audio/projectile-missile.mp3'], voices: 5, volume: 0.63 }
             },
             collect: {
                 point: { sources: ['assets/audio/point.mp3'], voices: 4, volume: 0.6 }
@@ -2816,7 +2818,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             ownedSkins: ['default'],
             ownedTrails: ['rainbow'],
-            ownedWeapons: ['pulse', 'scatter', 'lance'],
+            ownedWeapons: ['pulse', 'scatter', 'lance', 'nova', 'vortex'],
             equipped: { skin: 'default', trail: 'rainbow', weapon: 'pulse' }
         };
     }
@@ -6208,61 +6210,194 @@ document.addEventListener('DOMContentLoaded', () => {
     const weaponLoadouts = {
         pulse: {
             id: 'pulse',
-            label: 'Pulse Blaster',
-            description: 'Baseline plasma bolt tuned for steady precision.',
-            cooldownMultiplier: 1,
-            speedMultiplier: 1,
+            label: 'Pulse Cascade',
+            description: 'A crystalline bolt erupts forward while echo rings chase in formation.',
+            cooldownMultiplier: 0.94,
+            speedMultiplier: 1.04,
             pattern: (createProjectile) => {
-                createProjectile(0, 'standard');
+                const echoSpread = 0.12;
+                createProjectile(0, 'standard', {
+                    width: 28,
+                    damage: 1.2,
+                    gradient: ['#72f1ff', '#5b21b6'],
+                    glow: 'rgba(99, 102, 241, 0.6)',
+                    shadowBlur: 14,
+                    shadowColor: 'rgba(14, 165, 233, 0.45)'
+                });
+                createProjectile(echoSpread, 'pulseEcho', {
+                    offsetY: -7,
+                    speedMultiplier: 1.08,
+                    audioType: 'standard'
+                });
+                createProjectile(-echoSpread, 'pulseEcho', {
+                    offsetY: 7,
+                    speedMultiplier: 1.08,
+                    audioType: 'standard'
+                });
+                createProjectile(0, 'pulseRipple', {
+                    offsetX: -18,
+                    applyLoadoutSpeed: false,
+                    speedMultiplier: 0.7,
+                    audioType: 'standard'
+                });
             }
         },
         scatter: {
             id: 'scatter',
-            label: 'Scatter Burst',
-            description: 'Twin ember shards fan forward for wide coverage.',
-            cooldownMultiplier: 1.12,
-            speedMultiplier: 0.95,
+            label: 'Scatter Tempest',
+            description: 'Flaring shards paint a sweeping ember vortex around the nose cone.',
+            cooldownMultiplier: 1.1,
+            speedMultiplier: 0.93,
             pattern: (createProjectile) => {
-                const spread = 0.18;
-                createProjectile(-spread, 'scatter', { offsetY: -6 });
-                createProjectile(spread, 'scatter', { offsetY: 6 });
+                const wideAngles = [-0.32, 0.32];
+                for (const [index, angle] of wideAngles.entries()) {
+                    createProjectile(angle, 'scatter', {
+                        offsetY: index === 0 ? -14 : 14,
+                        speedMultiplier: 0.94,
+                        gradient: ['#ffedd5', '#fb923c', '#ea580c'],
+                        glow: 'rgba(251, 146, 60, 0.5)',
+                        shadowBlur: 12,
+                        shadowColor: 'rgba(251, 191, 36, 0.35)',
+                        audioType: 'scatter'
+                    });
+                }
+
+                const bloomAngles = [-0.14, 0.14];
+                for (const [index, angle] of bloomAngles.entries()) {
+                    createProjectile(angle, 'scatterBloom', {
+                        offsetY: index === 0 ? -5 : 5,
+                        speedMultiplier: 1.05,
+                        audioType: 'scatter'
+                    });
+                }
+
+                createProjectile(0.24, 'scatterBloom', {
+                    offsetY: -20,
+                    speedMultiplier: 1.12,
+                    audioType: 'scatter'
+                });
+                createProjectile(-0.24, 'scatterBloom', {
+                    offsetY: 20,
+                    speedMultiplier: 1.12,
+                    audioType: 'scatter'
+                });
+
+                createProjectile(0, 'emberMine', {
+                    offsetX: -26,
+                    applyLoadoutSpeed: false,
+                    speedMultiplier: 0.52,
+                    audioType: 'scatter'
+                });
             }
         },
         lance: {
             id: 'lance',
             label: 'Star Lance',
-            description: 'Charged beam that strikes hard through armored debris.',
-            cooldownMultiplier: 1.35,
-            speedMultiplier: 1.1,
+            description: 'Charged beam blooms into prismatic outriders that rake entire columns.',
+            cooldownMultiplier: 1.32,
+            speedMultiplier: 1.14,
             pattern: (createProjectile) => {
-                createProjectile(0, 'lance', { offsetX: 8 });
+                createProjectile(0, 'lance', {
+                    offsetX: 8,
+                    width: 42,
+                    height: 18,
+                    damage: 2.8,
+                    gradient: ['#f8fafc', '#38bdf8', '#6366f1'],
+                    glow: 'rgba(129, 140, 248, 0.6)',
+                    shadowBlur: 18,
+                    shadowColor: 'rgba(165, 180, 252, 0.55)'
+                });
+                const outriderAngle = 0.18;
+                createProjectile(outriderAngle, 'lanceFlare', {
+                    offsetY: 18,
+                    audioType: 'lance'
+                });
+                createProjectile(-outriderAngle, 'lanceFlare', {
+                    offsetY: -18,
+                    audioType: 'lance'
+                });
+                createProjectile(0, 'lanceWake', {
+                    offsetX: -16,
+                    applyLoadoutSpeed: false,
+                    audioType: 'lance'
+                });
+            }
+        },
+        nova: {
+            id: 'nova',
+            label: 'Solar Nova',
+            description: 'Radiant flare lines spiral forward then condense into a hanging sun.',
+            cooldownMultiplier: 1.22,
+            speedMultiplier: 0.9,
+            pattern: (createProjectile) => {
+                const rings = [-0.34, -0.18, 0.02, 0.18, 0.34];
+                rings.forEach((angle, index) => {
+                    createProjectile(angle, 'nova', {
+                        offsetY: (index - 2) * 8,
+                        speedMultiplier: 0.9 + index * 0.05,
+                        audioType: 'nova'
+                    });
+                });
+                createProjectile(0, 'novaBurst', {
+                    offsetX: -28,
+                    applyLoadoutSpeed: false,
+                    speedMultiplier: 0.5,
+                    audioType: 'nova'
+                });
+            }
+        },
+        vortex: {
+            id: 'vortex',
+            label: 'Vortex Spindle',
+            description: 'Chromatic micro-lances coil into a turbine that drills through debris.',
+            cooldownMultiplier: 1.08,
+            cooldownOffset: -30,
+            speedMultiplier: 1.15,
+            pattern: (createProjectile, { originY }) => {
+                const spiralAngles = [-0.26, -0.1, 0.1, 0.26];
+                const verticalOffsets = [-12, -4, 4, 12];
+                spiralAngles.forEach((angle, index) => {
+                    createProjectile(angle, 'vortex', {
+                        offsetY: verticalOffsets[index],
+                        speedMultiplier: 1.05 + index * 0.04,
+                        audioType: 'vortex'
+                    });
+                });
+                const sway = Math.sin((originY ?? 0) * 0.045) * 6;
+                createProjectile(0, 'vortexCore', {
+                    offsetY: sway,
+                    speedMultiplier: 1.32,
+                    audioType: 'vortex'
+                });
             }
         }
     };
     const weaponImages = {
         pulse: loadImageWithFallback('assets/weapon-pulse.svg', () => defaultWeaponImageSrc),
         scatter: loadImageWithFallback('assets/weapon-scatter.svg', () => defaultWeaponImageSrc),
-        lance: loadImageWithFallback('assets/weapon-lance.svg', () => defaultWeaponImageSrc)
+        lance: loadImageWithFallback('assets/weapon-lance.svg', () => defaultWeaponImageSrc),
+        nova: loadImageWithFallback('assets/weapon-nova.svg', () => defaultWeaponImageSrc),
+        vortex: loadImageWithFallback('assets/weapon-vortex.svg', () => defaultWeaponImageSrc)
     };
     weaponProfiles = [
         {
             id: 'pulse',
-            name: weaponLoadouts.pulse?.label ?? 'Pulse Blaster',
+            name: weaponLoadouts.pulse?.label ?? 'Pulse Cascade',
             summary: weaponLoadouts.pulse?.description ?? fallbackWeaponSummaryText,
             image: weaponImages.pulse,
             highlights: [
-                'Reliable cadence maintains constant pressure on debris.',
-                'Balanced projectile speed keeps handling predictable.'
+                'Echoing bolts weave a column of ionized light through traffic.',
+                'Ripple wake lingers to shred drifting scrap that slips past the lead shot.'
             ]
         },
         {
             id: 'scatter',
-            name: weaponLoadouts.scatter?.label ?? 'Scatter Burst',
+            name: weaponLoadouts.scatter?.label ?? 'Scatter Tempest',
             summary: weaponLoadouts.scatter?.description ?? fallbackWeaponSummaryText,
             image: weaponImages.scatter,
             highlights: [
-                'Dual shots fan forward to clear wider lanes.',
-                'Slightly lower speed rewards closer engagements.'
+                'Sweeping flare lanes scoop debris out of parallel flight paths.',
+                'Lingering ember mine punishes anything chasing your exhaust trail.'
             ]
         },
         {
@@ -6271,8 +6406,28 @@ document.addEventListener('DOMContentLoaded', () => {
             summary: weaponLoadouts.lance?.description ?? fallbackWeaponSummaryText,
             image: weaponImages.lance,
             highlights: [
-                'Charged beam punches through armored threats.',
-                'Increased velocity rewards precise aim.'
+                'Central beam vaporizes armored threats before they crowd the cockpit.',
+                'Spectral outriders rake side lanes so you can line up the next charge.'
+            ]
+        },
+        {
+            id: 'nova',
+            name: weaponLoadouts.nova?.label ?? 'Solar Nova',
+            summary: weaponLoadouts.nova?.description ?? fallbackWeaponSummaryText,
+            image: weaponImages.nova,
+            highlights: [
+                'Layered flare arcs saturate the forward lane with scorching light.',
+                'Suspended sun core melts pursuers that stray too close to your wake.'
+            ]
+        },
+        {
+            id: 'vortex',
+            name: weaponLoadouts.vortex?.label ?? 'Vortex Spindle',
+            summary: weaponLoadouts.vortex?.description ?? fallbackWeaponSummaryText,
+            image: weaponImages.vortex,
+            highlights: [
+                'Twisting microlances chew apart clustered formations and shield walls.',
+                'Accelerated core bolt drills straight ahead for boss-melting precision.'
             ]
         }
     ];
@@ -6314,6 +6469,50 @@ document.addEventListener('DOMContentLoaded', () => {
             shadowColor: 'rgba(255, 140, 66, 0.35)',
             shadowBlur: 8
         },
+        scatterBloom: {
+            width: 20,
+            height: 10,
+            life: 1700,
+            speedMultiplier: 1.05,
+            damage: 0.9,
+            gradient: ['#fed7aa', '#fb923c', '#ea580c'],
+            glow: 'rgba(248, 113, 113, 0.4)',
+            shadowColor: 'rgba(252, 165, 165, 0.35)',
+            shadowBlur: 9
+        },
+        emberMine: {
+            width: 24,
+            height: 24,
+            life: 2200,
+            speedMultiplier: 0.52,
+            damage: 1.4,
+            gradient: ['#fde68a', '#fb923c', '#ef4444'],
+            glow: 'rgba(248, 113, 113, 0.45)',
+            shadowColor: 'rgba(234, 88, 12, 0.4)',
+            shadowBlur: 14
+        },
+        pulseEcho: {
+            width: 18,
+            height: 10,
+            life: 1600,
+            speedMultiplier: 1.08,
+            damage: 0.7,
+            gradient: ['#a5f3fc', '#38bdf8'],
+            glow: 'rgba(56, 189, 248, 0.45)',
+            shadowColor: 'rgba(14, 165, 233, 0.35)',
+            shadowBlur: 8
+        },
+        pulseRipple: {
+            width: 22,
+            height: 12,
+            life: 1800,
+            speedMultiplier: 0.7,
+            damage: 0.8,
+            gradient: ['#dbeafe', '#60a5fa', '#4338ca'],
+            glow: 'rgba(99, 102, 241, 0.35)',
+            shadowColor: 'rgba(59, 130, 246, 0.35)',
+            shadowBlur: 12
+        },
         lance: {
             width: 34,
             height: 16,
@@ -6325,6 +6524,74 @@ document.addEventListener('DOMContentLoaded', () => {
             shadowColor: 'rgba(125, 211, 252, 0.5)',
             shadowBlur: 14,
             shape: 'lance'
+        },
+        lanceFlare: {
+            width: 22,
+            height: 12,
+            life: 2000,
+            speedMultiplier: 1.2,
+            damage: 1,
+            gradient: ['#cbd5f5', '#22d3ee'],
+            glow: 'rgba(94, 234, 212, 0.45)',
+            shadowColor: 'rgba(125, 211, 252, 0.4)',
+            shadowBlur: 12,
+            shape: 'lance'
+        },
+        lanceWake: {
+            width: 26,
+            height: 14,
+            life: 2100,
+            speedMultiplier: 0.78,
+            damage: 1.1,
+            gradient: ['#dbeafe', '#a5b4fc', '#60a5fa'],
+            glow: 'rgba(129, 140, 248, 0.4)',
+            shadowColor: 'rgba(165, 180, 252, 0.4)',
+            shadowBlur: 12,
+            shape: 'lance'
+        },
+        nova: {
+            width: 22,
+            height: 12,
+            life: 2000,
+            speedMultiplier: 0.94,
+            damage: 1,
+            gradient: ['#fde68a', '#f97316', '#ef4444'],
+            glow: 'rgba(251, 146, 60, 0.45)',
+            shadowColor: 'rgba(251, 191, 36, 0.4)',
+            shadowBlur: 12
+        },
+        novaBurst: {
+            width: 30,
+            height: 30,
+            life: 2600,
+            speedMultiplier: 0.55,
+            damage: 1.6,
+            gradient: ['#fff3c4', '#fb7185', '#f472b6'],
+            glow: 'rgba(251, 113, 133, 0.55)',
+            shadowColor: 'rgba(236, 72, 153, 0.45)',
+            shadowBlur: 18
+        },
+        vortex: {
+            width: 18,
+            height: 12,
+            life: 2100,
+            speedMultiplier: 1.15,
+            damage: 0.95,
+            gradient: ['#c084fc', '#6366f1', '#22d3ee'],
+            glow: 'rgba(192, 132, 252, 0.45)',
+            shadowColor: 'rgba(129, 140, 248, 0.35)',
+            shadowBlur: 10
+        },
+        vortexCore: {
+            width: 26,
+            height: 14,
+            life: 2400,
+            speedMultiplier: 1.3,
+            damage: 1.4,
+            gradient: ['#a855f7', '#22d3ee', '#14b8a6'],
+            glow: 'rgba(56, 189, 248, 0.5)',
+            shadowColor: 'rgba(45, 212, 191, 0.4)',
+            shadowBlur: 14
         }
     };
     const cosmeticsCatalog = {
