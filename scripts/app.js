@@ -6495,6 +6495,37 @@ document.addEventListener('DOMContentLoaded', () => {
         smoothedX: 0,
         smoothedY: 0
     };
+    const gamepadInput = {
+        moveX: 0,
+        moveY: 0,
+        firing: false
+    };
+    const previousGamepadButtons = [];
+    let activeGamepadIndex = null;
+    const hasGamepadSupport =
+        typeof window !== 'undefined' &&
+        typeof navigator !== 'undefined' &&
+        typeof navigator.getGamepads === 'function';
+    const GAMEPAD_DEADZONE = 0.2;
+    const GAMEPAD_BUTTONS = {
+        CROSS: 0,
+        CIRCLE: 1,
+        SQUARE: 2,
+        TRIANGLE: 3,
+        L1: 4,
+        R1: 5,
+        L2: 6,
+        R2: 7,
+        CREATE: 8,
+        OPTIONS: 9,
+        L3: 10,
+        R3: 11,
+        DPAD_UP: 12,
+        DPAD_DOWN: 13,
+        DPAD_LEFT: 14,
+        DPAD_RIGHT: 15
+    };
+    const GAMEPAD_TRIGGER_THRESHOLD = 0.35;
     const joystickState = {
         pointerId: null,
         touchId: null
@@ -6536,6 +6567,155 @@ document.addEventListener('DOMContentLoaded', () => {
         collectible: 0,
         powerUp: 0
     };
+
+    function resetGamepadInput() {
+        gamepadInput.moveX = 0;
+        gamepadInput.moveY = 0;
+        gamepadInput.firing = false;
+    }
+
+    function applyGamepadDeadZone(value, threshold = GAMEPAD_DEADZONE) {
+        if (Math.abs(value) < threshold) {
+            return 0;
+        }
+        const normalized = (Math.abs(value) - threshold) / (1 - threshold);
+        const sign = value < 0 ? -1 : 1;
+        return normalized * sign;
+    }
+
+    function handleGamepadPrimaryAction() {
+        if (state.gameState === 'paused') {
+            resumeGame();
+            return;
+        }
+
+        if (state.gameState === 'ready') {
+            if (preflightReady) {
+                startGame();
+            } else {
+                const mode = overlayButton?.dataset.launchMode || 'launch';
+                handleOverlayAction(mode);
+            }
+            return;
+        }
+
+        if (state.gameState === 'gameover') {
+            const mode = overlayButton?.dataset.launchMode || (pendingSubmission ? 'submit' : 'retry');
+            handleOverlayAction(mode);
+        }
+    }
+
+    function handleGamepadMetaActions(buttonStates) {
+        if (!buttonStates) {
+            return;
+        }
+        const wasPressed = (index) => Boolean(previousGamepadButtons[index]);
+        const isPressed = (index) => Boolean(buttonStates[index]);
+        const justPressed = (index) => isPressed(index) && !wasPressed(index);
+
+        if (justPressed(GAMEPAD_BUTTONS.OPTIONS)) {
+            if (state.gameState === 'running') {
+                pauseGame({ reason: 'gamepad' });
+                return;
+            }
+            if (state.gameState === 'paused') {
+                resumeGame();
+                return;
+            }
+            handleGamepadPrimaryAction();
+            return;
+        }
+
+        if (state.gameState !== 'running' && justPressed(GAMEPAD_BUTTONS.CROSS)) {
+            handleGamepadPrimaryAction();
+        }
+    }
+
+    function updateGamepadInput() {
+        if (!hasGamepadSupport) {
+            return;
+        }
+        const getGamepads = navigator.getGamepads?.bind(navigator);
+        if (typeof getGamepads !== 'function') {
+            return;
+        }
+        const gamepads = getGamepads() || [];
+        let gamepad = null;
+
+        if (activeGamepadIndex !== null) {
+            gamepad = gamepads[activeGamepadIndex] || null;
+        }
+
+        if (!gamepad) {
+            activeGamepadIndex = null;
+            for (const candidate of gamepads) {
+                if (candidate) {
+                    activeGamepadIndex = candidate.index;
+                    gamepad = candidate;
+                    break;
+                }
+            }
+        }
+
+        if (!gamepad) {
+            if (gamepadInput.moveX || gamepadInput.moveY || gamepadInput.firing) {
+                resetGamepadInput();
+            }
+            if (previousGamepadButtons.length) {
+                previousGamepadButtons.length = 0;
+            }
+            return;
+        }
+
+        const axes = gamepad.axes || [];
+        const axisX = applyGamepadDeadZone(axes[0] ?? 0);
+        const axisY = applyGamepadDeadZone(axes[1] ?? 0);
+
+        const buttons = gamepad.buttons || [];
+        const buttonStates = buttons.map((button) => Boolean(button?.pressed));
+        handleGamepadMetaActions(buttonStates);
+
+        const dpadX = (buttons[GAMEPAD_BUTTONS.DPAD_RIGHT]?.pressed ? 1 : 0) -
+            (buttons[GAMEPAD_BUTTONS.DPAD_LEFT]?.pressed ? 1 : 0);
+        const dpadY = (buttons[GAMEPAD_BUTTONS.DPAD_DOWN]?.pressed ? 1 : 0) -
+            (buttons[GAMEPAD_BUTTONS.DPAD_UP]?.pressed ? 1 : 0);
+
+        gamepadInput.moveX = clamp(axisX + dpadX, -1, 1);
+        gamepadInput.moveY = clamp(axisY + dpadY, -1, 1);
+
+        const rightTrigger = buttons[GAMEPAD_BUTTONS.R2];
+        const leftTrigger = buttons[GAMEPAD_BUTTONS.L2];
+        const triggerPressed = Boolean((rightTrigger?.value ?? 0) > GAMEPAD_TRIGGER_THRESHOLD || rightTrigger?.pressed);
+        const altTriggerPressed = Boolean((leftTrigger?.value ?? 0) > GAMEPAD_TRIGGER_THRESHOLD || leftTrigger?.pressed);
+        const faceButtonPressed = Boolean(
+            buttons[GAMEPAD_BUTTONS.CROSS]?.pressed || buttons[GAMEPAD_BUTTONS.SQUARE]?.pressed
+        );
+        const bumperPressed = Boolean(
+            buttons[GAMEPAD_BUTTONS.R1]?.pressed || buttons[GAMEPAD_BUTTONS.L1]?.pressed
+        );
+
+        gamepadInput.firing = triggerPressed || altTriggerPressed || faceButtonPressed || bumperPressed;
+
+        previousGamepadButtons.length = buttonStates.length;
+        for (let i = 0; i < buttonStates.length; i++) {
+            previousGamepadButtons[i] = buttonStates[i];
+        }
+    }
+
+    if (hasGamepadSupport) {
+        window.addEventListener('gamepadconnected', (event) => {
+            if (typeof event?.gamepad?.index === 'number') {
+                activeGamepadIndex = event.gamepad.index;
+            }
+        });
+        window.addEventListener('gamepaddisconnected', (event) => {
+            if (typeof event?.gamepad?.index === 'number' && event.gamepad.index === activeGamepadIndex) {
+                activeGamepadIndex = null;
+                resetGamepadInput();
+                previousGamepadButtons.length = 0;
+            }
+        });
+    }
 
     const HYPER_BEAM_POWER = 'hyperBeam';
     const SHIELD_POWER = 'radiantShield';
@@ -8170,7 +8350,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function attemptShoot(delta) {
         state.timeSinceLastShot += delta;
         const cooldown = config.projectileCooldown;
-        if ((keys.has('Space') || virtualInput.firing) && state.timeSinceLastShot >= cooldown) {
+        if ((keys.has('Space') || virtualInput.firing || gamepadInput.firing) && state.timeSinceLastShot >= cooldown) {
             spawnProjectiles();
             state.timeSinceLastShot = 0;
         }
@@ -8245,8 +8425,8 @@ document.addEventListener('DOMContentLoaded', () => {
             virtualInput.smoothedX = virtualInput.moveX;
             virtualInput.smoothedY = virtualInput.moveY;
         }
-        const inputX = clamp(keyboardX + virtualX, -1, 1);
-        const inputY = clamp(keyboardY + virtualY, -1, 1);
+        const inputX = clamp(keyboardX + virtualX + gamepadInput.moveX, -1, 1);
+        const inputY = clamp(keyboardY + virtualY + gamepadInput.moveY, -1, 1);
 
         const accel = config.player.acceleration;
         const drag = config.player.drag;
@@ -11166,6 +11346,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function gameLoop(timestamp = performance.now()) {
         requestAnimationFrame(gameLoop);
+
+        updateGamepadInput();
 
         if (state.gameState === 'ready') {
             stepNonRunning(FIXED_TIMESTEP);
