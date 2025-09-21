@@ -1,7 +1,7 @@
 :root {
     color-scheme: dark;
     --primary-font-stack: "Flight Time", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-    --shell-width: 1180px;
+    --shell-width: 720px;
     --shell-height: 720px;
     --shell-scale: 1;
     --shell-padding: clamp(24px, 5vw, 36px);
@@ -28,13 +28,14 @@ body {
     background: #000;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     min-height: 100vh;
     padding: var(--shell-padding);
     font-family: var(--primary-font-stack);
     color: #fff;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     position: relative;
 }
 
@@ -416,16 +417,11 @@ body.touch-enabled #settingsButton {
 }
 
 #gameShell {
-    --layout-gap: 24px;
     position: relative;
-    display: grid;
-    grid-template-columns:
-        minmax(0, 720px)
-        minmax(0, calc(var(--shell-width) - 720px - var(--layout-gap)));
-    grid-auto-rows: minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     align-items: stretch;
-    justify-content: center;
-    gap: var(--layout-gap);
+    justify-content: flex-start;
     width: min(var(--shell-width), calc(100vw - var(--shell-padding) * 2));
     max-width: var(--shell-width);
     height: min(var(--shell-height), calc(100vh - var(--shell-padding) * 2));
@@ -772,21 +768,6 @@ body.touch-enabled #preflightPrompt .desktop-only {
     #preflightPrompt::after {
         inset: clamp(6px, 3vw, 10px);
     }
-}
-
-#settingsHint {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 2px solid rgba(255, 255, 255, 0.18);
-    background: rgba(15, 23, 42, 0.5);
-    font-size: clamp(10px, 2vw, 12px);
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: rgba(226, 232, 240, 0.92);
-    text-align: center;
 }
 
 #stats span.value {
@@ -2547,25 +2528,25 @@ body.weapon-select-open {
     background: linear-gradient(90deg, rgba(16, 185, 129, 0.9), rgba(59, 130, 246, 0.9));
 }
 #instructions {
-    width: 100%;
-    margin: 0;
+    width: min(var(--shell-width), calc(100vw - var(--shell-padding) * 2));
+    max-width: var(--shell-width);
+    margin: clamp(16px, 4vw, 24px) auto 0;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    justify-content: stretch;
     gap: 16px;
-    height: 100%;
 }
 
 #instructionButtonBar {
     display: flex;
     align-items: stretch;
-    justify-content: space-between;
+    justify-content: center;
     gap: 12px;
+    row-gap: 10px;
     width: 100%;
     margin: 0;
     padding: 0;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
 }
 
 #instructionPanels {
@@ -2576,6 +2557,7 @@ body.weapon-select-open {
     flex-direction: column;
     gap: 16px;
     padding-right: 8px;
+    max-height: clamp(320px, 50vh, 520px);
 }
 
 #instructionPanels[hidden] {
