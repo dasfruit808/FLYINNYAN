@@ -7296,7 +7296,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 entry.characterId = defaultCharacter;
                 mutated = true;
             }
-            if (!weaponLoadouts?.[entry.weaponId]) {
+            if (!getWeaponProfile(entry.weaponId)) {
                 entry.weaponId = defaultWeapon;
                 mutated = true;
             }
