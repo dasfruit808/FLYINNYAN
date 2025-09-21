@@ -1,0 +1,24 @@
+<svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Star Lance icon</title>
+  <desc id="desc">Bright teal lance symbolizing the focused beam weapon.</desc>
+  <defs>
+    <linearGradient id="lanceGradient" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#bfdbfe" />
+      <stop offset="50%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0ea5e9" />
+    </linearGradient>
+    <filter id="lanceGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="160" height="160" rx="24" fill="#071229" opacity="0.95" />
+  <g filter="url(#lanceGlow)">
+    <path d="M80 20L108 64H92L124 108L80 140L36 108L68 64H52L80 20Z" fill="url(#lanceGradient)" opacity="0.92" />
+    <path d="M80 44L96 68H88L108 96L80 116L52 96L72 68H64L80 44Z" fill="#e0f2fe" opacity="0.55" />
+  </g>
+  <circle cx="80" cy="80" r="10" fill="#bae6fd" opacity="0.75" />
+</svg>
