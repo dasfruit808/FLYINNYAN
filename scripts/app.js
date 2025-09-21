@@ -4996,104 +4996,149 @@ document.addEventListener('DOMContentLoaded', () => {
         const ownedWeapons = new Set(Array.isArray(cosmetics.ownedWeapons) ? cosmetics.ownedWeapons : []);
         const equipped = cosmetics.equipped ?? {};
 
-        if (skinOptionsEl) {
-            skinOptionsEl.innerHTML = '';
-            const skinOrder = ['default', 'midnight', 'sunrise'];
-            for (const skinId of skinOrder) {
-                const skin = playerSkins[skinId];
-                if (!skin) {
+        const escapeAttributeValue = (value) => {
+            if (typeof value !== 'string') {
+                return '';
+            }
+            if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+                return CSS.escape(value);
+            }
+            return value.replace(/[^a-zA-Z0-9_\-]/g, '\\$&');
+        };
+
+        const toDataAttributeName = (datasetKey) => datasetKey.replace(/([A-Z])/g, '-$1').toLowerCase();
+
+        const renderCosmeticGroup = (
+            container,
+            items,
+            { datasetKey, ownedSet, equippedId, getLockedTitle, getUnlockedTitle }
+        ) => {
+            if (!container || !Array.isArray(items) || !items.length) {
+                return;
+            }
+
+            container.setAttribute('role', 'radiogroup');
+
+            const attributeName = toDataAttributeName(datasetKey);
+            const activeElement =
+                document.activeElement instanceof HTMLElement && container.contains(document.activeElement)
+                    ? document.activeElement
+                    : null;
+            const activeValue = activeElement?.dataset?.[datasetKey] ?? null;
+
+            container.innerHTML = '';
+
+            const fragment = document.createDocumentFragment();
+
+            for (const item of items) {
+                if (!item || typeof item.id !== 'string') {
                     continue;
                 }
+
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'cosmetic-option';
-                button.dataset.skinId = skin.id;
-                button.textContent = skin.label;
-                const owned = ownedSkins.has(skin.id);
+                button.dataset[datasetKey] = item.id;
+                button.textContent = item.label ?? item.id;
+                button.setAttribute('role', 'radio');
+
+                const owned = ownedSet.has(item.id);
                 if (!owned) {
                     button.disabled = true;
                     button.classList.add('locked');
-                    button.setAttribute('title', 'Unlock by completing challenges');
+                    const lockedTitle =
+                        typeof getLockedTitle === 'function'
+                            ? getLockedTitle(item)
+                            : item.description
+                                ? `${item.description} — Unlock by completing challenges`
+                                : 'Unlock by completing challenges';
+                    if (lockedTitle) {
+                        button.setAttribute('title', lockedTitle);
+                    } else {
+                        button.removeAttribute('title');
+                    }
                 } else {
-                    button.removeAttribute('title');
+                    const unlockedTitle =
+                        typeof getUnlockedTitle === 'function'
+                            ? getUnlockedTitle(item)
+                            : item.description ?? '';
+                    if (unlockedTitle) {
+                        button.setAttribute('title', unlockedTitle);
+                    } else {
+                        button.removeAttribute('title');
+                    }
                 }
-                if (equipped?.skin === skin.id) {
-                    button.classList.add('equipped');
-                    button.setAttribute('aria-pressed', 'true');
-                } else {
-                    button.setAttribute('aria-pressed', 'false');
-                }
-                skinOptionsEl.appendChild(button);
+
+                const isEquipped = equippedId === item.id;
+                button.classList.toggle('equipped', isEquipped);
+                button.setAttribute('aria-pressed', isEquipped ? 'true' : 'false');
+                button.setAttribute('aria-checked', isEquipped ? 'true' : 'false');
+
+                fragment.appendChild(button);
             }
+
+            container.appendChild(fragment);
+
+            if (activeValue) {
+                const selectorValue = escapeAttributeValue(activeValue);
+                if (selectorValue) {
+                    const nextActive = container.querySelector(
+                        `[data-${attributeName}="${selectorValue}"]`
+                    );
+                    if (nextActive instanceof HTMLElement) {
+                        try {
+                            nextActive.focus({ preventScroll: true });
+                        } catch {
+                            nextActive.focus();
+                        }
+                    }
+                }
+            }
+        };
+
+        if (skinOptionsEl) {
+            const skinOrder = ['default', 'midnight', 'sunrise'];
+            const items = skinOrder
+                .map((skinId) => playerSkins[skinId])
+                .filter((skin) => Boolean(skin));
+            renderCosmeticGroup(skinOptionsEl, items, {
+                datasetKey: 'skinId',
+                ownedSet: ownedSkins,
+                equippedId: equipped?.skin,
+                getLockedTitle: () => 'Unlock by completing challenges',
+                getUnlockedTitle: () => ''
+            });
         }
 
         if (trailOptionsEl) {
-            trailOptionsEl.innerHTML = '';
             const trailOrder = ['rainbow', 'aurora', 'ember'];
-            for (const trailId of trailOrder) {
-                const trail = trailStyles[trailId];
-                if (!trail) {
-                    continue;
-                }
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'cosmetic-option';
-                button.dataset.trailId = trail.id;
-                button.textContent = trail.label;
-                const owned = ownedTrails.has(trail.id);
-                if (!owned) {
-                    button.disabled = true;
-                    button.classList.add('locked');
-                    button.setAttribute('title', 'Unlock by completing challenges');
-                } else {
-                    button.removeAttribute('title');
-                }
-                if (equipped?.trail === trail.id) {
-                    button.classList.add('equipped');
-                    button.setAttribute('aria-pressed', 'true');
-                } else {
-                    button.setAttribute('aria-pressed', 'false');
-                }
-                trailOptionsEl.appendChild(button);
-            }
+            const items = trailOrder
+                .map((trailId) => trailStyles[trailId])
+                .filter((trail) => Boolean(trail));
+            renderCosmeticGroup(trailOptionsEl, items, {
+                datasetKey: 'trailId',
+                ownedSet: ownedTrails,
+                equippedId: equipped?.trail,
+                getLockedTitle: () => 'Unlock by completing challenges',
+                getUnlockedTitle: () => ''
+            });
         }
+
         if (weaponOptionsEl) {
-            weaponOptionsEl.innerHTML = '';
             const weaponOrder = ['pulse', 'scatter', 'lance'];
-            for (const weaponId of weaponOrder) {
-                const weapon = weaponLoadouts[weaponId];
-                if (!weapon) {
-                    continue;
-                }
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'cosmetic-option';
-                button.dataset.weaponId = weapon.id;
-                button.textContent = weapon.label;
-                if (weapon.description) {
-                    button.setAttribute('title', weapon.description);
-                }
-                const owned = ownedWeapons.has(weapon.id);
-                if (!owned) {
-                    button.disabled = true;
-                    button.classList.add('locked');
-                    const lockedTitle = weapon.description
+            const items = weaponOrder
+                .map((weaponId) => weaponLoadouts[weaponId])
+                .filter((weapon) => Boolean(weapon));
+            renderCosmeticGroup(weaponOptionsEl, items, {
+                datasetKey: 'weaponId',
+                ownedSet: ownedWeapons,
+                equippedId: equipped?.weapon,
+                getLockedTitle: (weapon) =>
+                    weapon?.description
                         ? `${weapon.description} — Unlock by completing challenges`
-                        : 'Unlock by completing challenges';
-                    button.setAttribute('title', lockedTitle);
-                } else if (weapon.description) {
-                    button.setAttribute('title', weapon.description);
-                } else {
-                    button.removeAttribute('title');
-                }
-                if (equipped?.weapon === weapon.id) {
-                    button.classList.add('equipped');
-                    button.setAttribute('aria-pressed', 'true');
-                } else {
-                    button.setAttribute('aria-pressed', 'false');
-                }
-                weaponOptionsEl.appendChild(button);
-            }
+                        : 'Unlock by completing challenges',
+                getUnlockedTitle: (weapon) => weapon?.description ?? ''
+            });
         }
     }
 
@@ -8994,6 +9039,55 @@ document.addEventListener('DOMContentLoaded', () => {
             fireButton.addEventListener('touchend', handleTouchEnd, { passive: false });
             fireButton.addEventListener('touchcancel', handleTouchEnd, { passive: false });
         }
+    }
+
+    if (supportsPointerEvents) {
+        window.addEventListener('pointerup', (event) => {
+            if (firePointerId !== null && event.pointerId === firePointerId) {
+                resetFiring();
+            }
+        });
+        window.addEventListener('pointercancel', (event) => {
+            if (firePointerId !== null && event.pointerId === firePointerId) {
+                resetFiring();
+            }
+        });
+    } else {
+        window.addEventListener(
+            'touchend',
+            (event) => {
+                if (fireTouchId === null) {
+                    return;
+                }
+                const touch = getTouchById(event.changedTouches, fireTouchId);
+                if (!touch) {
+                    return;
+                }
+                event.preventDefault();
+                handleFireTouchEnd(touch.identifier);
+            },
+            { passive: false }
+        );
+        window.addEventListener(
+            'touchcancel',
+            (event) => {
+                if (fireTouchId === null) {
+                    return;
+                }
+                const touch = getTouchById(event.changedTouches, fireTouchId);
+                if (!touch) {
+                    return;
+                }
+                event.preventDefault();
+                handleFireTouchEnd(touch.identifier);
+            },
+            { passive: false }
+        );
+        window.addEventListener('mouseup', () => {
+            if (virtualInput.firing) {
+                resetFiring();
+            }
+        });
     }
 
     window.addEventListener('keydown', (event) => {
