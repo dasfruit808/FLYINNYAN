@@ -7355,7 +7355,9 @@ document.addEventListener('DOMContentLoaded', () => {
             bobOffset: Math.random() * Math.PI * 2,
             health: Math.max(1, Math.round(size / 32)),
             hitFlash: 0,
-            shieldCooldown: 0
+            shieldCooldown: 0,
+            flameSeed: Math.random() * Math.PI * 2,
+            flameScale: randomBetween(0.82, 1.18)
         };
         placeAsteroid(asteroid, initial);
         asteroid.vx = -asteroid.speed * (0.6 + asteroid.depth * 0.8);
@@ -7770,6 +7772,36 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.rotate(asteroid.rotation);
             ctx.globalAlpha = alpha;
             const image = asteroid.image;
+            const flamePulse = 0.78 + Math.sin(time * 0.004 + (asteroid.flameSeed ?? 0)) * 0.22;
+            const flameFlicker = 0.5 + Math.sin(time * 0.009 + (asteroid.flameSeed ?? 0) * 1.7) * 0.5;
+            const flameLength = drawSize * (0.62 + (1 - asteroid.depth) * 0.55) * flamePulse * (asteroid.flameScale ?? 1);
+            const flameWidth = drawSize * (0.32 + (1 - asteroid.depth) * 0.28) * (0.72 + flameFlicker * 0.4);
+            const flameOffset = drawSize * 0.58;
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const flameGradient = ctx.createRadialGradient(
+                -flameOffset,
+                0,
+                drawSize * 0.08,
+                -flameOffset,
+                0,
+                Math.max(flameLength, drawSize * 0.2)
+            );
+            flameGradient.addColorStop(0, 'rgba(255, 247, 206, 0.92)');
+            flameGradient.addColorStop(0.35, 'rgba(255, 196, 104, 0.8)');
+            flameGradient.addColorStop(0.7, 'rgba(255, 132, 48, 0.55)');
+            flameGradient.addColorStop(1, 'rgba(255, 72, 22, 0)');
+            ctx.fillStyle = flameGradient;
+            ctx.beginPath();
+            ctx.ellipse(-flameOffset, 0, flameLength, flameWidth, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const coreAlpha = 0.28 + flameFlicker * 0.22;
+            ctx.fillStyle = `rgba(255, 244, 214, ${coreAlpha.toFixed(3)})`;
+            ctx.beginPath();
+            ctx.ellipse(-flameOffset * 0.78, 0, flameLength * 0.42, flameWidth * 0.52, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
             const flashStrength = clamp((asteroid.hitFlash ?? 0) / 220, 0, 1);
             if (flashStrength > 0) {
                 ctx.filter = `brightness(${1 + flashStrength * 0.6}) saturate(${1 + flashStrength * 0.3})`;
