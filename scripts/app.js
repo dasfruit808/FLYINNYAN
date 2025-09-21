@@ -5755,7 +5755,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 missiles: 5600,
                 hyperBeam: 5600,
                 radiantShield: 7200,
-                pumpDrive: 6200
+                pumpDrive: 6200,
+                timeDilation: 6400,
+                scoreSurge: 6200,
+                starlightMagnet: 7000
             }
         },
         hyperBeam: {
@@ -5781,6 +5784,18 @@ document.addEventListener('DOMContentLoaded', () => {
             auraColor: { r: 150, g: 214, b: 255 },
             auraPulse: 0.18,
             bounceDrag: 3.6
+        },
+        timeDilationPower: {
+            worldSpeedMultiplier: 0.6,
+            spawnRateMultiplier: 0.65
+        },
+        scoreSurgePower: {
+            scoreMultiplier: 1.5
+        },
+        magnetPower: {
+            pullRadius: 320,
+            pullStrength: 820,
+            maxSpeed: 520
         },
         star: {
             count: 120,
@@ -6227,7 +6242,10 @@ document.addEventListener('DOMContentLoaded', () => {
         bulletSpread: 'assets/powerburger.png',
         missiles: 'assets/powerpizza.png',
         hyperBeam: 'assets/powerbeam.svg',
-        pumpDrive: 'assets/pump.png'
+        pumpDrive: 'assets/pump.png',
+        timeDilation: 'assets/powerchrono.svg',
+        scoreSurge: 'assets/powerdoubler.svg',
+        starlightMagnet: 'assets/powermagnet.svg'
     };
 
     const powerUpImages = {};
@@ -6337,7 +6355,10 @@ document.addEventListener('DOMContentLoaded', () => {
             missiles: 0,
             hyperBeam: 0,
             radiantShield: 0,
-            pumpDrive: 0
+            pumpDrive: 0,
+            timeDilation: 0,
+            scoreSurge: 0,
+            starlightMagnet: 0
         },
         powerBombPulseTimer: 0,
         lastVillainKey: null,
@@ -7098,14 +7119,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const HYPER_BEAM_POWER = 'hyperBeam';
     const SHIELD_POWER = 'radiantShield';
     const PUMP_POWER = 'pumpDrive';
-    const powerUpTypes = ['powerBomb', 'bulletSpread', 'missiles', HYPER_BEAM_POWER, SHIELD_POWER, PUMP_POWER];
+    const TIME_DILATION_POWER = 'timeDilation';
+    const SCORE_SURGE_POWER = 'scoreSurge';
+    const MAGNET_POWER = 'starlightMagnet';
+    const powerUpTypes = [
+        'powerBomb',
+        'bulletSpread',
+        'missiles',
+        HYPER_BEAM_POWER,
+        SHIELD_POWER,
+        PUMP_POWER,
+        TIME_DILATION_POWER,
+        SCORE_SURGE_POWER,
+        MAGNET_POWER
+    ];
     const powerUpLabels = {
         powerBomb: 'Nova Pulse',
         bulletSpread: 'Starlight Spread',
         missiles: 'Comet Missiles',
         [HYPER_BEAM_POWER]: 'Hyper Beam',
         [SHIELD_POWER]: 'Radiant Shield',
-        [PUMP_POWER]: 'Pump Drive'
+        [PUMP_POWER]: 'Pump Drive',
+        [TIME_DILATION_POWER]: 'Chrono Field',
+        [SCORE_SURGE_POWER]: 'Score Surge',
+        [MAGNET_POWER]: 'Flux Magnet'
     };
     const powerUpColors = {
         powerBomb: { r: 255, g: 168, b: 112 },
@@ -7113,7 +7150,10 @@ document.addEventListener('DOMContentLoaded', () => {
         missiles: { r: 255, g: 182, b: 92 },
         [HYPER_BEAM_POWER]: { r: 147, g: 197, b: 253 },
         [SHIELD_POWER]: { r: 148, g: 210, b: 255 },
-        [PUMP_POWER]: { r: 255, g: 99, b: 247 }
+        [PUMP_POWER]: { r: 255, g: 99, b: 247 },
+        [TIME_DILATION_POWER]: { r: 120, g: 233, b: 255 },
+        [SCORE_SURGE_POWER]: { r: 255, g: 228, b: 150 },
+        [MAGNET_POWER]: { r: 156, g: 220, b: 255 }
     };
 
     const villainExplosionPalettes = {
@@ -7306,6 +7346,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.powerUpTimers.radiantShield = 0;
         state.powerUpTimers[HYPER_BEAM_POWER] = 0;
         state.powerUpTimers.pumpDrive = 0;
+        state.powerUpTimers.timeDilation = 0;
+        state.powerUpTimers.scoreSurge = 0;
+        state.powerUpTimers.starlightMagnet = 0;
         state.powerBombPulseTimer = 0;
         state.shieldHitPulse = 0;
         state.lastVillainKey = null;
@@ -7639,7 +7682,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const settings = config.asteroid ?? {};
         const spawnInterval = settings.spawnInterval ?? 0;
         if (state.gameState === 'running') {
-            asteroidSpawnTimer += delta;
+            asteroidSpawnTimer += getScaledSpawnDelta(delta);
         }
 
         let spawned = false;
@@ -7658,7 +7701,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.gameState !== 'running') {
             state.meteorShowerTimer = 0;
         } else if (state.nextMeteorShower > 0) {
-            state.meteorShowerTimer += delta;
+            state.meteorShowerTimer += getScaledSpawnDelta(delta);
             if (state.meteorShowerTimer >= state.nextMeteorShower) {
                 const created = spawnMeteorShower();
                 if (created) {
@@ -7676,7 +7719,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!asteroids.length) return;
 
-        const deltaSeconds = delta / 1000;
+        const scaledDelta = getScaledDelta(delta);
+        const deltaSeconds = scaledDelta / 1000;
         const parallaxFactor = 0.4 + state.gameSpeed / 900;
         const flowLerp = settings.flowLerp ?? 0.08;
 
@@ -7692,11 +7736,11 @@ document.addEventListener('DOMContentLoaded', () => {
             asteroid.rotation += asteroid.rotationSpeed * deltaSeconds;
 
             if (asteroid.hitFlash > 0) {
-                asteroid.hitFlash = Math.max(0, asteroid.hitFlash - delta);
+                asteroid.hitFlash = Math.max(0, asteroid.hitFlash - scaledDelta);
             }
 
             if (asteroid.shieldCooldown > 0) {
-                asteroid.shieldCooldown = Math.max(0, asteroid.shieldCooldown - delta);
+                asteroid.shieldCooldown = Math.max(0, asteroid.shieldCooldown - scaledDelta);
             }
 
             if (asteroid.y < asteroid.radius) {
@@ -8673,6 +8717,47 @@ document.addEventListener('DOMContentLoaded', () => {
         return state.powerUpTimers[type] > 0;
     }
 
+    function getWorldTimeScale() {
+        if (!isPowerUpActive(TIME_DILATION_POWER)) {
+            return 1;
+        }
+        const configured = Number(config.timeDilationPower?.worldSpeedMultiplier);
+        if (Number.isFinite(configured)) {
+            return clamp(configured, 0.2, 1);
+        }
+        return 0.6;
+    }
+
+    function getSpawnTimeScale() {
+        if (!isPowerUpActive(TIME_DILATION_POWER)) {
+            return 1;
+        }
+        const configured = Number(config.timeDilationPower?.spawnRateMultiplier);
+        if (Number.isFinite(configured)) {
+            return clamp(configured, 0.2, 1);
+        }
+        return 0.65;
+    }
+
+    function getScaledDelta(delta) {
+        return delta * getWorldTimeScale();
+    }
+
+    function getScaledSpawnDelta(delta) {
+        return delta * getSpawnTimeScale();
+    }
+
+    function getScoreSurgeMultiplier() {
+        if (!isPowerUpActive(SCORE_SURGE_POWER)) {
+            return 1;
+        }
+        const configured = Number(config.scoreSurgePower?.scoreMultiplier);
+        if (Number.isFinite(configured)) {
+            return Math.max(1, configured);
+        }
+        return 1.5;
+    }
+
     function isShieldActive() {
         return isPowerUpActive(SHIELD_POWER);
     }
@@ -9495,22 +9580,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateObstacles(delta) {
-        const deltaSeconds = delta / 1000;
+        const scaledDelta = getScaledDelta(delta);
+        const deltaSeconds = scaledDelta / 1000;
         for (let i = obstacles.length - 1; i >= 0; i--) {
             const obstacle = obstacles[i];
             const isBoss = isBossObstacle(obstacle);
             obstacle.x -= obstacle.speed * deltaSeconds;
             obstacle.rotation += obstacle.rotationSpeed * deltaSeconds;
             if (obstacle.hitFlash > 0) {
-                obstacle.hitFlash = Math.max(0, obstacle.hitFlash - delta);
+                obstacle.hitFlash = Math.max(0, obstacle.hitFlash - scaledDelta);
             }
 
             if (obstacle.shieldCooldown > 0) {
-                obstacle.shieldCooldown = Math.max(0, obstacle.shieldCooldown - delta);
+                obstacle.shieldCooldown = Math.max(0, obstacle.shieldCooldown - scaledDelta);
             }
 
             if (obstacle.bounceTimer > 0) {
-                obstacle.bounceTimer = Math.max(0, obstacle.bounceTimer - delta);
+                obstacle.bounceTimer = Math.max(0, obstacle.bounceTimer - scaledDelta);
                 const damping = Math.exp(-(config.defensePower?.bounceDrag ?? 3.4) * deltaSeconds);
                 obstacle.x += obstacle.vx * deltaSeconds;
                 obstacle.y += obstacle.vy * deltaSeconds;
@@ -9576,12 +9662,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateCollectibles(delta) {
-        const deltaSeconds = delta / 1000;
+        const scaledDelta = getScaledDelta(delta);
+        const deltaSeconds = scaledDelta / 1000;
+        const magnetActive = isPowerUpActive(MAGNET_POWER);
+        const magnetConfig = config.magnetPower ?? {};
+        const magnetRadius = magnetActive ? Math.max(0, magnetConfig.pullRadius ?? 0) : 0;
+        const magnetStrength = magnetConfig.pullStrength ?? 0;
+        const magnetMaxSpeed = magnetConfig.maxSpeed ?? 0;
+        const playerCenter = magnetActive ? getPlayerCenter() : null;
         for (let i = collectibles.length - 1; i >= 0; i--) {
             const collectible = collectibles[i];
             collectible.x -= collectible.speed * deltaSeconds;
             collectible.wobbleTime += deltaSeconds * 4;
             collectible.y += Math.sin(collectible.wobbleTime) * 18 * deltaSeconds;
+            if (magnetActive && magnetRadius > 0 && playerCenter) {
+                const centerX = collectible.x + collectible.width * 0.5;
+                const centerY = collectible.y + collectible.height * 0.5;
+                const dx = playerCenter.x - centerX;
+                const dy = playerCenter.y - centerY;
+                const distance = Math.hypot(dx, dy);
+                if (distance > 0 && distance < magnetRadius) {
+                    const strength = 1 - distance / magnetRadius;
+                    const pull = magnetStrength * strength * deltaSeconds;
+                    const maxStep = magnetMaxSpeed > 0 ? magnetMaxSpeed * deltaSeconds : pull;
+                    const step = Math.min(pull, maxStep);
+                    const normalX = dx / distance;
+                    const normalY = dy / distance;
+                    collectible.x += normalX * step;
+                    collectible.y += normalY * step;
+                }
+            }
             const verticalPadding = config.collectible.verticalPadding ?? 48;
             collectible.y = clamp(collectible.y, verticalPadding, viewport.height - collectible.height - verticalPadding);
 
@@ -9642,11 +9752,48 @@ document.addEventListener('DOMContentLoaded', () => {
             audioManager.playHyperBeam();
         } else if (type === PUMP_POWER) {
             ensurePumpTailInitialized();
+        } else if (type === TIME_DILATION_POWER) {
+            triggerScreenShake(4, 220);
+            const { x, y } = getPlayerCenter();
+            const color = powerUpColors[TIME_DILATION_POWER] ?? { r: 120, g: 233, b: 255 };
+            createParticles({
+                x,
+                y,
+                color,
+                count: 22,
+                speedRange: [180, 420],
+                sizeRange: [1.2, 3.4],
+                lifeRange: [320, 620]
+            });
+        } else if (type === SCORE_SURGE_POWER) {
+            const { x, y } = getPlayerCenter();
+            spawnFloatingText({
+                text: 'Score Surge!',
+                x,
+                y,
+                color: '#fde68a',
+                life: 900,
+                variant: 'score',
+                multiplier: getScoreSurgeMultiplier()
+            });
+        } else if (type === MAGNET_POWER) {
+            const { x, y } = getPlayerCenter();
+            const color = powerUpColors[MAGNET_POWER] ?? { r: 156, g: 220, b: 255 };
+            createParticles({
+                x,
+                y,
+                color,
+                count: 18,
+                speedRange: [140, 360],
+                sizeRange: [1.4, 3.6],
+                lifeRange: [360, 680]
+            });
         }
     }
 
     function updatePowerUps(delta) {
-        const deltaSeconds = delta / 1000;
+        const scaledDelta = getScaledDelta(delta);
+        const deltaSeconds = scaledDelta / 1000;
         for (let i = powerUps.length - 1; i >= 0; i--) {
             const powerUp = powerUps[i];
             powerUp.x -= powerUp.speed * deltaSeconds;
@@ -9979,7 +10126,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateStars(delta) {
-        const deltaSeconds = delta / 1000;
+        const scaledDelta = getScaledDelta(delta);
+        const deltaSeconds = scaledDelta / 1000;
         for (let i = stars.length - 1; i >= 0; i--) {
             const star = stars[i];
             star.x -= star.speed * deltaSeconds * (0.4 + state.gameSpeed / 600);
@@ -9992,10 +10140,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateParticles(delta) {
-        const deltaSeconds = delta / 1000;
+        const scaledDelta = getScaledDelta(delta);
+        const deltaSeconds = scaledDelta / 1000;
         for (let i = particles.length - 1; i >= 0; i--) {
             const particle = particles[i];
-            particle.life -= delta;
+            particle.life -= scaledDelta;
             if (particle.life <= 0) {
                 particles.splice(i, 1);
                 continue;
@@ -10008,9 +10157,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateSpawns(delta) {
-        spawnTimers.obstacle += delta;
-        spawnTimers.collectible += delta;
-        spawnTimers.powerUp += delta;
+        const spawnDelta = getScaledSpawnDelta(delta);
+        spawnTimers.obstacle += spawnDelta;
+        spawnTimers.collectible += spawnDelta;
+        spawnTimers.powerUp += spawnDelta;
 
         if (state.bossBattle.active) {
             if (!state.bossBattle.bossSpawned) {
@@ -10592,22 +10742,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         state.tailTarget = config.baseTrailLength + state.streak * config.trailGrowthPerStreak;
-        const multiplier = 1 + state.streak * config.comboMultiplierStep;
-        const finalPoints = Math.floor(basePoints * multiplier);
+        const comboMultiplier = 1 + state.streak * config.comboMultiplierStep;
+        const surgeMultiplier = getScoreSurgeMultiplier();
+        const totalMultiplier = comboMultiplier * surgeMultiplier;
+        const finalPoints = Math.floor(basePoints * totalMultiplier);
         state.score += finalPoints;
         if (challengeManager) {
             challengeManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
         }
         const originX = source.x ?? player.x + player.width * 0.5;
         const originY = source.y ?? player.y;
-        const text = `+${finalPoints.toLocaleString()}${multiplier > 1.01 ? ` x${multiplier.toFixed(2)}` : ''}`;
+        const text = `+${finalPoints.toLocaleString()}${totalMultiplier > 1.01 ? ` x${totalMultiplier.toFixed(2)}` : ''}`;
         spawnFloatingText({
             text,
             x: originX,
             y: originY,
             color: source.color ?? '#fbbf24',
             variant: source.type ?? 'score',
-            multiplier
+            multiplier: totalMultiplier
         });
         if (finalPoints >= 600) {
             triggerScreenShake(Math.min(16, 6 + finalPoints / 400), 280);
@@ -11649,7 +11801,7 @@ document.addEventListener('DOMContentLoaded', () => {
             challengeManager.recordEvent('time', { totalMs: state.elapsedTime });
         }
         updateIntelLore(state.elapsedTime);
-        state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (delta / 1000);
+        state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (getScaledDelta(delta) / 1000);
         if (state.bossBattle.alertTimer > 0) {
             state.bossBattle.alertTimer = Math.max(0, state.bossBattle.alertTimer - delta);
         }

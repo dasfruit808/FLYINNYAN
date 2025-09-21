@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="surgeCore" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#facc15"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <radialGradient id="surgeAura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fef3c7" stop-opacity="1"/>
+      <stop offset="60%" stop-color="#fde68a" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#b45309" stop-opacity="0.15"/>
+    </radialGradient>
+  </defs>
+  <circle cx="64" cy="64" r="60" fill="url(#surgeAura)"/>
+  <g transform="translate(64 64)">
+    <path d="M-44 0a44 44 0 0 1 44-44 4 4 0 0 1 0 8 36 36 0 1 0 36 36 4 4 0 0 1 8 0 44 44 0 0 1-44 44 44 44 0 0 1-44-44z" fill="#fef9c3" opacity="0.6"/>
+    <path d="M-22-28h44l-14 20h14l-34 48 8-32h-18z" fill="url(#surgeCore)" stroke="#78350f" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M-6-20h12l-6 8h8l-14 20 4-14h-8z" fill="#fff7ed" opacity="0.8"/>
+  </g>
+  <circle cx="64" cy="64" r="10" fill="#fff7ed" opacity="0.9"/>
+</svg>

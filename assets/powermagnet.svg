@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="magnetAura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#bae6fd" stop-opacity="1"/>
+      <stop offset="65%" stop-color="#38bdf8" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.25"/>
+    </radialGradient>
+    <linearGradient id="magnetBody" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="60" fill="url(#magnetAura)"/>
+  <g transform="translate(64 68)">
+    <path d="M-30-24h20a4 4 0 0 1 4 4v22a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-22a4 4 0 0 1 4-4h20v26c0 24-18 42-40 42s-40-18-40-42z" fill="url(#magnetBody)" stroke="#0f172a" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M-30-24h20v16h-20z" fill="#f0f9ff"/>
+    <path d="M10-24h20v16H10z" fill="#bae6fd"/>
+  </g>
+  <g stroke="#e0f2fe" stroke-width="4" stroke-linecap="round">
+    <path d="M32 28c12 0 20 6 24 16" opacity="0.8"/>
+    <path d="M96 28c-12 0-20 6-24 16" opacity="0.8"/>
+    <path d="M32 100c12 0 20-6 24-16" opacity="0.8"/>
+    <path d="M96 100c-12 0-20-6-24-16" opacity="0.8"/>
+  </g>
+</svg>
