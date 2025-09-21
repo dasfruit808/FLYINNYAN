@@ -6715,7 +6715,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 pumpDrive: 6200,
                 timeDilation: 6400,
                 scoreSurge: 6200,
-                starlightMagnet: 7000
+                starlightMagnet: 7000,
+                doubleTeam: 6800
             }
         },
         hyperBeam: {
@@ -6753,6 +6754,10 @@ document.addEventListener('DOMContentLoaded', () => {
             pullRadius: 320,
             pullStrength: 820,
             maxSpeed: 520
+        },
+        doubleTeamPower: {
+            separation: 140,
+            verticalOffset: 46
         },
         star: {
             count: 120,
@@ -6829,6 +6834,7 @@ document.addEventListener('DOMContentLoaded', () => {
         config.player.dash.dragMultiplier = baseDashConfig.dragMultiplier;
         config.projectileCooldown = baseProjectileSettings.cooldown;
         config.projectileSpeed = baseProjectileSettings.speed;
+        syncDoubleTeamCloneDimensions();
     }
 
     function applyCharacterOverrides(profile) {
@@ -6855,6 +6861,7 @@ document.addEventListener('DOMContentLoaded', () => {
             player.width = config.player.width;
             player.height = config.player.height;
         }
+        syncDoubleTeamCloneDimensions();
     }
 
     function applyDifficultyPreset(presetId, { announce = false } = {}) {
@@ -7263,7 +7270,8 @@ document.addEventListener('DOMContentLoaded', () => {
         pumpDrive: 'assets/pump.png',
         timeDilation: 'assets/powerchrono.svg',
         scoreSurge: 'assets/powerdoubler.svg',
-        starlightMagnet: 'assets/powermagnet.svg'
+        starlightMagnet: 'assets/powermagnet.svg',
+        doubleTeam: 'assets/powerdouble.svg'
     };
 
     const powerUpImages = {};
@@ -7376,7 +7384,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pumpDrive: 0,
             timeDilation: 0,
             scoreSurge: 0,
-            starlightMagnet: 0
+            starlightMagnet: 0,
+            doubleTeam: 0
         },
         powerBombPulseTimer: 0,
         lastVillainKey: null,
@@ -7615,6 +7624,87 @@ document.addEventListener('DOMContentLoaded', () => {
         releasePending: false,
         segments: []
     };
+    const doubleTeamState = {
+        clones: []
+    };
+
+    function hasDoubleTeamActive() {
+        return Boolean(state?.powerUpTimers?.[DOUBLE_TEAM_POWER] > 0 && doubleTeamState.clones.length > 0);
+    }
+
+    function getActiveShips() {
+        return hasDoubleTeamActive() ? [player, ...doubleTeamState.clones] : [player];
+    }
+
+    function clampShipWithinBounds(ship) {
+        if (!config) {
+            return;
+        }
+        ship.x = clamp(ship.x, 0, viewport.width - ship.width);
+        const verticalBleed = viewport.height * config.player.verticalBleed;
+        ship.y = clamp(ship.y, -verticalBleed, viewport.height - ship.height + verticalBleed);
+    }
+
+    function syncDoubleTeamCloneDimensions() {
+        for (const clone of doubleTeamState.clones) {
+            clone.width = player.width;
+            clone.height = player.height;
+        }
+    }
+
+    function activateDoubleTeam() {
+        const settings = config.doubleTeamPower ?? {};
+        const baseSeparation = Number(settings.separation);
+        const separation = Number.isFinite(baseSeparation)
+            ? Math.max(40, baseSeparation)
+            : Math.max(40, player.width * 1.1);
+        const configuredOffset = Number(settings.verticalOffset);
+        const verticalOffset = Number.isFinite(configuredOffset)
+            ? Math.max(0, configuredOffset)
+            : Math.max(0, player.height * 0.25);
+        const halfSep = separation * 0.5;
+        const verticalBleed = viewport.height * config.player.verticalBleed;
+        const leftX = clamp(player.x - halfSep, 0, viewport.width - player.width);
+        const rightX = clamp(player.x + halfSep, 0, viewport.width - player.width);
+        const topY = clamp(player.y - verticalOffset, -verticalBleed, viewport.height - player.height + verticalBleed);
+        const bottomY = clamp(
+            player.y + verticalOffset,
+            -verticalBleed,
+            viewport.height - player.height + verticalBleed
+        );
+
+        player.x = leftX;
+        player.y = topY;
+
+        const clone = {
+            x: rightX,
+            y: bottomY,
+            width: player.width,
+            height: player.height,
+            vx: player.vx,
+            vy: player.vy,
+            bobOffset: Math.random() * 2000
+        };
+        doubleTeamState.clones.length = 0;
+        doubleTeamState.clones.push(clone);
+    }
+
+    function deactivateDoubleTeam() {
+        if (!doubleTeamState.clones.length) {
+            return;
+        }
+        const ships = [player, ...doubleTeamState.clones];
+        const avgX = ships.reduce((sum, ship) => sum + ship.x, 0) / ships.length;
+        const avgY = ships.reduce((sum, ship) => sum + ship.y, 0) / ships.length;
+        const avgVx = ships.reduce((sum, ship) => sum + ship.vx, 0) / ships.length;
+        const avgVy = ships.reduce((sum, ship) => sum + ship.vy, 0) / ships.length;
+        player.x = avgX;
+        player.y = avgY;
+        player.vx = avgVx;
+        player.vy = avgVy;
+        clampShipWithinBounds(player);
+        doubleTeamState.clones.length = 0;
+    }
     const areaBursts = [];
     const floatingTexts = [];
     const cameraShake = { intensity: 0, duration: 0, elapsed: 0, offsetX: 0, offsetY: 0 };
@@ -8196,6 +8286,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const TIME_DILATION_POWER = 'timeDilation';
     const SCORE_SURGE_POWER = 'scoreSurge';
     const MAGNET_POWER = 'starlightMagnet';
+    const DOUBLE_TEAM_POWER = 'doubleTeam';
     const powerUpTypes = [
         'powerBomb',
         'bulletSpread',
@@ -8205,7 +8296,8 @@ document.addEventListener('DOMContentLoaded', () => {
         PUMP_POWER,
         TIME_DILATION_POWER,
         SCORE_SURGE_POWER,
-        MAGNET_POWER
+        MAGNET_POWER,
+        DOUBLE_TEAM_POWER
     ];
     const powerUpLabels = {
         powerBomb: 'Nova Pulse',
@@ -8216,7 +8308,8 @@ document.addEventListener('DOMContentLoaded', () => {
         [PUMP_POWER]: 'Pump Drive',
         [TIME_DILATION_POWER]: 'Chrono Field',
         [SCORE_SURGE_POWER]: 'Score Surge',
-        [MAGNET_POWER]: 'Flux Magnet'
+        [MAGNET_POWER]: 'Flux Magnet',
+        [DOUBLE_TEAM_POWER]: 'Double Team'
     };
     const powerUpColors = {
         powerBomb: { r: 255, g: 168, b: 112 },
@@ -8227,7 +8320,8 @@ document.addEventListener('DOMContentLoaded', () => {
         [PUMP_POWER]: { r: 255, g: 99, b: 247 },
         [TIME_DILATION_POWER]: { r: 120, g: 233, b: 255 },
         [SCORE_SURGE_POWER]: { r: 255, g: 228, b: 150 },
-        [MAGNET_POWER]: { r: 156, g: 220, b: 255 }
+        [MAGNET_POWER]: { r: 156, g: 220, b: 255 },
+        [DOUBLE_TEAM_POWER]: { r: 255, g: 190, b: 120 }
     };
 
     const villainExplosionPalettes = {
@@ -8400,7 +8494,8 @@ document.addEventListener('DOMContentLoaded', () => {
         width: config.player.width,
         height: config.player.height,
         vx: 0,
-        vy: 0
+        vy: 0,
+        bobOffset: 0
     };
 
     function resetGame() {
@@ -8423,6 +8518,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.powerUpTimers.timeDilation = 0;
         state.powerUpTimers.scoreSurge = 0;
         state.powerUpTimers.starlightMagnet = 0;
+        state.powerUpTimers.doubleTeam = 0;
         state.powerBombPulseTimer = 0;
         state.shieldHitPulse = 0;
         state.lastVillainKey = null;
@@ -8443,6 +8539,7 @@ document.addEventListener('DOMContentLoaded', () => {
         player.y = viewport.height * 0.5;
         player.vx = 0;
         player.vy = 0;
+        player.bobOffset = player.bobOffset ?? 0;
         projectiles.length = 0;
         obstacles.length = 0;
         collectibles.length = 0;
@@ -8456,6 +8553,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pumpTailState.waveTime = 0;
         pumpTailState.releasePending = false;
         pumpTailState.centerX = 0;
+        doubleTeamState.clones.length = 0;
         areaBursts.length = 0;
         spawnTimers.obstacle = 0;
         spawnTimers.collectible = 0;
@@ -8883,14 +8981,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (state.gameState === 'running') {
                 const collisionRadius = asteroid.radius * (settings.collisionRadiusMultiplier ?? 1);
-                if (circleRectOverlap({ x: asteroid.x, y: asteroid.y, radius: collisionRadius }, player)) {
-                    if (isShieldActive() && asteroid.shieldCooldown <= 0) {
-                        repelAsteroidFromPlayer(asteroid);
-                        continue;
-                    }
-                    triggerGameOver('An asteroid shattered your shields!');
-                    return;
+            let collidingShip = null;
+            for (const ship of getActiveShips()) {
+                if (circleRectOverlap({ x: asteroid.x, y: asteroid.y, radius: collisionRadius }, ship)) {
+                    collidingShip = ship;
+                    break;
                 }
+            }
+            if (collidingShip) {
+                if (isShieldActive() && asteroid.shieldCooldown <= 0) {
+                    repelAsteroidFromPlayer(asteroid, collidingShip);
+                    continue;
+                }
+                triggerGameOver('An asteroid shattered your shields!');
+                return;
+            }
 
                 if (isPumpTailDamaging()) {
                     if (pumpTailIntersectsCircle({ x: asteroid.x, y: asteroid.y, radius: collisionRadius })) {
@@ -9933,11 +10038,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function triggerDash(direction) {
         const dashConfig = config.player.dash;
         state.dashTimer = dashConfig.duration;
-        if (direction.x !== 0) {
-            player.vx = direction.x * dashConfig.boostSpeed;
-        }
-        if (direction.y !== 0) {
-            player.vy = direction.y * dashConfig.boostSpeed;
+        for (const ship of getActiveShips()) {
+            if (direction.x !== 0) {
+                ship.vx = direction.x * dashConfig.boostSpeed;
+            }
+            if (direction.y !== 0) {
+                ship.vy = direction.y * dashConfig.boostSpeed;
+            }
         }
     }
 
@@ -9990,11 +10097,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return isPowerUpActive(SHIELD_POWER);
     }
 
-    function getPlayerCenter() {
-        return {
-            x: player.x + player.width * 0.5,
-            y: player.y + player.height * 0.5
-        };
+    function getPlayerCenter(ship = null) {
+        if (ship) {
+            return {
+                x: ship.x + ship.width * 0.5,
+                y: ship.y + ship.height * 0.5
+            };
+        }
+        const ships = getActiveShips();
+        if (!ships.length) {
+            return { x: player.x + player.width * 0.5, y: player.y + player.height * 0.5 };
+        }
+        const total = ships.reduce(
+            (acc, current) => {
+                acc.x += current.x + current.width * 0.5;
+                acc.y += current.y + current.height * 0.5;
+                return acc;
+            },
+            { x: 0, y: 0 }
+        );
+        const count = ships.length;
+        return { x: total.x / count, y: total.y / count };
     }
 
     function triggerShieldImpact(x, y, normalX = 0, normalY = 0) {
@@ -10014,9 +10137,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.shieldHitPulse = Math.min(1.2, (state.shieldHitPulse ?? 0) + 0.5);
     }
 
-    function repelObstacleFromPlayer(obstacle) {
+    function repelObstacleFromPlayer(obstacle, ship = player) {
         const shieldConfig = config.defensePower ?? {};
-        const { x: playerCenterX, y: playerCenterY } = getPlayerCenter();
+        const { x: playerCenterX, y: playerCenterY } = getPlayerCenter(ship);
         const obstacleCenterX = obstacle.x + obstacle.width * 0.5;
         const obstacleCenterY = obstacle.y + obstacle.height * 0.5;
         const dx = obstacleCenterX - playerCenterX;
@@ -10025,8 +10148,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const normalX = dx / distance;
         const normalY = dy / distance;
         const clearance = shieldConfig.clearance ?? 12;
-        const playerHalfWidth = player.width * 0.5;
-        const playerHalfHeight = player.height * 0.5;
+        const playerHalfWidth = ship.width * 0.5;
+        const playerHalfHeight = ship.height * 0.5;
         const obstacleHalfWidth = obstacle.width * 0.5;
         const obstacleHalfHeight = obstacle.height * 0.5;
         const targetCenterX = playerCenterX + normalX * (playerHalfWidth + obstacleHalfWidth + clearance);
@@ -10047,16 +10170,16 @@ document.addEventListener('DOMContentLoaded', () => {
         triggerShieldImpact(targetCenterX, targetCenterY, normalX, normalY);
     }
 
-    function repelAsteroidFromPlayer(asteroid) {
+    function repelAsteroidFromPlayer(asteroid, ship = player) {
         const shieldConfig = config.defensePower ?? {};
-        const { x: playerCenterX, y: playerCenterY } = getPlayerCenter();
+        const { x: playerCenterX, y: playerCenterY } = getPlayerCenter(ship);
         const dx = asteroid.x - playerCenterX;
         const dy = asteroid.y - playerCenterY;
         const distance = Math.max(Math.hypot(dx, dy), 1);
         const normalX = dx / distance;
         const normalY = dy / distance;
         const clearance = shieldConfig.clearance ?? 12;
-        const playerRadius = Math.max(player.width, player.height) * 0.5;
+        const playerRadius = Math.max(ship.width, ship.height) * 0.5;
         const targetDistance = playerRadius + asteroid.radius + clearance;
         asteroid.x = playerCenterX + normalX * targetDistance;
         asteroid.y = clamp(playerCenterY + normalY * targetDistance, asteroid.radius, viewport.height - asteroid.radius);
@@ -10084,53 +10207,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function spawnProjectiles() {
-        const originX = player.x + player.width - 12;
-        const originY = player.y + player.height * 0.5 - 6;
         const firedTypes = new Set();
         const loadout = activeWeaponLoadout ?? weaponLoadouts.pulse;
         const loadoutSpeedMultiplier = loadout?.speedMultiplier ?? 1;
-        const createProjectile = (angle, type = 'standard', overrides = {}) => {
-            const archetype = projectileArchetypes[type] ?? projectileArchetypes.standard;
-            const applyLoadoutSpeed = overrides.applyLoadoutSpeed !== false;
-            const speedMultiplier =
-                (overrides.speedMultiplier ?? archetype?.speedMultiplier ?? 1) *
-                (applyLoadoutSpeed ? loadoutSpeedMultiplier : 1);
-            const speed = config.projectileSpeed * speedMultiplier;
-            const vx = Math.cos(angle) * speed;
-            const vy = Math.sin(angle) * speed;
-            const projectile = {
-                x: originX + (overrides.offsetX ?? 0),
-                y: originY + (overrides.offsetY ?? 0),
-                width: overrides.width ?? archetype?.width ?? 24,
-                height: overrides.height ?? archetype?.height ?? 12,
-                vx,
-                vy,
-                life: overrides.life ?? archetype?.life ?? 2000,
-                type,
-                damage: overrides.damage ?? archetype?.damage ?? 1,
-                gradient: overrides.gradient ?? archetype?.gradient ?? null,
-                glow: overrides.glow ?? archetype?.glow ?? null,
-                shape: overrides.shape ?? archetype?.shape ?? null,
-                shadowBlur: overrides.shadowBlur ?? archetype?.shadowBlur ?? 0,
-                shadowColor: overrides.shadowColor ?? archetype?.shadowColor ?? null
+        const fireFromShip = (ship) => {
+            const originX = ship.x + ship.width - 12;
+            const originY = ship.y + ship.height * 0.5 - 6;
+            const createProjectile = (angle, type = 'standard', overrides = {}) => {
+                const archetype = projectileArchetypes[type] ?? projectileArchetypes.standard;
+                const applyLoadoutSpeed = overrides.applyLoadoutSpeed !== false;
+                const speedMultiplier =
+                    (overrides.speedMultiplier ?? archetype?.speedMultiplier ?? 1) *
+                    (applyLoadoutSpeed ? loadoutSpeedMultiplier : 1);
+                const speed = config.projectileSpeed * speedMultiplier;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                const projectile = {
+                    x: originX + (overrides.offsetX ?? 0),
+                    y: originY + (overrides.offsetY ?? 0),
+                    width: overrides.width ?? archetype?.width ?? 24,
+                    height: overrides.height ?? archetype?.height ?? 12,
+                    vx,
+                    vy,
+                    life: overrides.life ?? archetype?.life ?? 2000,
+                    type,
+                    damage: overrides.damage ?? archetype?.damage ?? 1,
+                    gradient: overrides.gradient ?? archetype?.gradient ?? null,
+                    glow: overrides.glow ?? archetype?.glow ?? null,
+                    shape: overrides.shape ?? archetype?.shape ?? null,
+                    shadowBlur: overrides.shadowBlur ?? archetype?.shadowBlur ?? 0,
+                    shadowColor: overrides.shadowColor ?? archetype?.shadowColor ?? null
+                };
+                projectiles.push(projectile);
+                firedTypes.add(overrides.audioType ?? type);
+                return projectile;
             };
-            projectiles.push(projectile);
-            firedTypes.add(overrides.audioType ?? type);
-            return projectile;
+
+            if (isPowerUpActive('missiles')) {
+                createProjectile(0, 'missile', { applyLoadoutSpeed: false });
+                createProjectile(0.12, 'missile', { applyLoadoutSpeed: false, offsetY: 10 });
+            } else if (isPowerUpActive('bulletSpread')) {
+                const spread = 0.22;
+                createProjectile(-spread, 'spread', { applyLoadoutSpeed: false });
+                createProjectile(0, 'spread', { applyLoadoutSpeed: false });
+                createProjectile(spread, 'spread', { applyLoadoutSpeed: false });
+            } else if (typeof loadout?.pattern === 'function') {
+                loadout.pattern(createProjectile, { originX, originY });
+            } else {
+                createProjectile(0, 'standard');
+            }
         };
 
-        if (isPowerUpActive('missiles')) {
-            createProjectile(0, 'missile', { applyLoadoutSpeed: false });
-            createProjectile(0.12, 'missile', { applyLoadoutSpeed: false, offsetY: 10 });
-        } else if (isPowerUpActive('bulletSpread')) {
-            const spread = 0.22;
-            createProjectile(-spread, 'spread', { applyLoadoutSpeed: false });
-            createProjectile(0, 'spread', { applyLoadoutSpeed: false });
-            createProjectile(spread, 'spread', { applyLoadoutSpeed: false });
-        } else if (typeof loadout?.pattern === 'function') {
-            loadout.pattern(createProjectile, { originX, originY });
-        } else {
-            createProjectile(0, 'standard');
+        for (const ship of getActiveShips()) {
+            fireFromShip(ship);
         }
 
         for (const type of firedTypes) {
@@ -10179,22 +10308,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const effectiveDrag = isDashing ? drag * dashConfig.dragMultiplier : drag;
         const maxSpeed = isDashing ? dashConfig.boostSpeed : config.player.maxSpeed;
 
-        player.vx += (inputX * accel - player.vx * effectiveDrag) * deltaSeconds;
-        player.vy += (inputY * accel - player.vy * effectiveDrag) * deltaSeconds;
+        const ships = getActiveShips();
+        for (const ship of ships) {
+            ship.vx += (inputX * accel - ship.vx * effectiveDrag) * deltaSeconds;
+            ship.vy += (inputY * accel - ship.vy * effectiveDrag) * deltaSeconds;
 
-        player.vx = clamp(player.vx, -maxSpeed, maxSpeed);
-        player.vy = clamp(player.vy, -maxSpeed, maxSpeed);
+            ship.vx = clamp(ship.vx, -maxSpeed, maxSpeed);
+            ship.vy = clamp(ship.vy, -maxSpeed, maxSpeed);
 
-        player.x += player.vx * deltaSeconds;
-        player.y += player.vy * deltaSeconds;
+            ship.x += ship.vx * deltaSeconds;
+            ship.y += ship.vy * deltaSeconds;
+            clampShipWithinBounds(ship);
+        }
 
         if (state.dashTimer > 0) {
             state.dashTimer = Math.max(0, state.dashTimer - delta);
         }
-
-        player.x = clamp(player.x, 0, viewport.width - player.width);
-        const verticalBleed = viewport.height * config.player.verticalBleed;
-        player.y = clamp(player.y, -verticalBleed, viewport.height - player.height + verticalBleed);
 
         attemptShoot(delta);
 
@@ -10877,12 +11006,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 continue;
             }
 
-            if (rectOverlap(player, obstacle)) {
+            for (const ship of getActiveShips()) {
+                if (!rectOverlap(ship, obstacle)) {
+                    continue;
+                }
                 if (isBoss) {
                     return triggerGameOver('The boss crushed your ship!');
                 }
                 if (isShieldActive() && obstacle.shieldCooldown <= 0) {
-                    repelObstacleFromPlayer(obstacle);
+                    repelObstacleFromPlayer(obstacle, ship);
                     continue;
                 }
                 return triggerGameOver('Your rainbow ship took a direct hit!');
@@ -10949,7 +11081,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 continue;
             }
 
-            if (rectOverlap(player, collectible)) {
+            for (const ship of getActiveShips()) {
+                if (!rectOverlap(ship, collectible)) {
+                    continue;
+                }
                 collectibles.splice(i, 1);
                 awardCollect(collectible);
                 createParticles({
@@ -10957,29 +11092,37 @@ document.addEventListener('DOMContentLoaded', () => {
                     y: collectible.y + collectible.height * 0.5,
                     color: collectible.particleColor ?? { r: 255, g: 215, b: 0 }
                 });
+                break;
             }
         }
     }
 
     function triggerPowerBombPulse() {
-        const centerX = player.x + player.width * 0.5;
-        const centerY = player.y + player.height * 0.5;
-        const burst = {
-            x: centerX,
-            y: centerY,
-            radius: 0,
-            maxRadius: 360,
-            speed: 760,
-            life: 650,
-            hitSet: new WeakSet()
-        };
-        areaBursts.push(burst);
-        audioManager.playExplosion('powerbomb');
-        createParticles({
-            x: centerX,
-            y: centerY,
-            color: { r: 255, g: 196, b: 128 }
-        });
+        const ships = getActiveShips();
+        let spawned = false;
+        for (const ship of ships) {
+            const centerX = ship.x + ship.width * 0.5;
+            const centerY = ship.y + ship.height * 0.5;
+            const burst = {
+                x: centerX,
+                y: centerY,
+                radius: 0,
+                maxRadius: 360,
+                speed: 760,
+                life: 650,
+                hitSet: new WeakSet()
+            };
+            areaBursts.push(burst);
+            createParticles({
+                x: centerX,
+                y: centerY,
+                color: { r: 255, g: 196, b: 128 }
+            });
+            spawned = true;
+        }
+        if (spawned) {
+            audioManager.playExplosion('powerbomb');
+        }
     }
 
     function activatePowerUp(type) {
@@ -11036,6 +11179,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 sizeRange: [1.4, 3.6],
                 lifeRange: [360, 680]
             });
+        } else if (type === DOUBLE_TEAM_POWER) {
+            activateDoubleTeam();
+            const ships = getActiveShips();
+            const color = powerUpColors[DOUBLE_TEAM_POWER] ?? { r: 255, g: 190, b: 120 };
+            for (const ship of ships) {
+                const center = getPlayerCenter(ship);
+                createParticles({
+                    x: center.x,
+                    y: center.y,
+                    color,
+                    count: 14,
+                    speedRange: [160, 380],
+                    sizeRange: [1.2, 3.2],
+                    lifeRange: [320, 560]
+                });
+            }
         }
     }
 
@@ -11054,7 +11213,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 continue;
             }
 
-            if (rectOverlap(player, powerUp)) {
+            for (const ship of getActiveShips()) {
+                if (!rectOverlap(ship, powerUp)) {
+                    continue;
+                }
                 powerUps.splice(i, 1);
                 activatePowerUp(powerUp.type);
                 if (challengeManager) {
@@ -11066,6 +11228,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     y: powerUp.y + powerUp.height * 0.5,
                     color
                 });
+                break;
             }
         }
     }
@@ -11086,6 +11249,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (type === PUMP_POWER && state.powerUpTimers[type] === 0) {
                     stopPumpTailEffect();
+                }
+                if (type === DOUBLE_TEAM_POWER && state.powerUpTimers[type] === 0) {
+                    deactivateDoubleTeam();
                 }
             }
         }
@@ -12093,6 +12259,8 @@ document.addEventListener('DOMContentLoaded', () => {
         survivalTimerEl?.classList.remove('paused');
         audioManager.stopGameplayMusic();
         audioManager.stopHyperBeam();
+        deactivateDoubleTeam();
+        state.powerUpTimers.doubleTeam = 0;
         const finalTimeMs = state.elapsedTime;
         const runTimestamp = Date.now();
         if (tutorialFlightActive) {
@@ -12495,23 +12663,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function drawPlayer() {
         const now = performance.now();
-        const bob = Math.sin(now * 0.005) * 4;
-        const drawX = player.x;
-        const drawY = player.y + bob;
-        drawShieldAura(drawX, drawY, now);
-        if (activePlayerImage.complete && activePlayerImage.naturalWidth !== 0) {
-            ctx.drawImage(activePlayerImage, drawX, drawY, player.width, player.height);
-        } else {
-            const gradient = ctx.createLinearGradient(drawX, drawY, drawX + player.width, drawY + player.height);
-            gradient.addColorStop(0, '#ff9a9e');
-            gradient.addColorStop(0.5, '#fad0c4');
-            gradient.addColorStop(1, '#fad0c4');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(drawX, drawY, player.width, player.height);
-        }
+        for (const ship of getActiveShips()) {
+            const bobPhase = (now + (ship.bobOffset ?? 0)) * 0.005;
+            const bob = Math.sin(bobPhase) * 4;
+            const drawX = ship.x;
+            const drawY = ship.y + bob;
+            drawShieldAura(drawX, drawY, now);
+            if (activePlayerImage.complete && activePlayerImage.naturalWidth !== 0) {
+                ctx.drawImage(activePlayerImage, drawX, drawY, ship.width, ship.height);
+            } else {
+                const gradient = ctx.createLinearGradient(drawX, drawY, drawX + ship.width, drawY + ship.height);
+                gradient.addColorStop(0, '#ff9a9e');
+                gradient.addColorStop(0.5, '#fad0c4');
+                gradient.addColorStop(1, '#fad0c4');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(drawX, drawY, ship.width, ship.height);
+            }
 
-        if (isShieldActive()) {
-            drawShieldAura(drawX, drawY, now + 40);
+            if (isShieldActive()) {
+                drawShieldAura(drawX, drawY, now + 40);
+            }
         }
     }
 

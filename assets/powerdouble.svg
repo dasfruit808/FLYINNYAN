@@ -1,0 +1,33 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Double Team Power-Up</title>
+  <desc id="desc">An icon showing two mirrored starships surrounded by a radiant field.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff4e6" />
+      <stop offset="60%" stop-color="#ffd4a3" />
+      <stop offset="100%" stop-color="#ffb673" />
+    </linearGradient>
+    <linearGradient id="shipA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff8a65" />
+      <stop offset="100%" stop-color="#ffcc80" />
+    </linearGradient>
+    <linearGradient id="shipB" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffb74d" />
+      <stop offset="100%" stop-color="#ff8a65" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bg)" />
+  <g fill="none" stroke="#ffac5f" stroke-width="4" stroke-linecap="round" opacity="0.7">
+    <path d="M24 64c0-22 18-40 40-40" />
+    <path d="M64 24c22 0 40 18 40 40" />
+    <path d="M104 64c0 22-18 40-40 40" />
+    <path d="M64 104c-22 0-40-18-40-40" />
+  </g>
+  <g transform="translate(22 20)">
+    <path d="M32 10l-10 18 10 4 6 20 6-20 10-4-10-18z" fill="url(#shipA)" stroke="#fff" stroke-width="2" stroke-linejoin="round" />
+  </g>
+  <g transform="translate(60 20) scale(-1 1) translate(-32 0)">
+    <path d="M32 10l-10 18 10 4 6 20 6-20 10-4-10-18z" fill="url(#shipB)" stroke="#fff" stroke-width="2" stroke-linejoin="round" />
+  </g>
+  <circle cx="64" cy="64" r="12" fill="#ffe0b2" opacity="0.6" />
+</svg>
