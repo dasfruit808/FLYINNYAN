@@ -3476,30 +3476,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (cosmetics?.skins && !cosmetics.skins[id]) {
                     return false;
-            }
-            state.cosmetics.equipped.skin = id;
-            mutated = true;
-        } else if (category === 'trail') {
-            if (!state.cosmetics.ownedTrails.includes(id) || state.cosmetics.equipped.trail === id) {
+                }
+                state.cosmetics.equipped.skin = id;
+                mutated = true;
+            } else if (category === 'trail') {
+                if (!state.cosmetics.ownedTrails.includes(id) || state.cosmetics.equipped.trail === id) {
+                    return false;
+                }
+                if (cosmetics?.trails && !cosmetics.trails[id]) {
+                    return false;
+                }
+                state.cosmetics.equipped.trail = id;
+                mutated = true;
+            } else if (category === 'weapon') {
+                if (!state.cosmetics.ownedWeapons.includes(id) || state.cosmetics.equipped.weapon === id) {
+                    return false;
+                }
+                if (cosmetics?.weapons && !cosmetics.weapons[id]) {
+                    return false;
+                }
+                state.cosmetics.equipped.weapon = id;
+                mutated = true;
+            } else {
                 return false;
             }
-            if (cosmetics?.trails && !cosmetics.trails[id]) {
-                return false;
-            }
-            state.cosmetics.equipped.trail = id;
-            mutated = true;
-        } else if (category === 'weapon') {
-            if (!state.cosmetics.ownedWeapons.includes(id) || state.cosmetics.equipped.weapon === id) {
-                return false;
-            }
-            if (cosmetics?.weapons && !cosmetics.weapons[id]) {
-                return false;
-            }
-            state.cosmetics.equipped.weapon = id;
-            mutated = true;
-        } else {
-            return false;
-        }
             if (mutated) {
                 commitState({ notify: true });
             }
