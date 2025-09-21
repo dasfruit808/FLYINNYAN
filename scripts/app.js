@@ -6548,6 +6548,17 @@ document.addEventListener('DOMContentLoaded', () => {
         DPAD_RIGHT: 15
     };
     const GAMEPAD_TRIGGER_THRESHOLD = 0.35;
+    const GAMEPAD_HAT_TOLERANCE = 0.05;
+    const GAMEPAD_STANDARD_HAT_DIRECTIONS = [
+        { value: -1, x: 0, y: -1 },
+        { value: -0.7142857142857143, x: 1, y: -1 },
+        { value: -0.42857142857142855, x: 1, y: 0 },
+        { value: -0.14285714285714285, x: 1, y: 1 },
+        { value: 0.14285714285714285, x: 0, y: 1 },
+        { value: 0.42857142857142855, x: -1, y: 1 },
+        { value: 0.7142857142857143, x: -1, y: 0 },
+        { value: 1, x: -1, y: -1 }
+    ];
     const joystickState = {
         pointerId: null,
         touchId: null
@@ -6687,12 +6698,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function updateGamepadCursorAxes(axisX, axisY) {
+    function updateGamepadCursorAxes(axisX, axisY, digitalX = 0, digitalY = 0) {
         const normalizedX = clamp(axisX, -1, 1);
         const normalizedY = clamp(axisY, -1, 1);
-        gamepadCursorState.axisX = normalizedX;
-        gamepadCursorState.axisY = normalizedY;
-        if (normalizedX !== 0 || normalizedY !== 0) {
+        const normalizedDigitalX = clamp(digitalX, -1, 1);
+        const normalizedDigitalY = clamp(digitalY, -1, 1);
+        const combinedX = normalizedX !== 0 ? normalizedX : normalizedDigitalX;
+        const combinedY = normalizedY !== 0 ? normalizedY : normalizedDigitalY;
+        gamepadCursorState.axisX = combinedX;
+        gamepadCursorState.axisY = combinedY;
+        if (combinedX !== 0 || combinedY !== 0) {
             markGamepadCursorActive();
         }
     }
@@ -6899,6 +6914,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return normalized * sign;
     }
 
+    function getGamepadHatDirection(value) {
+        if (typeof value !== 'number') {
+            return null;
+        }
+
+        for (const direction of GAMEPAD_STANDARD_HAT_DIRECTIONS) {
+            if (Math.abs(value - direction.value) <= GAMEPAD_HAT_TOLERANCE) {
+                return direction;
+            }
+        }
+
+        return null;
+    }
+
     function handleGamepadPrimaryAction() {
         if (state.gameState === 'paused') {
             resumeGame();
@@ -6986,7 +7015,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const axisY = applyGamepadDeadZone(axes[1] ?? 0);
         const pointerAxisX = applyGamepadDeadZone(axes[2] ?? 0, GAMEPAD_CURSOR_DEADZONE);
         const pointerAxisY = applyGamepadDeadZone(axes[3] ?? 0, GAMEPAD_CURSOR_DEADZONE);
-        updateGamepadCursorAxes(pointerAxisX, pointerAxisY);
 
         const buttons = gamepad.buttons || [];
         const buttonStates = buttons.map((button) => Boolean(button?.pressed));
@@ -7003,10 +7031,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         handleGamepadMetaActions(buttonStates, { suppressCross: cursorConsumed });
 
-        const dpadX = (buttons[GAMEPAD_BUTTONS.DPAD_RIGHT]?.pressed ? 1 : 0) -
+        let dpadX = (buttons[GAMEPAD_BUTTONS.DPAD_RIGHT]?.pressed ? 1 : 0) -
             (buttons[GAMEPAD_BUTTONS.DPAD_LEFT]?.pressed ? 1 : 0);
-        const dpadY = (buttons[GAMEPAD_BUTTONS.DPAD_DOWN]?.pressed ? 1 : 0) -
+        let dpadY = (buttons[GAMEPAD_BUTTONS.DPAD_DOWN]?.pressed ? 1 : 0) -
             (buttons[GAMEPAD_BUTTONS.DPAD_UP]?.pressed ? 1 : 0);
+
+        if (dpadX === 0 && dpadY === 0) {
+            const hatDirection = getGamepadHatDirection(axes[9]);
+            if (hatDirection) {
+                dpadX = hatDirection.x;
+                dpadY = hatDirection.y;
+            }
+        }
+
+        const allowDigitalCursorControl = state.gameState !== 'running';
+        updateGamepadCursorAxes(
+            pointerAxisX,
+            pointerAxisY,
+            allowDigitalCursorControl ? dpadX : 0,
+            allowDigitalCursorControl ? dpadY : 0
+        );
 
         gamepadInput.moveX = clamp(axisX + dpadX, -1, 1);
         gamepadInput.moveY = clamp(axisY + dpadY, -1, 1);
