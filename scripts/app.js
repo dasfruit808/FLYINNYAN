@@ -297,8 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clone: null,
         trail: [],
         wobble: 0,
-        linkPulse: 0,
-        side: 1
+        linkPulse: 0
     };
     const activePlayerBuffer = [];
 
@@ -10561,20 +10560,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const clone = doubleTeamState.clone;
         ensureDoubleTeamCloneDimensions();
 
-        const separation = powerConfig.separation ?? Math.max(120, player.width * 0.9);
+        const separation = powerConfig.separation ?? Math.max(120, player.height * 0.9);
         const catchUpRate = Math.max(0, powerConfig.catchUpRate ?? 6.5);
         const wobbleAmplitude = powerConfig.wobbleAmplitude ?? 6.5;
         const playerCenter = getPlayerCenter(player);
         const cloneCenter = getPlayerCenter(clone);
         const offsetX = cloneCenter.x - playerCenter.x;
         const offsetY = cloneCenter.y - playerCenter.y;
-        const side = Math.abs(offsetX) > 2 ? Math.sign(offsetX) || 1 : doubleTeamState.side || 1;
-        doubleTeamState.side = side || 1;
-
-        const targetOffsetX = separation * doubleTeamState.side;
-        const targetOffsetY = wobbleAmplitude
+        const targetOffsetX = wobbleAmplitude
             ? Math.sin(doubleTeamState.wobble) * wobbleAmplitude
             : 0;
+        const targetOffsetY = -separation;
         const diffX = targetOffsetX - offsetX;
         const diffY = targetOffsetY - offsetY;
         const catchUpFactor = clamp(catchUpRate * deltaSeconds, 0, 0.92);
@@ -10626,35 +10622,25 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.vx = player.vx;
         clone.vy = player.vy;
         const powerConfig = config.doubleTeamPower ?? {};
-        const separation = powerConfig.separation ?? Math.max(120, player.width * 0.9);
-        const halfGap = separation * 0.5;
-        const centerX = player.x + player.width * 0.5;
-        let leftCenter = centerX - halfGap;
-        let rightCenter = centerX + halfGap;
-        const playerHalf = player.width * 0.5;
-        const cloneHalf = clone.width * 0.5;
-        const minLeftCenter = playerHalf;
-        const maxLeftCenter = viewport.width - playerHalf;
-        const minRightCenter = cloneHalf;
-        const maxRightCenter = viewport.width - cloneHalf;
-        if (leftCenter < minLeftCenter) {
-            const diff = minLeftCenter - leftCenter;
-            leftCenter += diff;
-            rightCenter += diff;
-        }
-        if (rightCenter > maxRightCenter) {
-            const diff = rightCenter - maxRightCenter;
-            leftCenter -= diff;
-            rightCenter -= diff;
-        }
-        leftCenter = clamp(leftCenter, minLeftCenter, maxLeftCenter);
-        rightCenter = clamp(rightCenter, minRightCenter, maxRightCenter);
-        player.x = clamp(leftCenter - playerHalf, 0, viewport.width - player.width);
+        const separation = powerConfig.separation ?? Math.max(120, player.height * 0.9);
         const verticalBleed = viewport.height * config.player.verticalBleed;
+        player.x = clamp(player.x, 0, viewport.width - player.width);
         player.y = clamp(player.y, -verticalBleed, viewport.height - player.height + verticalBleed);
-        clone.x = clamp(rightCenter - cloneHalf, 0, viewport.width - clone.width);
-        clone.y = clamp(clone.y, -verticalBleed, viewport.height - clone.height + verticalBleed);
-        doubleTeamState.side = clone.x >= player.x ? 1 : -1;
+
+        clone.x = clamp(player.x, 0, viewport.width - clone.width);
+        let targetCloneY = player.y - separation;
+        const minCloneY = -verticalBleed;
+        const maxCloneY = viewport.height - clone.height + verticalBleed;
+        if (targetCloneY < minCloneY) {
+            const diff = minCloneY - targetCloneY;
+            targetCloneY = minCloneY;
+            player.y = clamp(player.y + diff, -verticalBleed, viewport.height - player.height + verticalBleed);
+        } else if (targetCloneY > maxCloneY) {
+            const diff = targetCloneY - maxCloneY;
+            targetCloneY = maxCloneY;
+            player.y = clamp(player.y - diff, -verticalBleed, viewport.height - player.height + verticalBleed);
+        }
+        clone.y = targetCloneY;
         doubleTeamState.trail.length = 0;
         doubleTeamState.linkPulse = 1.1;
         doubleTeamState.wobble = 0;
@@ -10699,7 +10685,6 @@ document.addEventListener('DOMContentLoaded', () => {
         doubleTeamState.trail.length = 0;
         doubleTeamState.wobble = 0;
         doubleTeamState.linkPulse = force ? 0 : Math.max(doubleTeamState.linkPulse, 0.5);
-        doubleTeamState.side = 1;
     }
 
     function updatePlayer(delta) {
