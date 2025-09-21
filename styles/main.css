@@ -2992,16 +2992,28 @@ body.loadout-editor-open {
     max-width: none;
     margin: 0;
     display: grid;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto;
     align-items: stretch;
     justify-items: stretch;
     gap: 12px;
     padding-top: 0;
+    flex: 0 0 auto;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+}
+
+#instructions[data-active-panel] {
+    grid-template-rows: auto 1fr;
     flex: 0 0 clamp(160px, 28vh, 260px);
     height: clamp(160px, 28vh, 260px);
     max-height: clamp(160px, 28vh, 260px);
-    min-height: 0;
     overflow: hidden;
+}
+
+#instructions:not([data-active-panel]) #instructionPanels {
+    display: none;
 }
 
 #instructionButtonBar {
