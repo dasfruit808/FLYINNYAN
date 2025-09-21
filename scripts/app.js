@@ -915,7 +915,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return defaultSrc;
     }
 
-    const defaultBackgrounds = ['assets/background1.png', 'assets/background2.png', 'assets/background3.png'];
+    const defaultBackgrounds = [
+        'assets/background1.png',
+        'assets/background2.png',
+        'assets/background3.png',
+        'linear-gradient(135deg, #020617 0%, #1e293b 35%, #4f46e5 100%)',
+        [
+            'radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.35), transparent 55%)',
+            'linear-gradient(180deg, #020617 0%, #0f172a 55%, #111827 100%)'
+        ].join(', '),
+        [
+            'radial-gradient(circle at 80% 10%, rgba(251, 191, 36, 0.3), transparent 50%)',
+            'radial-gradient(circle at 15% 80%, rgba(192, 132, 252, 0.35), transparent 55%)',
+            'linear-gradient(160deg, #0b1120 0%, #1e1b4b 40%, #581c87 100%)'
+        ].join(', ')
+    ];
     const backgroundOverrideEntries =
         Array.isArray(assetOverrides.backgrounds) && assetOverrides.backgrounds.length
             ? assetOverrides.backgrounds
@@ -931,7 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('backgroundLayerA'),
         document.getElementById('backgroundLayerB')
     ];
-    const backgroundChangeInterval = 20000;
+    const backgroundChangeInterval = 60000;
     let currentBackgroundIndex = 0;
     let activeLayerIndex = 0;
 
@@ -5481,11 +5495,21 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(advance, 420);
     }
 
+    const gradientPrefixes = ['linear-gradient', 'radial-gradient', 'conic-gradient'];
+
+    function isGradientSource(value) {
+        if (typeof value !== 'string') {
+            return false;
+        }
+        const trimmed = value.trim();
+        return gradientPrefixes.some((prefix) => trimmed.startsWith(prefix));
+    }
+
     function preloadImages(sources) {
         if (!Array.isArray(sources) || sources.length === 0) {
             return Promise.resolve([]);
         }
-        const validSources = sources.filter((src) => typeof src === 'string' && src.length);
+        const validSources = sources.filter((src) => typeof src === 'string' && src.length && !isGradientSource(src));
         if (validSources.length === 0) {
             return Promise.resolve([]);
         }
@@ -5499,7 +5523,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setLayerBackground(layer, src) {
         if (layer) {
-            layer.style.backgroundImage = `url('${src}')`;
+            if (isGradientSource(src)) {
+                layer.style.backgroundImage = src;
+            } else {
+                layer.style.backgroundImage = `url('${src}')`;
+            }
         }
     }
 
