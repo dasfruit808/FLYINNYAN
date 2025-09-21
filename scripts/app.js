@@ -8,6 +8,29 @@ let baseProjectileSettings = null;
 let activeDifficultyPreset = 'medium';
 let spawnTimers = { obstacle: 0, collectible: 0, powerUp: 0 };
 const gamepadCursorBounds = { left: 0, top: 0, right: 0, bottom: 0 };
+const gamepadCursorState = {
+    x: 0,
+    y: 0,
+    axisX: 0,
+    axisY: 0,
+    active: false,
+    lastUpdate: null,
+    lastInputTime: 0,
+    pointerDownTarget: null,
+    buttonHeld: false
+};
+
+function resetGamepadCursorState() {
+    gamepadCursorState.x = 0;
+    gamepadCursorState.y = 0;
+    gamepadCursorState.axisX = 0;
+    gamepadCursorState.axisY = 0;
+    gamepadCursorState.active = false;
+    gamepadCursorState.lastUpdate = null;
+    gamepadCursorState.lastInputTime = 0;
+    gamepadCursorState.pointerDownTarget = null;
+    gamepadCursorState.buttonHeld = false;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const GAMEPAD_CURSOR_HALF_SIZE = 11;
@@ -19,17 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
     const controllerCursorEl = document.getElementById('controllerCursor');
-    const gamepadCursorState = {
-        x: 0,
-        y: 0,
-        axisX: 0,
-        axisY: 0,
-        active: false,
-        lastUpdate: null,
-        lastInputTime: 0,
-        pointerDownTarget: null,
-        buttonHeld: false
-    };
+    resetGamepadCursorState();
 
     const supportsResizeObserver =
         typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
