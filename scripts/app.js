@@ -6502,6 +6502,18 @@ document.addEventListener('DOMContentLoaded', () => {
             speedMultiplier: 0.85,
             damage: 2
         },
+        flameWhip: {
+            width: 46,
+            height: 24,
+            life: 520,
+            speedMultiplier: 1.24,
+            damage: 1,
+            gradient: ['#450a0a', '#9f1239', '#f97316'],
+            glow: 'rgba(248, 113, 113, 0.55)',
+            shadowBlur: 18,
+            shadowColor: 'rgba(248, 113, 113, 0.4)',
+            shape: 'flameWhip'
+        },
         pulseCore: {
             width: 26,
             height: 12,
@@ -6709,6 +6721,7 @@ document.addEventListener('DOMContentLoaded', () => {
             duration: {
                 powerBomb: 5200,
                 bulletSpread: 6200,
+                flameWhip: 6200,
                 missiles: 5600,
                 hyperBeam: 5600,
                 radiantShield: 7200,
@@ -7258,6 +7271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const powerUpImageSources = {
         powerBomb: 'assets/powerbomb.png',
         bulletSpread: 'assets/powerburger.png',
+        flameWhip: 'assets/powerember.svg',
         missiles: 'assets/powerpizza.png',
         hyperBeam: 'assets/powerbeam.svg',
         pumpDrive: 'assets/pump.png',
@@ -7370,6 +7384,7 @@ document.addEventListener('DOMContentLoaded', () => {
         powerUpTimers: {
             powerBomb: 0,
             bulletSpread: 0,
+            flameWhip: 0,
             missiles: 0,
             hyperBeam: 0,
             radiantShield: 0,
@@ -8196,9 +8211,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const TIME_DILATION_POWER = 'timeDilation';
     const SCORE_SURGE_POWER = 'scoreSurge';
     const MAGNET_POWER = 'starlightMagnet';
+    const FLAME_WHIP_POWER = 'flameWhip';
     const powerUpTypes = [
         'powerBomb',
         'bulletSpread',
+        FLAME_WHIP_POWER,
         'missiles',
         HYPER_BEAM_POWER,
         SHIELD_POWER,
@@ -8211,6 +8228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         powerBomb: 'Nova Pulse',
         bulletSpread: 'Starlight Spread',
         missiles: 'Comet Missiles',
+        [FLAME_WHIP_POWER]: 'Ember Whip',
         [HYPER_BEAM_POWER]: 'Hyper Beam',
         [SHIELD_POWER]: 'Radiant Shield',
         [PUMP_POWER]: 'Pump Drive',
@@ -8222,6 +8240,7 @@ document.addEventListener('DOMContentLoaded', () => {
         powerBomb: { r: 255, g: 168, b: 112 },
         bulletSpread: { r: 255, g: 128, b: 255 },
         missiles: { r: 255, g: 182, b: 92 },
+        [FLAME_WHIP_POWER]: { r: 214, g: 64, b: 56 },
         [HYPER_BEAM_POWER]: { r: 147, g: 197, b: 253 },
         [SHIELD_POWER]: { r: 148, g: 210, b: 255 },
         [PUMP_POWER]: { r: 255, g: 99, b: 247 },
@@ -8416,6 +8435,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.elapsedTime = 0;
         state.powerUpTimers.powerBomb = 0;
         state.powerUpTimers.bulletSpread = 0;
+        state.powerUpTimers[FLAME_WHIP_POWER] = 0;
         state.powerUpTimers.missiles = 0;
         state.powerUpTimers.radiantShield = 0;
         state.powerUpTimers[HYPER_BEAM_POWER] = 0;
@@ -10114,12 +10134,69 @@ document.addEventListener('DOMContentLoaded', () => {
                 shadowBlur: overrides.shadowBlur ?? archetype?.shadowBlur ?? 0,
                 shadowColor: overrides.shadowColor ?? archetype?.shadowColor ?? null
             };
+            if (overrides.wavePhase !== undefined) projectile.wavePhase = overrides.wavePhase;
+            if (overrides.waveFrequency !== undefined) projectile.waveFrequency = overrides.waveFrequency;
+            if (overrides.waveAmplitude !== undefined) projectile.waveAmplitude = overrides.waveAmplitude;
+            if (overrides.waveDrift !== undefined) projectile.waveDrift = overrides.waveDrift;
+            if (overrides.sparkInterval !== undefined) projectile.sparkInterval = overrides.sparkInterval;
+            if (overrides.segmentIndex !== undefined) projectile.segmentIndex = overrides.segmentIndex;
+            if (overrides.segmentCount !== undefined) projectile.segmentCount = overrides.segmentCount;
+            if (overrides.curve !== undefined) projectile.curve = overrides.curve;
             projectiles.push(projectile);
             firedTypes.add(overrides.audioType ?? type);
             return projectile;
         };
 
-        if (isPowerUpActive('missiles')) {
+        const spawnFlameWhipBurst = () => {
+            const segmentCount = reducedEffectsMode ? 4 : 6;
+            const basePhase = (state.elapsedTime ?? 0) * 0.008;
+            for (let i = 0; i < segmentCount; i++) {
+                const t = segmentCount > 1 ? i / (segmentCount - 1) : 0;
+                const amplitude = 12 + t * 22;
+                const frequency = 8 + t * 3.8;
+                const drift = 26 + t * 28;
+                const life = 520 + i * 70;
+                createProjectile(0, 'flameWhip', {
+                    applyLoadoutSpeed: false,
+                    offsetX: i * 18,
+                    offsetY: (t - 0.5) * 26,
+                    width: 48,
+                    height: 26,
+                    speedMultiplier: 1.24 + t * 0.18,
+                    life,
+                    damage: i >= segmentCount - 2 ? 2 : 1,
+                    gradient: ['#450a0a', '#9f1239', '#f97316', '#fde68a'],
+                    glow: 'rgba(248, 113, 113, 0.6)',
+                    shadowBlur: 18,
+                    shadowColor: 'rgba(248, 113, 113, 0.45)',
+                    shape: 'flameWhip',
+                    wavePhase: basePhase + t * Math.PI * 0.8,
+                    waveFrequency: frequency,
+                    waveAmplitude: amplitude,
+                    waveDrift: drift,
+                    sparkInterval: reducedEffectsMode ? 150 : 95,
+                    segmentIndex: i,
+                    segmentCount,
+                    curve: 0,
+                    audioType: 'flameWhip'
+                });
+            }
+
+            const emberColor = { r: 255, g: 120, b: 78 };
+            createParticles({
+                x: originX,
+                y: originY,
+                color: emberColor,
+                count: reducedEffectsMode ? 8 : 14,
+                speedRange: [120, 360],
+                sizeRange: [0.9, 2.4],
+                lifeRange: [260, 520]
+            });
+        };
+
+        if (isPowerUpActive(FLAME_WHIP_POWER)) {
+            spawnFlameWhipBurst();
+        } else if (isPowerUpActive('missiles')) {
             createProjectile(0, 'missile', { applyLoadoutSpeed: false });
             createProjectile(0.12, 'missile', { applyLoadoutSpeed: false, offsetY: 10 });
         } else if (isPowerUpActive('bulletSpread')) {
@@ -10462,6 +10539,38 @@ document.addEventListener('DOMContentLoaded', () => {
                     const turnStrength = Math.min(1, deltaSeconds * 3.5);
                     projectile.vx += (desiredVx - projectile.vx) * turnStrength;
                     projectile.vy += (desiredVy - projectile.vy) * turnStrength;
+                }
+            }
+
+            if (projectile.type === 'flameWhip') {
+                projectile.waveTime = (projectile.waveTime ?? 0) + delta;
+                const phase = projectile.wavePhase ?? 0;
+                const frequency = projectile.waveFrequency ?? 9;
+                const amplitude = projectile.waveAmplitude ?? 18;
+                const drift = projectile.waveDrift ?? 28;
+                const waveSeconds = projectile.waveTime / 1000;
+                projectile.curve = Math.sin(waveSeconds * frequency + phase) * amplitude;
+                projectile.y += Math.cos(waveSeconds * (frequency * 0.55) + phase * 1.1) * drift * deltaSeconds * 0.12;
+
+                const interval = projectile.sparkInterval ?? (reducedEffectsMode ? 150 : 95);
+                projectile.sparkTimer = (projectile.sparkTimer ?? interval) - delta;
+                if (projectile.sparkTimer <= 0) {
+                    projectile.sparkTimer += interval;
+                    if (!reducedEffectsMode) {
+                        const sparkX = projectile.x + projectile.width * (0.3 + Math.random() * 0.7);
+                        const sparkY = projectile.y + projectile.height * (0.2 + Math.random() * 0.6);
+                        const sparkColor = { r: 255, g: 170 + Math.random() * 40, b: 104 };
+                        particles.push({
+                            x: sparkX,
+                            y: sparkY,
+                            vx: 60 + Math.random() * 80,
+                            vy: (Math.random() - 0.5) * 120,
+                            life: 240 + Math.random() * 160,
+                            color: sparkColor,
+                            colorStyle: getParticleColorStyle(sparkColor),
+                            size: 1.1 + Math.random() * 1.4
+                        });
+                    }
                 }
             }
 
@@ -11000,6 +11109,19 @@ document.addEventListener('DOMContentLoaded', () => {
             audioManager.playHyperBeam();
         } else if (type === PUMP_POWER) {
             ensurePumpTailInitialized();
+        } else if (type === FLAME_WHIP_POWER) {
+            triggerScreenShake(3, 160);
+            const { x, y } = getPlayerCenter();
+            const color = powerUpColors[FLAME_WHIP_POWER] ?? { r: 214, g: 64, b: 56 };
+            createParticles({
+                x,
+                y,
+                color,
+                count: 24,
+                speedRange: [160, 420],
+                sizeRange: [1.1, 3.2],
+                lifeRange: [320, 520]
+            });
         } else if (type === TIME_DILATION_POWER) {
             triggerScreenShake(4, 220);
             const { x, y } = getPlayerCenter();
@@ -13021,6 +13143,57 @@ document.addEventListener('DOMContentLoaded', () => {
                         ctx.lineWidth = 1.5;
                         ctx.stroke();
                     }
+                } else if (projectile.shape === 'flameWhip' || projectile.type === 'flameWhip') {
+                    const colors =
+                        Array.isArray(projectile.gradient) && projectile.gradient.length
+                            ? projectile.gradient
+                            : ['#450a0a', '#9f1239', '#f97316'];
+                    const gradient = ctx.createLinearGradient(
+                        projectile.x,
+                        projectile.y,
+                        projectile.x + projectile.width,
+                        projectile.y + projectile.height * 0.6
+                    );
+                    colors.forEach((color, index) => {
+                        const stop = colors.length > 1 ? index / (colors.length - 1) : 0;
+                        gradient.addColorStop(stop, color);
+                    });
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.fillStyle = gradient;
+                    const halfHeight = projectile.height * 0.5;
+                    const curve = projectile.curve ?? 0;
+                    ctx.beginPath();
+                    ctx.moveTo(projectile.x, projectile.y + halfHeight - curve * 0.25);
+                    ctx.quadraticCurveTo(
+                        projectile.x + projectile.width * 0.26,
+                        projectile.y + halfHeight + curve * 0.6,
+                        projectile.x + projectile.width * 0.52,
+                        projectile.y + halfHeight - curve * 0.25
+                    );
+                    ctx.quadraticCurveTo(
+                        projectile.x + projectile.width * 0.82,
+                        projectile.y + halfHeight - curve * 0.8,
+                        projectile.x + projectile.width,
+                        projectile.y + halfHeight - curve * 0.15
+                    );
+                    ctx.quadraticCurveTo(
+                        projectile.x + projectile.width * 0.74,
+                        projectile.y + halfHeight + curve * 0.35,
+                        projectile.x + projectile.width * 0.36,
+                        projectile.y + halfHeight + curve * 0.55
+                    );
+                    ctx.quadraticCurveTo(
+                        projectile.x + projectile.width * 0.08,
+                        projectile.y + halfHeight + curve * 0.18,
+                        projectile.x,
+                        projectile.y + halfHeight - curve * 0.25
+                    );
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255, 244, 214, 0.38)';
+                    ctx.lineWidth = 1.2;
+                    ctx.stroke();
+                    ctx.globalCompositeOperation = 'source-over';
                 } else {
                     const colors =
                         Array.isArray(projectile.gradient) && projectile.gradient.length

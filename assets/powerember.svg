@@ -1,0 +1,29 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="42%" r="58%">
+      <stop offset="0%" stop-color="#ffe5bb" stop-opacity="0.95" />
+      <stop offset="45%" stop-color="#f97316" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#7f1d1d" stop-opacity="0.85" />
+    </radialGradient>
+    <linearGradient id="ember" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a" />
+      <stop offset="45%" stop-color="#fb923c" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </linearGradient>
+    <filter id="spark" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feBlend in="SourceGraphic" in2="blur" mode="screen" />
+    </filter>
+  </defs>
+  <g filter="url(#spark)">
+    <circle cx="64" cy="64" r="52" fill="url(#glow)" opacity="0.82" />
+  </g>
+  <path d="M62 18c14 14 30 32 30 48 0 16-11 30-28 38-13 6-29 8-44-2 10 20 31 30 50 26 22-5 38-24 40-46 2-20-8-42-32-64 0 0-6 0-16 0z" fill="url(#ember)" stroke="#fcd34d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M40 72c8 2 14-2 18-8 3-5 6-12 12-14 6-2 13 3 18 8" fill="none" stroke="#fee2e2" stroke-width="4" stroke-linecap="round" opacity="0.7" />
+  <g fill="#fff7ed" opacity="0.8">
+    <circle cx="36" cy="40" r="3" />
+    <circle cx="82" cy="32" r="2.5" />
+    <circle cx="94" cy="68" r="2" />
+    <circle cx="50" cy="100" r="2.2" />
+  </g>
+</svg>
