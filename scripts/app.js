@@ -778,7 +778,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                handleAudioSuspend();
+                if (state.gameState === 'running') {
+                    pauseGame({ reason: 'hidden' });
+                } else {
+                    handleAudioSuspend();
+                }
             } else {
                 handleAudioResume();
             }
@@ -950,6 +954,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingStatus = document.getElementById('loadingStatus');
     const loadingImageEl = document.getElementById('loadingImage');
     const timerValueEl = document.getElementById('timerValue');
+    const survivalTimerEl = document.getElementById('survivalTimer');
+    const pauseOverlay = document.getElementById('pauseOverlay');
+    const pauseMessageEl = document.getElementById('pauseMessage');
+    const pauseHintEl = document.getElementById('pauseHint');
+    const resumeButton = document.getElementById('resumeButton');
+    const pauseSettingsButton = document.getElementById('pauseSettingsButton');
     const highScoreListEl = document.getElementById('highScoreList');
     const highScoreTitleEl = document.getElementById('highScoreTitle');
     const leaderboardTitleEl = document.getElementById('leaderboardTitle');
@@ -1353,6 +1363,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function refreshInteractionHints() {
         if (bodyElement) {
             bodyElement.classList.toggle('touch-enabled', isTouchInterface);
+        }
+        if (state.gameState === 'paused') {
+            updatePauseOverlayContent();
         }
         if (mobilePreflightButton) {
             mobilePreflightButton.hidden = !isTouchInterface;
@@ -3367,6 +3380,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (open) {
+            if (state.gameState === 'running') {
+                resumeAfterSettingsClose = pauseGame({ reason: 'settings', showOverlay: false });
+            } else {
+                resumeAfterSettingsClose = false;
+            }
             settingsDrawer.hidden = false;
             settingsDrawer.setAttribute('aria-hidden', 'false');
             settingsButton?.setAttribute('aria-expanded', 'true');
@@ -3386,6 +3404,10 @@ document.addEventListener('DOMContentLoaded', () => {
             settingsDrawer.setAttribute('aria-hidden', 'true');
             settingsButton?.setAttribute('aria-expanded', 'false');
             bodyElement?.classList.remove('settings-open');
+            if (resumeAfterSettingsClose) {
+                resumeAfterSettingsClose = false;
+                resumeGame();
+            }
             if (focusTarget && settingsButton) {
                 window.requestAnimationFrame(() => {
                     try {
@@ -3594,6 +3616,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let tutorialFlightActive = false;
     let tutorialCallsign = null;
     let activeSummaryTab = summarySections.has('run') ? 'run' : summarySections.keys().next().value ?? null;
+    let lastPauseReason = 'manual';
+    let resumeAfterSettingsClose = false;
 
     function setActiveSummaryTab(tabId, { focusTab = false } = {}) {
         if (!tabId || !summarySections.has(tabId)) {
@@ -3855,10 +3879,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateTimerDisplay() {
         if (!timerValueEl) return;
-        const formatted = formatTime(state.elapsedTime);
-        if (formatted !== lastFormattedTimer) {
-            lastFormattedTimer = formatted;
-            timerValueEl.textContent = formatted;
+        const base = formatTime(state.elapsedTime);
+        const displayValue = state.gameState === 'paused' ? `${base} ⏸` : base;
+        if (displayValue !== lastFormattedTimer) {
+            lastFormattedTimer = displayValue;
+            timerValueEl.textContent = displayValue;
+        } else if (timerValueEl.textContent !== displayValue) {
+            timerValueEl.textContent = displayValue;
+        }
+        if (survivalTimerEl) {
+            survivalTimerEl.classList.toggle('paused', state.gameState === 'paused');
         }
     }
 
@@ -4936,6 +4966,81 @@ document.addEventListener('DOMContentLoaded', () => {
     function showPreflightOverlay() {
         configureOverlayForNameEntry({ focusInput: false });
         refreshPilotPreviewStates();
+    }
+
+    function getPauseResumeInstruction() {
+        return isTouchInterface
+            ? 'Tap Resume to continue your run.'
+            : 'Press P or tap Resume to continue your run.';
+    }
+
+    function getPauseReasonHint(reason) {
+        switch (reason) {
+            case 'blur':
+                return 'Flight paused because the window lost focus.';
+            case 'hidden':
+                return 'Flight paused while the tab was hidden.';
+            case 'settings':
+                return 'Adjust your loadout, then close settings to continue.';
+            default:
+                return '';
+        }
+    }
+
+    function updatePauseOverlayContent(reason = lastPauseReason) {
+        if (pauseMessageEl) {
+            pauseMessageEl.textContent = getPauseResumeInstruction();
+        }
+        if (pauseHintEl) {
+            const hint = getPauseReasonHint(reason);
+            if (hint) {
+                pauseHintEl.textContent = hint;
+                pauseHintEl.hidden = false;
+            } else {
+                pauseHintEl.textContent = '';
+                pauseHintEl.hidden = true;
+            }
+        }
+    }
+
+    function showPauseOverlay(reason = 'manual') {
+        if (!pauseOverlay) {
+            return;
+        }
+        updatePauseOverlayContent(reason);
+        pauseOverlay.hidden = false;
+        pauseOverlay.setAttribute('aria-hidden', 'false');
+        window.requestAnimationFrame(() => {
+            if (!resumeButton) {
+                return;
+            }
+            try {
+                resumeButton.focus({ preventScroll: true });
+            } catch {
+                try {
+                    resumeButton.focus();
+                } catch {
+                    // Ignore focus failures
+                }
+            }
+        });
+    }
+
+    function hidePauseOverlay() {
+        if (!pauseOverlay) {
+            return;
+        }
+        if (!pauseOverlay.hidden) {
+            pauseOverlay.hidden = true;
+            pauseOverlay.setAttribute('aria-hidden', 'true');
+        }
+        if (pauseOverlay.contains(document.activeElement)) {
+            try {
+                document.activeElement.blur();
+            } catch {
+                // Ignore blur failures
+            }
+        }
     }
 
     function runCyborgLoadingSequence() {
@@ -7022,6 +7127,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function enterPreflightReadyState({ focusCanvas = true } = {}) {
         preflightOverlayDismissed = true;
         state.gameState = 'ready';
+        bodyElement?.classList.remove('paused');
+        survivalTimerEl?.classList.remove('paused');
+        hidePauseOverlay();
         preflightReady = true;
         if (overlayButton) {
             overlayButton.dataset.launchMode = 'launch';
@@ -7049,6 +7157,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showOverlay(message, buttonText = getLaunchControlText(), options = {}) {
+        hidePauseOverlay();
+        bodyElement?.classList.remove('paused');
+        survivalTimerEl?.classList.remove('paused');
         hidePreflightPrompt();
         preflightOverlayDismissed = false;
         preflightReady = false;
@@ -7335,6 +7446,9 @@ document.addEventListener('DOMContentLoaded', () => {
             completeFirstRunExperience();
         }
         resetGame();
+        bodyElement?.classList.remove('paused');
+        survivalTimerEl?.classList.remove('paused');
+        hidePauseOverlay();
         if (tutorial) {
             state.gameSpeed = config.baseGameSpeed * tutorialDifficultyTuning.baseSpeedScale;
         }
@@ -7419,6 +7533,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleOverlayAction(mode);
             }, { passive: false });
         }
+    }
+
+    if (resumeButton) {
+        resumeButton.addEventListener('click', () => {
+            resumeGame();
+        });
+    }
+
+    if (pauseOverlay) {
+        pauseOverlay.addEventListener('click', (event) => {
+            if (event.target === pauseOverlay) {
+                resumeGame();
+            }
+        });
+    }
+
+    if (pauseSettingsButton) {
+        pauseSettingsButton.addEventListener('click', () => {
+            openSettingsDrawer();
+        });
     }
 
     if (mobilePreflightButton) {
@@ -7606,6 +7740,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = event.target;
         const isFormControl = isFormControlTarget(target);
         const isTextEntry = isTextEntryTarget(target);
+        if (normalizedKey === 'KeyP') {
+            if (isTextEntry) {
+                return;
+            }
+            event.preventDefault();
+            togglePause('manual');
+            return;
+        }
         if (normalizedKey === 'Escape') {
             if (isSettingsDrawerOpen()) {
                 event.preventDefault();
@@ -7663,6 +7805,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('blur', () => {
+        if (state.gameState === 'running') {
+            pauseGame({ reason: 'blur' });
+        }
         keys.clear();
         dashTapTracker.clear();
         resetVirtualControls();
@@ -9694,6 +9839,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function triggerGameOver(message) {
         if (state.gameState !== 'running') return;
         state.gameState = 'gameover';
+        hidePauseOverlay();
+        bodyElement?.classList.remove('paused');
+        survivalTimerEl?.classList.remove('paused');
         audioManager.stopGameplayMusic();
         audioManager.stopHyperBeam();
         const finalTimeMs = state.elapsedTime;
@@ -10713,11 +10861,69 @@ document.addEventListener('DOMContentLoaded', () => {
     const FIXED_TIMESTEP = 1000 / 60; // Use a precise 60 Hz simulation step to avoid browser-specific rounding.
     const MAX_ACCUMULATED_TIME = FIXED_TIMESTEP * 6;
 
+    function pauseGame({ reason = 'manual', showOverlay = true } = {}) {
+        if (state.gameState !== 'running') {
+            return false;
+        }
+        lastPauseReason = reason;
+        state.gameState = 'paused';
+        bodyElement?.classList.add('paused');
+        survivalTimerEl?.classList.add('paused');
+        audioManager.suspendForVisibilityChange();
+        keys.clear();
+        dashTapTracker.clear();
+        resetVirtualControls();
+        lastTime = null;
+        accumulatedDelta = 0;
+        if (showOverlay) {
+            showPauseOverlay(reason);
+        } else {
+            hidePauseOverlay();
+        }
+        updateTimerDisplay();
+        return true;
+    }
+
+    function resumeGame({ focusCanvas = true } = {}) {
+        if (state.gameState !== 'paused') {
+            return false;
+        }
+        state.gameState = 'running';
+        bodyElement?.classList.remove('paused');
+        survivalTimerEl?.classList.remove('paused');
+        hidePauseOverlay();
+        audioManager.resumeAfterVisibilityChange();
+        lastTime = null;
+        accumulatedDelta = 0;
+        updateTimerDisplay();
+        if (focusCanvas) {
+            focusGameCanvas();
+        }
+        return true;
+    }
+
+    function togglePause(reason = 'manual') {
+        if (state.gameState === 'running') {
+            pauseGame({ reason });
+        } else if (state.gameState === 'paused') {
+            resumeGame();
+        }
+    }
+
     function gameLoop(timestamp = performance.now()) {
         requestAnimationFrame(gameLoop);
 
         if (state.gameState === 'ready') {
             stepNonRunning(FIXED_TIMESTEP);
+            renderFrame(timestamp);
+            updateHUD();
+            updateTimerDisplay();
+            lastTime = timestamp;
+            accumulatedDelta = 0;
+            return;
+        }
+
+        if (state.gameState === 'paused') {
             renderFrame(timestamp);
             updateHUD();
             updateTimerDisplay();
