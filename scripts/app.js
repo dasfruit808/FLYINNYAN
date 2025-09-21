@@ -2734,7 +2734,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!entry || typeof entry !== 'object') {
             return { ...base };
         }
-        const slotId = typeof entry.slot === 'string' ? entry.slot : base.slot;
+        const slotId = slotMeta?.slot ?? base.slot;
         const defaultName = slotMeta?.defaultName ?? base.name;
         return {
             slot: slotId,
@@ -2785,9 +2785,10 @@ document.addEventListener('DOMContentLoaded', () => {
             slots: Array.isArray(loadouts)
                 ? loadouts.map((entry, index) => {
                       const slotMeta = CUSTOM_LOADOUT_SLOTS[index] ?? null;
+                      const expectedSlot = slotMeta?.slot ?? entry?.slot ?? `slot${index + 1}`;
                       const defaultName = slotMeta?.defaultName ?? entry?.name ?? `Custom Loadout ${index + 1}`;
                       return {
-                          slot: entry?.slot ?? slotMeta?.slot ?? `slot${index + 1}`,
+                          slot: expectedSlot,
                           name: sanitizeLoadoutName(entry?.name, defaultName),
                           characterId: entry?.characterId ?? 'nova',
                           weaponId: entry?.weaponId ?? 'pulse',
@@ -7357,9 +7358,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!entry) {
                 continue;
             }
-            const slotMeta = getLoadoutSlotMeta(entry.slot) ?? CUSTOM_LOADOUT_SLOTS[index] ?? null;
+            const slotMeta = CUSTOM_LOADOUT_SLOTS[index] ?? getLoadoutSlotMeta(entry.slot) ?? null;
+            const expectedSlot = slotMeta?.slot ?? `slot${index + 1}`;
             const defaultName = slotMeta?.defaultName ?? entry.name ?? `Custom Loadout ${index + 1}`;
             const sanitizedName = sanitizeLoadoutName(entry.name, defaultName);
+            if (entry.slot !== expectedSlot) {
+                entry.slot = expectedSlot;
+                mutated = true;
+            }
             if (sanitizedName !== entry.name) {
                 entry.name = sanitizedName;
                 mutated = true;
