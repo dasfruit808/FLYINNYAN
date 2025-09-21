@@ -912,6 +912,41 @@ body.touch-enabled #preflightPrompt .desktop-only {
     font-size: 0.88rem;
 }
 
+#instructions .control-action-title {
+    margin: 0 0 6px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: rgba(148, 210, 255, 0.95);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+#instructions .control-details {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#instructions .control-details li {
+    line-height: 1.45;
+}
+
+#instructions .control-label {
+    display: inline-block;
+    font-weight: 600;
+    color: rgba(248, 250, 252, 0.95);
+    margin-right: 8px;
+}
+
+#instructions .control-tip {
+    margin: 10px 0 0;
+    font-size: 0.8rem;
+    color: rgba(148, 163, 184, 0.88);
+}
+
 #instructions .mission-list {
     list-style: none;
     margin: 0;
