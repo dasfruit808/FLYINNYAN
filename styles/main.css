@@ -1228,6 +1228,55 @@ body.touch-enabled #preflightPrompt .desktop-only {
     gap: 8px;
 }
 
+.weapon-options {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+}
+
+.weapon-summary-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(148, 210, 255, 0.18);
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.32);
+}
+
+.weapon-summary-card img {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    filter: drop-shadow(0 12px 24px rgba(56, 189, 248, 0.28));
+}
+
+.weapon-summary-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.weapon-summary-name {
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(148, 210, 255, 0.92);
+}
+
+.weapon-summary-description {
+    margin: 0;
+    font-size: 0.7rem;
+    line-height: 1.45;
+    color: rgba(226, 232, 240, 0.85);
+}
+
+.weapon-change-button {
+    align-self: flex-start;
+    padding-inline: 18px;
+}
+
 .cosmetic-option {
     border: 1px solid rgba(148, 210, 255, 0.18);
     background: rgba(15, 23, 42, 0.45);
@@ -1741,15 +1790,18 @@ body.touch-enabled #preflightPrompt .desktop-only {
     box-shadow: 0 10px 20px rgba(59, 130, 246, 0.28);
 }
 
-body.character-select-open {
+body.character-select-open,
+body.weapon-select-open {
     overflow: hidden;
 }
 
-#characterSelectModal[hidden] {
+#characterSelectModal[hidden],
+#weaponSelectModal[hidden] {
     display: none;
 }
 
-#characterSelectModal {
+#characterSelectModal,
+#weaponSelectModal {
     position: fixed;
     inset: 0;
     z-index: 8;
@@ -1759,7 +1811,8 @@ body.character-select-open {
     padding: clamp(24px, 5vw, 48px);
 }
 
-#characterSelectModal .character-select-backdrop {
+#characterSelectModal .character-select-backdrop,
+#weaponSelectModal .character-select-backdrop {
     position: absolute;
     inset: 0;
     background: radial-gradient(circle at top, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.94));
@@ -1767,7 +1820,8 @@ body.character-select-open {
     -webkit-backdrop-filter: blur(10px);
 }
 
-#characterSelectModal .character-select-content {
+#characterSelectModal .character-select-content,
+#weaponSelectModal .character-select-content {
     position: relative;
     width: min(960px, 92vw);
     background: linear-gradient(155deg, rgba(8, 15, 35, 0.95), rgba(2, 6, 23, 0.92));
@@ -1787,7 +1841,8 @@ body.character-select-open {
     overscroll-behavior: contain;
 }
 
-#characterSelectModal h2 {
+#characterSelectModal h2,
+#weaponSelectModal h2 {
     margin: 0;
     font-size: clamp(1.25rem, 3vw, 2.1rem);
     letter-spacing: 0.14em;
@@ -1795,7 +1850,8 @@ body.character-select-open {
     color: rgba(148, 210, 255, 0.92);
 }
 
-#characterSelectSummary {
+#characterSelectSummary,
+#weaponSelectSummary {
     width: min(72ch, 100%);
     max-width: 72ch;
     display: flex;
@@ -1813,7 +1869,8 @@ body.character-select-open {
     padding-right: clamp(0px, 1vw, 10px);
 }
 
-#characterSelectSummary .character-summary-description {
+#characterSelectSummary .character-summary-description,
+#weaponSelectSummary .character-summary-description {
     margin: 0;
     font-size: clamp(0.72rem, 1.9vw, 0.9rem);
 }
@@ -1951,7 +2008,9 @@ body.character-select-open {
 }
 
 #characterSelectConfirm,
-#characterSelectCancel {
+#characterSelectCancel,
+#weaponSelectConfirm,
+#weaponSelectCancel {
     border-radius: 999px;
     padding: 10px 22px;
     font-size: 0.72rem;
@@ -1961,7 +2020,8 @@ body.character-select-open {
     cursor: pointer;
 }
 
-#characterSelectConfirm {
+#characterSelectConfirm,
+#weaponSelectConfirm {
     border: none;
     background: linear-gradient(135deg, rgba(56, 189, 248, 0.92), rgba(99, 102, 241, 0.92));
     color: #fff;
@@ -1969,29 +2029,34 @@ body.character-select-open {
     transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
-#characterSelectConfirm[disabled] {
+#characterSelectConfirm[disabled],
+#weaponSelectConfirm[disabled] {
     opacity: 0.6;
     cursor: default;
     box-shadow: none;
 }
 
-#characterSelectConfirm:not([disabled]):hover {
+#characterSelectConfirm:not([disabled]):hover,
+#weaponSelectConfirm:not([disabled]):hover {
     transform: translateY(-2px);
     box-shadow: 0 22px 44px rgba(37, 99, 235, 0.55);
 }
 
-#characterSelectConfirm:not([disabled]):active {
+#characterSelectConfirm:not([disabled]):active,
+#weaponSelectConfirm:not([disabled]):active {
     transform: translateY(1px);
     box-shadow: 0 14px 28px rgba(37, 99, 235, 0.48);
 }
 
-#characterSelectCancel {
+#characterSelectCancel,
+#weaponSelectCancel {
     border: 1px solid rgba(148, 210, 255, 0.4);
     background: transparent;
     color: rgba(226, 232, 240, 0.9);
 }
 
-#characterSelectCancel:hover {
+#characterSelectCancel:hover,
+#weaponSelectCancel:hover {
     border-color: rgba(148, 210, 255, 0.72);
     color: rgba(226, 232, 240, 1);
 }

@@ -1,0 +1,28 @@
+<svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Scatter Burst icon</title>
+  <desc id="desc">Two ember bolts diverging to illustrate the scatter weapon.</desc>
+  <defs>
+    <linearGradient id="scatterGradientA" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#fb923c" />
+      <stop offset="100%" stop-color="#facc15" />
+    </linearGradient>
+    <linearGradient id="scatterGradientB" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+    <filter id="scatterGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="160" height="160" rx="24" fill="#1b0f23" opacity="0.95" />
+  <g filter="url(#scatterGlow)">
+    <path d="M30 118L64 80L30 42L74 22L112 80L74 138Z" fill="url(#scatterGradientA)" opacity="0.9" />
+    <path d="M130 118L96 80L130 42L86 22L48 80L86 138Z" fill="url(#scatterGradientB)" opacity="0.75" />
+  </g>
+  <circle cx="40" cy="80" r="8" fill="#fff7ed" opacity="0.7" />
+  <circle cx="120" cy="80" r="8" fill="#fff1c7" opacity="0.7" />
+</svg>

@@ -55,6 +55,16 @@
                     >
                         Swap Pilot
                     </button>
+                    <button
+                        id="preflightSwapWeaponButton"
+                        type="button"
+                        class="tertiary"
+                        hidden
+                        aria-hidden="true"
+                        aria-disabled="true"
+                    >
+                        Swap Weapon
+                    </button>
                 </div>
                 <div id="settingsHint" aria-live="polite">
                     <span class="desktop-only">Press Esc for settings · P pauses</span>
@@ -201,7 +211,22 @@
                             </div>
                             <div class="cosmetic-group" role="group" aria-label="Weapon systems">
                                 <span class="cosmetic-group-label">Weapon</span>
-                                <div class="cosmetic-options" id="weaponOptions"></div>
+                                <div class="cosmetic-options weapon-options" id="weaponOptions">
+                                    <div class="weapon-summary-card" aria-live="polite">
+                                        <img id="weaponSummaryImage" alt="" />
+                                        <div class="weapon-summary-copy">
+                                            <span id="weaponSummaryName" class="weapon-summary-name"></span>
+                                            <p id="weaponSummaryDescription" class="weapon-summary-description"></p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        id="openWeaponSelectButton"
+                                        type="button"
+                                        class="cosmetic-option weapon-change-button"
+                                    >
+                                        Change Weapon
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <ul class="intel-log" id="intelLog" role="list" aria-live="polite"></ul>
@@ -262,6 +287,7 @@
                 <button id="overlayButton" type="button" disabled aria-disabled="true">Confirm Callsign</button>
                 <button id="overlaySecondaryButton" type="button" class="secondary" hidden aria-disabled="true">Skip Submission</button>
                 <button id="swapPilotButton" type="button" class="tertiary">Swap Pilot</button>
+                <button id="swapWeaponButton" type="button" class="tertiary">Swap Weapon</button>
             </div>
             <div id="pilotPreview" aria-live="polite">
                 <div class="pilot-preview-header">
@@ -434,6 +460,28 @@
                     Select a Pilot
                 </button>
                 <button id="characterSelectCancel" type="button" class="secondary">Back</button>
+            </div>
+        </div>
+    </div>
+    <div id="weaponSelectModal" hidden aria-hidden="true">
+        <div class="character-select-backdrop" aria-hidden="true"></div>
+        <div
+            class="character-select-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="weaponSelectTitle"
+        >
+            <h2 id="weaponSelectTitle">Select Weapon Loadout</h2>
+            <div id="weaponSelectSummary" aria-live="polite">
+                <p class="character-summary-description" data-weapon-summary-description>
+                    Weapons calibrate your firing pattern. Preview each loadout, then deploy the arsenal that fits your flight
+                    plan.
+                </p>
+            </div>
+            <div class="character-grid" role="list" data-weapon-grid></div>
+            <div class="character-select-actions">
+                <button id="weaponSelectConfirm" type="button" disabled aria-disabled="true">Equip Weapon</button>
+                <button id="weaponSelectCancel" type="button" class="secondary">Back</button>
             </div>
         </div>
     </div>
