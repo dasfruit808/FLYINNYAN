@@ -457,6 +457,15 @@ body.touch-enabled #settingsButton {
     margin: 0;
 }
 
+#playfieldStage {
+    position: relative;
+    width: min(100%, calc(var(--shell-width) * var(--shell-scale)));
+    max-width: 100%;
+    margin: 0 auto;
+    min-height: 0;
+    justify-self: center;
+}
+
 #gameCanvas {
     aspect-ratio: 16 / 9;
     max-width: 100%;
