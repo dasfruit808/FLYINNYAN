@@ -244,7 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
             projectile: {
                 standard: { sources: ['assets/audio/projectile-standard.mp3'], voices: 6, volume: 0.55 },
                 spread: { sources: ['assets/audio/projectile-spread.mp3'], voices: 6, volume: 0.52 },
-                missile: { sources: ['assets/audio/projectile-missile.mp3'], voices: 4, volume: 0.6 }
+                missile: { sources: ['assets/audio/projectile-missile.mp3'], voices: 4, volume: 0.6 },
+                scatter: { sources: ['assets/audio/projectile-spread.mp3'], voices: 6, volume: 0.5 },
+                lance: { sources: ['assets/audio/projectile-missile.mp3'], voices: 4, volume: 0.64 }
             },
             collect: {
                 point: { sources: ['assets/audio/point.mp3'], voices: 4, volume: 0.6 }
@@ -1031,6 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const challengeListEl = document.getElementById('challengeList');
     const skinOptionsEl = document.getElementById('skinOptions');
     const trailOptionsEl = document.getElementById('trailOptions');
+    const weaponOptionsEl = document.getElementById('weaponOptions');
     const instructionsEl = document.getElementById('instructions');
     const instructionNavEl = document.getElementById('instructionNav');
     const instructionPanelsEl = document.getElementById('instructionPanels');
@@ -2782,7 +2785,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             ownedSkins: ['default'],
             ownedTrails: ['rainbow'],
-            equipped: { skin: 'default', trail: 'rainbow' }
+            ownedWeapons: ['pulse', 'scatter', 'lance'],
+            equipped: { skin: 'default', trail: 'rainbow', weapon: 'pulse' }
         };
     }
 
@@ -2881,6 +2885,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.cosmetics.ownedTrails.unshift('rainbow');
             }
         }
+        if (!Array.isArray(state.cosmetics.ownedWeapons)) {
+            state.cosmetics.ownedWeapons = [...defaultCosmetics.ownedWeapons];
+        } else {
+            state.cosmetics.ownedWeapons = Array.from(
+                new Set(state.cosmetics.ownedWeapons.map((value) => String(value)))
+            );
+            if (!state.cosmetics.ownedWeapons.includes('pulse')) {
+                state.cosmetics.ownedWeapons.unshift('pulse');
+            }
+        }
         if (!isPlainObject(state.cosmetics.equipped)) {
             state.cosmetics.equipped = { ...defaultCosmetics.equipped };
         } else {
@@ -2892,13 +2906,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 typeof state.cosmetics.equipped.trail === 'string'
                     ? state.cosmetics.equipped.trail
                     : defaultCosmetics.equipped.trail;
+            const equippedWeapon =
+                typeof state.cosmetics.equipped.weapon === 'string'
+                    ? state.cosmetics.equipped.weapon
+                    : defaultCosmetics.equipped.weapon;
             state.cosmetics.equipped = {
                 skin: state.cosmetics.ownedSkins.includes(equippedSkin)
                     ? equippedSkin
                     : defaultCosmetics.equipped.skin,
                 trail: state.cosmetics.ownedTrails.includes(equippedTrail)
                     ? equippedTrail
-                    : defaultCosmetics.equipped.trail
+                    : defaultCosmetics.equipped.trail,
+                weapon: state.cosmetics.ownedWeapons.includes(equippedWeapon)
+                    ? equippedWeapon
+                    : defaultCosmetics.equipped.weapon
             };
         }
         state.version = Math.max(state.version, 1);
@@ -3034,6 +3055,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (reward.category === 'trail') {
                 return 'Trail effect unlock';
             }
+            if (reward.category === 'weapon') {
+                return 'Weapon system unlock';
+            }
         }
         return 'Reward ready';
     }
@@ -3087,7 +3111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let state = loadChallengeState();
         const listeners = new Set();
         const definitionIndex = new Map();
-        const cosmetics = cosmeticsCatalog ?? { skins: {}, trails: {} };
+        const cosmetics = cosmeticsCatalog ?? { skins: {}, trails: {}, weapons: {} };
         let cachedSnapshot = null;
 
         function indexDefinitions() {
@@ -3197,6 +3221,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cosmetics: {
                     ownedSkins: [...state.cosmetics.ownedSkins],
                     ownedTrails: [...state.cosmetics.ownedTrails],
+                    ownedWeapons: [...state.cosmetics.ownedWeapons],
                     equipped: { ...state.cosmetics.equipped }
                 }
             };
@@ -3237,6 +3262,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (state.cosmetics.equipped.trail === 'rainbow') {
                     state.cosmetics.equipped.trail = reward.id;
+                    changed = true;
+                }
+                return changed;
+            }
+            if (reward.category === 'weapon') {
+                if (cosmetics?.weapons && !cosmetics.weapons[reward.id]) {
+                    return false;
+                }
+                let changed = false;
+                if (!state.cosmetics.ownedWeapons.includes(reward.id)) {
+                    state.cosmetics.ownedWeapons.push(reward.id);
+                    changed = true;
+                }
+                if (state.cosmetics.equipped.weapon === 'pulse') {
+                    state.cosmetics.equipped.weapon = reward.id;
                     changed = true;
                 }
                 return changed;
@@ -3422,21 +3462,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (cosmetics?.skins && !cosmetics.skins[id]) {
                     return false;
-                }
-                state.cosmetics.equipped.skin = id;
-                mutated = true;
-            } else if (category === 'trail') {
-                if (!state.cosmetics.ownedTrails.includes(id) || state.cosmetics.equipped.trail === id) {
-                    return false;
-                }
-                if (cosmetics?.trails && !cosmetics.trails[id]) {
-                    return false;
-                }
-                state.cosmetics.equipped.trail = id;
-                mutated = true;
-            } else {
+            }
+            state.cosmetics.equipped.skin = id;
+            mutated = true;
+        } else if (category === 'trail') {
+            if (!state.cosmetics.ownedTrails.includes(id) || state.cosmetics.equipped.trail === id) {
                 return false;
             }
+            if (cosmetics?.trails && !cosmetics.trails[id]) {
+                return false;
+            }
+            state.cosmetics.equipped.trail = id;
+            mutated = true;
+        } else if (category === 'weapon') {
+            if (!state.cosmetics.ownedWeapons.includes(id) || state.cosmetics.equipped.weapon === id) {
+                return false;
+            }
+            if (cosmetics?.weapons && !cosmetics.weapons[id]) {
+                return false;
+            }
+            state.cosmetics.equipped.weapon = id;
+            mutated = true;
+        } else {
+            return false;
+        }
             if (mutated) {
                 commitState({ notify: true });
             }
@@ -4833,6 +4882,10 @@ document.addEventListener('DOMContentLoaded', () => {
             equipped && typeof equipped.trail === 'string' && trailStyles[equipped.trail]
                 ? equipped.trail
                 : 'rainbow';
+        const weaponId =
+            equipped && typeof equipped.weapon === 'string' && weaponLoadouts[equipped.weapon]
+                ? equipped.weapon
+                : 'pulse';
         const baseImage = selectedCharacterImage ?? playerBaseImage;
         if (skinId === 'default') {
             activePlayerImage = baseImage;
@@ -4840,6 +4893,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activePlayerImage = playerSkins[skinId]?.image ?? baseImage;
         }
         activeTrailStyle = trailStyles[trailId] ?? trailStyles.rainbow;
+        activeWeaponLoadout = weaponLoadouts[weaponId] ?? weaponLoadouts.pulse;
     }
 
     function renderChallengeList(snapshot = {}) {
@@ -4939,6 +4993,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cosmetics = snapshot?.cosmetics ?? {};
         const ownedSkins = new Set(Array.isArray(cosmetics.ownedSkins) ? cosmetics.ownedSkins : []);
         const ownedTrails = new Set(Array.isArray(cosmetics.ownedTrails) ? cosmetics.ownedTrails : []);
+        const ownedWeapons = new Set(Array.isArray(cosmetics.ownedWeapons) ? cosmetics.ownedWeapons : []);
         const equipped = cosmetics.equipped ?? {};
 
         if (skinOptionsEl) {
@@ -5002,6 +5057,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 trailOptionsEl.appendChild(button);
             }
         }
+        if (weaponOptionsEl) {
+            weaponOptionsEl.innerHTML = '';
+            const weaponOrder = ['pulse', 'scatter', 'lance'];
+            for (const weaponId of weaponOrder) {
+                const weapon = weaponLoadouts[weaponId];
+                if (!weapon) {
+                    continue;
+                }
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'cosmetic-option';
+                button.dataset.weaponId = weapon.id;
+                button.textContent = weapon.label;
+                if (weapon.description) {
+                    button.setAttribute('title', weapon.description);
+                }
+                const owned = ownedWeapons.has(weapon.id);
+                if (!owned) {
+                    button.disabled = true;
+                    button.classList.add('locked');
+                    const lockedTitle = weapon.description
+                        ? `${weapon.description} — Unlock by completing challenges`
+                        : 'Unlock by completing challenges';
+                    button.setAttribute('title', lockedTitle);
+                } else if (weapon.description) {
+                    button.setAttribute('title', weapon.description);
+                } else {
+                    button.removeAttribute('title');
+                }
+                if (equipped?.weapon === weapon.id) {
+                    button.classList.add('equipped');
+                    button.setAttribute('aria-pressed', 'true');
+                } else {
+                    button.setAttribute('aria-pressed', 'false');
+                }
+                weaponOptionsEl.appendChild(button);
+            }
+        }
     }
 
     if (challengeListEl) {
@@ -5039,6 +5132,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const trailId = target.dataset.trailId;
             if (trailId && challengeManager) {
                 challengeManager.equipCosmetic('trail', trailId);
+            }
+        });
+    }
+
+    if (weaponOptionsEl) {
+        weaponOptionsEl.addEventListener('click', (event) => {
+            const target = event.target instanceof HTMLElement ? event.target.closest('[data-weapon-id]') : null;
+            if (!target || target.disabled) {
+                return;
+            }
+            const weaponId = target.dataset.weaponId;
+            if (weaponId && challengeManager) {
+                challengeManager.equipCosmetic('weapon', weaponId);
             }
         });
     }
@@ -5727,13 +5833,96 @@ document.addEventListener('DOMContentLoaded', () => {
             colors: ['#f97316', '#fb7185', '#fde047']
         }
     };
+    const weaponLoadouts = {
+        pulse: {
+            id: 'pulse',
+            label: 'Pulse Blaster',
+            description: 'Baseline plasma bolt tuned for steady precision.',
+            cooldownMultiplier: 1,
+            speedMultiplier: 1,
+            pattern: (createProjectile) => {
+                createProjectile(0, 'standard');
+            }
+        },
+        scatter: {
+            id: 'scatter',
+            label: 'Scatter Burst',
+            description: 'Twin ember shards fan forward for wide coverage.',
+            cooldownMultiplier: 1.12,
+            speedMultiplier: 0.95,
+            pattern: (createProjectile) => {
+                const spread = 0.18;
+                createProjectile(-spread, 'scatter', { offsetY: -6 });
+                createProjectile(spread, 'scatter', { offsetY: 6 });
+            }
+        },
+        lance: {
+            id: 'lance',
+            label: 'Star Lance',
+            description: 'Charged beam that strikes hard through armored debris.',
+            cooldownMultiplier: 1.35,
+            speedMultiplier: 1.1,
+            pattern: (createProjectile) => {
+                createProjectile(0, 'lance', { offsetX: 8 });
+            }
+        }
+    };
+    const projectileArchetypes = {
+        standard: {
+            width: 24,
+            height: 12,
+            life: 2000,
+            speedMultiplier: 1,
+            damage: 1,
+            gradient: ['#00e5ff', '#6a5acd']
+        },
+        spread: {
+            width: 24,
+            height: 12,
+            life: 1800,
+            speedMultiplier: 1,
+            damage: 1,
+            gradient: ['#b39ddb', '#7e57c2']
+        },
+        missile: {
+            width: 28,
+            height: 14,
+            life: 2800,
+            speedMultiplier: 0.85,
+            damage: 2
+        },
+        scatter: {
+            width: 22,
+            height: 10,
+            life: 1800,
+            speedMultiplier: 0.92,
+            damage: 1,
+            gradient: ['#ffe29a', '#fb923c', '#f97316'],
+            glow: 'rgba(249, 115, 22, 0.45)',
+            shadowColor: 'rgba(255, 140, 66, 0.35)',
+            shadowBlur: 8
+        },
+        lance: {
+            width: 34,
+            height: 16,
+            life: 2400,
+            speedMultiplier: 1.15,
+            damage: 2,
+            gradient: ['#e0f2fe', '#38bdf8', '#0ea5e9'],
+            glow: 'rgba(14, 165, 233, 0.7)',
+            shadowColor: 'rgba(125, 211, 252, 0.5)',
+            shadowBlur: 14,
+            shape: 'lance'
+        }
+    };
     const cosmeticsCatalog = {
         skins: playerSkins,
         trails: {
             rainbow: trailStyles.rainbow,
             aurora: trailStyles.aurora,
             ember: trailStyles.ember
-        }
+        },
+        weapons: weaponLoadouts
     };
     const defaultCollectScore = 80;
 
@@ -6202,6 +6391,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     let activePlayerImage = playerBaseImage;
     let activeTrailStyle = trailStyles.rainbow;
+    let activeWeaponLoadout = weaponLoadouts.pulse;
     
     if (swapPilotButton) {
         swapPilotButton.addEventListener('click', () => {
@@ -9043,7 +9233,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function attemptShoot(delta) {
         state.timeSinceLastShot += delta;
-        const cooldown = config.projectileCooldown;
+        const loadout = activeWeaponLoadout ?? weaponLoadouts.pulse;
+        const cooldownMultiplier = loadout?.cooldownMultiplier ?? 1;
+        const cooldownOffset = loadout?.cooldownOffset ?? 0;
+        const cooldown = Math.max(60, config.projectileCooldown * cooldownMultiplier + cooldownOffset);
         if ((keys.has('Space') || virtualInput.firing || gamepadInput.firing) && state.timeSinceLastShot >= cooldown) {
             spawnProjectiles();
             state.timeSinceLastShot = 0;
@@ -9054,31 +9247,48 @@ document.addEventListener('DOMContentLoaded', () => {
         const originX = player.x + player.width - 12;
         const originY = player.y + player.height * 0.5 - 6;
         const firedTypes = new Set();
-        const createProjectile = (angle, type = 'standard') => {
-            const speed = config.projectileSpeed * (type === 'missile' ? 0.85 : 1);
+        const loadout = activeWeaponLoadout ?? weaponLoadouts.pulse;
+        const loadoutSpeedMultiplier = loadout?.speedMultiplier ?? 1;
+        const createProjectile = (angle, type = 'standard', overrides = {}) => {
+            const archetype = projectileArchetypes[type] ?? projectileArchetypes.standard;
+            const applyLoadoutSpeed = overrides.applyLoadoutSpeed !== false;
+            const speedMultiplier =
+                (overrides.speedMultiplier ?? archetype?.speedMultiplier ?? 1) *
+                (applyLoadoutSpeed ? loadoutSpeedMultiplier : 1);
+            const speed = config.projectileSpeed * speedMultiplier;
             const vx = Math.cos(angle) * speed;
             const vy = Math.sin(angle) * speed;
-            firedTypes.add(type);
-            projectiles.push({
-                x: originX,
-                y: originY,
-                width: 24,
-                height: 12,
+            const projectile = {
+                x: originX + (overrides.offsetX ?? 0),
+                y: originY + (overrides.offsetY ?? 0),
+                width: overrides.width ?? archetype?.width ?? 24,
+                height: overrides.height ?? archetype?.height ?? 12,
                 vx,
                 vy,
-                life: type === 'missile' ? 2800 : 2000,
-                type
-            });
+                life: overrides.life ?? archetype?.life ?? 2000,
+                type,
+                damage: overrides.damage ?? archetype?.damage ?? 1,
+                gradient: overrides.gradient ?? archetype?.gradient ?? null,
+                glow: overrides.glow ?? archetype?.glow ?? null,
+                shape: overrides.shape ?? archetype?.shape ?? null,
+                shadowBlur: overrides.shadowBlur ?? archetype?.shadowBlur ?? 0,
+                shadowColor: overrides.shadowColor ?? archetype?.shadowColor ?? null
+            };
+            projectiles.push(projectile);
+            firedTypes.add(overrides.audioType ?? type);
+            return projectile;
         };
 
         if (isPowerUpActive('missiles')) {
-            createProjectile(0, 'missile');
-            createProjectile(0.1, 'missile');
+            createProjectile(0, 'missile', { applyLoadoutSpeed: false });
+            createProjectile(0.12, 'missile', { applyLoadoutSpeed: false, offsetY: 10 });
         } else if (isPowerUpActive('bulletSpread')) {
             const spread = 0.22;
-            createProjectile(-spread, 'spread');
-            createProjectile(0, 'spread');
-            createProjectile(spread, 'spread');
+            createProjectile(-spread, 'spread', { applyLoadoutSpeed: false });
+            createProjectile(0, 'spread', { applyLoadoutSpeed: false });
+            createProjectile(spread, 'spread', { applyLoadoutSpeed: false });
+        } else if (typeof loadout?.pattern === 'function') {
+            loadout.pattern(createProjectile, { originX, originY });
         } else {
             createProjectile(0, 'standard');
         }
@@ -10388,11 +10598,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getProjectileDamage(projectile) {
+        if (!projectile) {
+            return 1;
+        }
+        if (Number.isFinite(projectile.damage)) {
+            return Math.max(1, projectile.damage);
+        }
         switch (projectile.type) {
             case 'missile':
                 return 2;
-            case 'spread':
-                return 1;
             default:
                 return 1;
         }
@@ -11927,21 +12141,77 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.fillRect(bodyWidth * 0.1, -halfHeight * 0.4, bodyWidth * 0.5, halfHeight * 0.8);
                 ctx.restore();
             } else {
-                const gradient = ctx.createLinearGradient(projectile.x, projectile.y, projectile.x + projectile.width, projectile.y + projectile.height);
-                if (projectile.type === 'spread') {
-                    gradient.addColorStop(0, '#b39ddb');
-                    gradient.addColorStop(1, '#7e57c2');
-                } else {
-                    gradient.addColorStop(0, '#00e5ff');
-                    gradient.addColorStop(1, '#6a5acd');
-                }
                 ctx.save();
-                ctx.fillStyle = gradient;
-                if (supportsPath2D) {
-                    const path = getProjectilePath(projectile.width, projectile.height);
-                    if (path) {
-                        ctx.translate(projectile.x, projectile.y);
-                        ctx.fill(path);
+                if (projectile.shadowBlur) {
+                    ctx.shadowBlur = projectile.shadowBlur;
+                    ctx.shadowColor = projectile.shadowColor ?? projectile.glow ?? 'rgba(14, 165, 233, 0.4)';
+                } else if (projectile.glow) {
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = projectile.glow;
+                }
+
+                if (projectile.shape === 'lance' || projectile.type === 'lance') {
+                    const colors =
+                        Array.isArray(projectile.gradient) && projectile.gradient.length
+                            ? projectile.gradient
+                            : ['#e0f2fe', '#38bdf8'];
+                    const gradient = ctx.createLinearGradient(
+                        projectile.x,
+                        projectile.y,
+                        projectile.x + projectile.width,
+                        projectile.y
+                    );
+                    colors.forEach((color, index) => {
+                        const stop = colors.length > 1 ? index / (colors.length - 1) : 0;
+                        gradient.addColorStop(stop, color);
+                    });
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.fillStyle = gradient;
+                    const halfHeight = projectile.height * 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(projectile.x, projectile.y + halfHeight * 0.25);
+                    ctx.lineTo(projectile.x + projectile.width * 0.82, projectile.y);
+                    ctx.lineTo(projectile.x + projectile.width, projectile.y + halfHeight);
+                    ctx.lineTo(projectile.x + projectile.width * 0.82, projectile.y + projectile.height);
+                    ctx.lineTo(projectile.x, projectile.y + projectile.height - halfHeight * 0.25);
+                    ctx.closePath();
+                    ctx.fill();
+                    if (projectile.glow) {
+                        ctx.strokeStyle = projectile.glow;
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                    }
+                } else {
+                    const colors =
+                        Array.isArray(projectile.gradient) && projectile.gradient.length
+                            ? projectile.gradient
+                            : projectile.type === 'spread'
+                                ? ['#b39ddb', '#7e57c2']
+                                : ['#00e5ff', '#6a5acd'];
+                    const gradient = ctx.createLinearGradient(
+                        projectile.x,
+                        projectile.y,
+                        projectile.x + projectile.width,
+                        projectile.y + projectile.height
+                    );
+                    colors.forEach((color, index) => {
+                        const stop = colors.length > 1 ? index / (colors.length - 1) : 0;
+                        gradient.addColorStop(stop, color);
+                    });
+                    ctx.fillStyle = gradient;
+                    if (supportsPath2D) {
+                        const path = getProjectilePath(projectile.width, projectile.height);
+                        if (path) {
+                            ctx.translate(projectile.x, projectile.y);
+                            ctx.fill(path);
+                        } else {
+                            ctx.beginPath();
+                            ctx.moveTo(projectile.x, projectile.y);
+                            ctx.lineTo(projectile.x + projectile.width, projectile.y + projectile.height * 0.5);
+                            ctx.lineTo(projectile.x, projectile.y + projectile.height);
+                            ctx.closePath();
+                            ctx.fill();
+                        }
                     } else {
                         ctx.beginPath();
                         ctx.moveTo(projectile.x, projectile.y);
@@ -11950,13 +12220,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         ctx.closePath();
                         ctx.fill();
                     }
-                } else {
-                    ctx.beginPath();
-                    ctx.moveTo(projectile.x, projectile.y);
-                    ctx.lineTo(projectile.x + projectile.width, projectile.y + projectile.height * 0.5);
-                    ctx.lineTo(projectile.x, projectile.y + projectile.height);
-                    ctx.closePath();
-                    ctx.fill();
                 }
                 ctx.restore();
             }
