@@ -72,16 +72,21 @@
                 </div>
             </div>
         </div>
-        <aside id="instructions" aria-label="Flight telemetry, controls, and mission information">
-            <nav id="instructionNav" aria-label="Quick mission links">
-                <a href="#stats" data-panel-target="stats" aria-controls="stats" aria-expanded="false">Telemetry</a>
-                <a href="#controlsCard" data-panel-target="controlsCard" aria-controls="controlsCard" aria-expanded="false">Controls</a>
-                <a href="#missionCard" data-panel-target="missionCard" aria-controls="missionCard" aria-expanded="false">Mission</a>
-                <a href="#intelCard" data-panel-target="intelCard" aria-controls="intelCard" aria-expanded="false">Intel</a>
-                <a href="#socialCard" data-panel-target="socialCard" aria-controls="socialCard" aria-expanded="false">Feed</a>
-            </nav>
-            <div id="instructionPanels">
-                <section id="stats" role="complementary" aria-live="polite">
+        <div id="instructions" aria-label="Flight telemetry, controls, and mission information">
+            <div
+                id="instructionButtonBar"
+                class="instruction-button-bar"
+                role="toolbar"
+                aria-label="Mission information panels"
+            >
+                <button type="button" class="instruction-button" data-panel-target="stats">Telemetry</button>
+                <button type="button" class="instruction-button" data-panel-target="controlsCard">Controls</button>
+                <button type="button" class="instruction-button" data-panel-target="missionCard">Mission</button>
+                <button type="button" class="instruction-button" data-panel-target="intelCard">Intel</button>
+                <button type="button" class="instruction-button" data-panel-target="socialCard">Feed</button>
+            </div>
+            <div id="instructionPanels" hidden aria-hidden="true">
+                <section id="stats" class="info-panel telemetry-panel" role="complementary" aria-live="polite">
                     <h2 class="card-title">Flight Telemetry</h2>
                     <div class="stat-list" role="presentation">
                         <div class="stat-row">
@@ -124,7 +129,7 @@
                         <div id="comboFill"></div>
                     </div>
                 </section>
-                <section class="hud-card" id="controlsCard" aria-labelledby="controlsCardTitle">
+                <section class="hud-card info-panel" id="controlsCard" aria-labelledby="controlsCardTitle">
                     <h2 class="card-title" id="controlsCardTitle">Flight Controls</h2>
                     <div class="card-body">
                         <div class="control-list" role="list">
@@ -179,7 +184,7 @@
                         </div>
                     </div>
                 </section>
-                <section class="hud-card" id="missionCard" aria-labelledby="missionCardTitle">
+                <section class="hud-card info-panel" id="missionCard" aria-labelledby="missionCardTitle">
                     <h2 class="card-title" id="missionCardTitle">Mission Brief</h2>
                     <div class="card-body">
                         <ul class="mission-list">
@@ -192,7 +197,7 @@
                         </ul>
                     </div>
                 </section>
-                <section class="hud-card" id="intelCard" aria-labelledby="intelCardTitle">
+                <section class="hud-card info-panel" id="intelCard" aria-labelledby="intelCardTitle">
                     <h2 class="card-title" id="intelCardTitle">Tactical Intel</h2>
                     <div class="card-body">
                         <div class="challenge-section" aria-live="polite">
@@ -232,14 +237,33 @@
                         <ul class="intel-log" id="intelLog" role="list" aria-live="polite"></ul>
                     </div>
                 </section>
-                <section class="hud-card" id="socialCard" aria-labelledby="socialCardTitle">
+                <section class="hud-card info-panel" id="socialCard" aria-labelledby="socialCardTitle">
                     <h2 class="card-title" id="socialCardTitle">Squadron Feed</h2>
                     <div class="card-body">
                         <ul id="socialFeed" role="list"></ul>
                     </div>
                 </section>
             </div>
-        </aside>
+            <div
+                id="infoModal"
+                class="info-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="infoModalTitle"
+                hidden
+                tabindex="-1"
+            >
+                <div class="info-modal-content" role="document">
+                    <div class="info-modal-header">
+                        <h2 id="infoModalTitle"></h2>
+                        <button type="button" id="infoModalClose" class="info-modal-close" aria-label="Close panel">
+                            ✕
+                        </button>
+                    </div>
+                    <div id="infoModalBody" class="info-modal-body"></div>
+                </div>
+            </div>
+        </div>
     </div>
     <div id="touchControls" aria-hidden="true">
         <div id="joystickZone">
