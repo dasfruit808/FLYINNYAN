@@ -32,6 +32,7 @@ body {
     align-items: center;
     min-height: 100vh;
     padding: var(--shell-padding);
+    padding-inline: 10px;
     font-family: var(--primary-font-stack);
     color: #fff;
     overflow-x: hidden;
@@ -422,11 +423,11 @@ body.touch-enabled #settingsButton {
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    width: min(var(--shell-width), calc(100vw - var(--shell-padding) * 2));
-    max-width: var(--shell-width);
+    width: calc(100% - 20px);
+    max-width: none;
     height: min(var(--shell-height), calc(100vh - var(--shell-padding) * 2));
     max-height: var(--shell-height);
-    margin: 0 auto;
+    margin: 0 10px;
     z-index: 0;
     transform-origin: top center;
     transform: scale(var(--shell-scale));
@@ -2351,7 +2352,9 @@ body.weapon-select-open {
 
 @media (max-width: 1100px) {
     #gameShell {
-        padding-inline: clamp(12px, 5vw, 24px);
+        width: calc(100% - 20px);
+        margin: 0 10px;
+        padding-inline: 0;
     }
 
     #instructionButtonBar {
@@ -2363,13 +2366,16 @@ body.weapon-select-open {
 @media (max-width: 768px) {
     body {
         padding: clamp(16px, 4vw, 28px);
+        padding-inline: 10px;
         padding-bottom: clamp(80px, 24vw, 128px);
         align-items: stretch;
     }
 
     #gameShell {
         gap: clamp(16px, 5vw, 24px);
-        padding-inline: clamp(12px, 5vw, 20px);
+        width: calc(100% - 20px);
+        margin: 0 10px;
+        padding-inline: 0;
     }
 
     #instructionButtonBar {
@@ -2528,9 +2534,9 @@ body.weapon-select-open {
     background: linear-gradient(90deg, rgba(16, 185, 129, 0.9), rgba(59, 130, 246, 0.9));
 }
 #instructions {
-    width: min(var(--shell-width), calc(100vw - var(--shell-padding) * 2));
-    max-width: var(--shell-width);
-    margin: clamp(16px, 4vw, 24px) auto 0;
+    width: calc(100% - 20px);
+    max-width: none;
+    margin: 5px 10px 0;
     display: flex;
     flex-direction: column;
     align-items: stretch;
