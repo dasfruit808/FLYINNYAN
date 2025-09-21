@@ -75,6 +75,53 @@ document.addEventListener('DOMContentLoaded', () => {
     const particleColorStyleCache = typeof WeakMap === 'function' ? new WeakMap() : null;
     const STAR_FILL_COLOR = '#ffffff';
     const INV_PARTICLE_LIFE = 1 / 500;
+    const DOUBLE_TEAM_POWER = 'doubleTeam';
+    const HYPER_BEAM_POWER = 'hyperBeam';
+    const SHIELD_POWER = 'radiantShield';
+    const PUMP_POWER = 'pumpDrive';
+    const TIME_DILATION_POWER = 'timeDilation';
+    const SCORE_SURGE_POWER = 'scoreSurge';
+    const MAGNET_POWER = 'starlightMagnet';
+    const FLAME_WHIP_POWER = 'flameWhip';
+    const powerUpTypes = [
+        'powerBomb',
+        'bulletSpread',
+        FLAME_WHIP_POWER,
+        'missiles',
+        DOUBLE_TEAM_POWER,
+        HYPER_BEAM_POWER,
+        SHIELD_POWER,
+        PUMP_POWER,
+        TIME_DILATION_POWER,
+        SCORE_SURGE_POWER,
+        MAGNET_POWER
+    ];
+    const powerUpLabels = {
+        powerBomb: 'Nova Pulse',
+        bulletSpread: 'Starlight Spread',
+        missiles: 'Comet Missiles',
+        [DOUBLE_TEAM_POWER]: 'Double Team',
+        [FLAME_WHIP_POWER]: 'Ember Whip',
+        [HYPER_BEAM_POWER]: 'Hyper Beam',
+        [SHIELD_POWER]: 'Radiant Shield',
+        [PUMP_POWER]: 'Pump Drive',
+        [TIME_DILATION_POWER]: 'Chrono Field',
+        [SCORE_SURGE_POWER]: 'Score Surge',
+        [MAGNET_POWER]: 'Flux Magnet'
+    };
+    const powerUpColors = {
+        powerBomb: { r: 255, g: 168, b: 112 },
+        bulletSpread: { r: 255, g: 128, b: 255 },
+        missiles: { r: 255, g: 182, b: 92 },
+        [DOUBLE_TEAM_POWER]: { r: 188, g: 224, b: 255 },
+        [FLAME_WHIP_POWER]: { r: 214, g: 64, b: 56 },
+        [HYPER_BEAM_POWER]: { r: 147, g: 197, b: 253 },
+        [SHIELD_POWER]: { r: 148, g: 210, b: 255 },
+        [PUMP_POWER]: { r: 255, g: 99, b: 247 },
+        [TIME_DILATION_POWER]: { r: 120, g: 233, b: 255 },
+        [SCORE_SURGE_POWER]: { r: 255, g: 228, b: 150 },
+        [MAGNET_POWER]: { r: 156, g: 220, b: 255 }
+    };
     const doubleTeamState = {
         clone: null,
         trail: [],
@@ -8248,53 +8295,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const DOUBLE_TEAM_POWER = 'doubleTeam';
-    const HYPER_BEAM_POWER = 'hyperBeam';
-    const SHIELD_POWER = 'radiantShield';
-    const PUMP_POWER = 'pumpDrive';
-    const TIME_DILATION_POWER = 'timeDilation';
-    const SCORE_SURGE_POWER = 'scoreSurge';
-    const MAGNET_POWER = 'starlightMagnet';
-    const FLAME_WHIP_POWER = 'flameWhip';
-    const powerUpTypes = [
-        'powerBomb',
-        'bulletSpread',
-        FLAME_WHIP_POWER,
-        'missiles',
-        DOUBLE_TEAM_POWER,
-        HYPER_BEAM_POWER,
-        SHIELD_POWER,
-        PUMP_POWER,
-        TIME_DILATION_POWER,
-        SCORE_SURGE_POWER,
-        MAGNET_POWER
-    ];
-    const powerUpLabels = {
-        powerBomb: 'Nova Pulse',
-        bulletSpread: 'Starlight Spread',
-        missiles: 'Comet Missiles',
-        [DOUBLE_TEAM_POWER]: 'Double Team',
-        [FLAME_WHIP_POWER]: 'Ember Whip',
-        [HYPER_BEAM_POWER]: 'Hyper Beam',
-        [SHIELD_POWER]: 'Radiant Shield',
-        [PUMP_POWER]: 'Pump Drive',
-        [TIME_DILATION_POWER]: 'Chrono Field',
-        [SCORE_SURGE_POWER]: 'Score Surge',
-        [MAGNET_POWER]: 'Flux Magnet'
-    };
-    const powerUpColors = {
-        powerBomb: { r: 255, g: 168, b: 112 },
-        bulletSpread: { r: 255, g: 128, b: 255 },
-        missiles: { r: 255, g: 182, b: 92 },
-        [DOUBLE_TEAM_POWER]: { r: 188, g: 224, b: 255 },
-        [FLAME_WHIP_POWER]: { r: 214, g: 64, b: 56 },
-        [HYPER_BEAM_POWER]: { r: 147, g: 197, b: 253 },
-        [SHIELD_POWER]: { r: 148, g: 210, b: 255 },
-        [PUMP_POWER]: { r: 255, g: 99, b: 247 },
-        [TIME_DILATION_POWER]: { r: 120, g: 233, b: 255 },
-        [SCORE_SURGE_POWER]: { r: 255, g: 228, b: 150 },
-        [MAGNET_POWER]: { r: 156, g: 220, b: 255 }
-    };
 
     const villainExplosionPalettes = {
         villain1: {
