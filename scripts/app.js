@@ -6412,8 +6412,8 @@ document.addEventListener('DOMContentLoaded', () => {
             image: loadImageWithFallback('assets/player2.png', () => playerBaseImage),
             overrides: {
                 player: {
-                    width: 124,
-                    height: 124,
+                    width: 143,
+                    height: 143,
                     acceleration: 2450,
                     drag: 5.6,
                     maxSpeed: 520,
@@ -6443,8 +6443,8 @@ document.addEventListener('DOMContentLoaded', () => {
             image: loadImageWithFallback('assets/player3.png', () => playerBaseImage),
             overrides: {
                 player: {
-                    width: 110,
-                    height: 110,
+                    width: 127,
+                    height: 127,
                     acceleration: 1950,
                     drag: 4.8,
                     maxSpeed: 460,
@@ -8464,8 +8464,8 @@ document.addEventListener('DOMContentLoaded', () => {
             healthRamp: { start: 0.7, end: 1.25 }
         },
         player: {
-            width: 120,
-            height: 120,
+            width: 138,
+            height: 138,
             acceleration: 2100,
             drag: 5.2,
             maxSpeed: 480,
@@ -8478,19 +8478,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
         obstacle: {
-            minSize: 42,
-            maxSize: 128,
+            minSize: 48,
+            maxSize: 147,
             minSpeed: -20,
             maxSpeed: 70
         },
         collectible: {
-            size: 42,
+            size: 48,
             minSpeed: -30,
             maxSpeed: 30,
-            verticalPadding: 48
+            verticalPadding: 55
         },
         powerUp: {
-            size: 85,
+            size: 98,
             minSpeed: -20,
             maxSpeed: 20,
             wobbleAmplitude: 28,
@@ -8562,10 +8562,10 @@ document.addEventListener('DOMContentLoaded', () => {
             spawnInterval: 2600,
             clusterRadius: 160,
             minSpacing: 14,
-            scale: 0.4,
+            scale: 0.46,
             bounceRestitution: 0.88,
             collisionRadiusMultiplier: 0.88,
-            sizeRange: [90, 210],
+            sizeRange: [104, 242],
             speedRange: [40, 140],
             rotationSpeedRange: [-0.6, 0.6],
             driftRange: [-18, 18],
@@ -10026,8 +10026,8 @@ document.addEventListener('DOMContentLoaded', () => {
         key: 'boss',
         name: 'Celestial Behemoth',
         imageSrc: 'assets/boss1.png',
-        width: 220,
-        height: 220,
+        width: 253,
+        height: 253,
         health: 36,
         rotation: { min: 0, max: 0 },
         behavior: { type: 'hover', amplitude: 72, verticalSpeed: 70 }
@@ -10038,7 +10038,7 @@ document.addEventListener('DOMContentLoaded', () => {
             key: 'villain1',
             name: 'Void Raider',
             imageSrc: 'assets/villain1.png',
-            size: { min: 44, max: 58 },
+            size: { min: 51, max: 67 },
             speedOffset: { min: 14, max: 34 },
             rotation: { min: -1.8, max: 1.8 },
             baseHealth: 1,
@@ -10049,7 +10049,7 @@ document.addEventListener('DOMContentLoaded', () => {
             key: 'villain2',
             name: 'Nebula Marauder',
             imageSrc: 'assets/villain2.png',
-            size: { min: 70, max: 96 },
+            size: { min: 81, max: 110 },
             speedOffset: { min: 8, max: 30 },
             rotation: { min: -1.4, max: 1.4 },
             baseHealth: 2.3,
@@ -10060,7 +10060,7 @@ document.addEventListener('DOMContentLoaded', () => {
             key: 'villain3',
             name: 'Abyss Overlord',
             imageSrc: 'assets/villain3.png',
-            size: { min: 102, max: 138 },
+            size: { min: 117, max: 159 },
             speedOffset: { min: -2, max: 32 },
             rotation: { min: -1, max: 1 },
             baseHealth: 3.4,
