@@ -1512,6 +1512,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const weaponSummaryImage = document.getElementById('weaponSummaryImage');
     const openWeaponSelectButton = document.getElementById('openWeaponSelectButton');
     const pilotPreviewGrid = document.getElementById('pilotPreviewGrid');
+    const pilotPreviewDescription = document.getElementById('pilotPreviewDescription');
+    const defaultPilotPreviewDescription =
+        (pilotPreviewDescription?.textContent ?? '').trim() ||
+        'Equip one of your saved presets instantly before launch. Manage the presets in the Custom Loadouts panel below.';
+    const loadoutCreationPromptText =
+        'No loadout equipped. Want to save your current pilot, suit, stream, and weapon as a preset before launch?';
     const shareButton = document.getElementById('shareButton');
     const shareStatusEl = document.getElementById('shareStatus');
     const socialFeedEl = document.getElementById('socialFeed');
@@ -2797,6 +2803,36 @@ document.addEventListener('DOMContentLoaded', () => {
     let customLoadouts = loadCustomLoadouts();
     const loadoutStatusMessages = new Map();
     let latestCosmeticSnapshot = null;
+    let activeLoadoutId = null;
+    let suppressActiveLoadoutSync = 0;
+
+    function setActiveLoadoutId(slotId) {
+        if (slotId && getCustomLoadout(slotId)) {
+            activeLoadoutId = slotId;
+        } else {
+            activeLoadoutId = null;
+        }
+        updateActiveLoadoutPrompt();
+    }
+
+    function runWithSuppressedActiveLoadoutSync(callback) {
+        suppressActiveLoadoutSync += 1;
+        try {
+            return callback();
+        } finally {
+            suppressActiveLoadoutSync = Math.max(0, suppressActiveLoadoutSync - 1);
+        }
+    }
+
+    function updateActiveLoadoutPrompt() {
+        if (!pilotPreviewDescription) {
+            return;
+        }
+        const hasActive = Boolean(activeLoadoutId && getCustomLoadout(activeLoadoutId));
+        pilotPreviewDescription.textContent = hasActive
+            ? defaultPilotPreviewDescription
+            : loadoutCreationPromptText;
+    }
 
     function getLoadoutSlotMeta(slotId) {
         return CUSTOM_LOADOUT_SLOTS.find((slot) => slot.slot === slotId) ?? null;
@@ -5575,6 +5611,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resetWeaponPatternState(weaponId);
         }
         refreshWeaponSelectionDisplay();
+        syncActiveLoadoutState();
         renderCustomLoadouts(latestCosmeticSnapshot);
     }
 
@@ -5820,6 +5857,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             refreshWeaponSelectionDisplay();
         }
+        syncActiveLoadoutState();
         renderCustomLoadouts(snapshot);
     }
 
@@ -6448,6 +6486,7 @@ document.addEventListener('DOMContentLoaded', () => {
         normalizeCustomLoadouts({ persist: false });
         const ownership = getOwnedCosmeticSets(latestCosmeticSnapshot);
         const currentSelection = getCurrentCosmeticsSelection();
+        const activeCharacter = activeCharacterId;
         const fragment = document.createDocumentFragment();
 
         for (let index = 0; index < customLoadouts.length; index += 1) {
@@ -6518,22 +6557,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.appendChild(lockedNote);
             }
 
-            const isActive =
-                loadout.characterId === activeCharacterId &&
-                loadout.weaponId === currentSelection.weapon &&
-                loadout.skinId === currentSelection.skin &&
-                loadout.trailId === currentSelection.trail;
+            const matchesSelection = doesLoadoutMatchSelection(loadout, currentSelection);
+            const isActive = matchesSelection && loadout.slot === activeLoadoutId;
             if (isActive) {
                 card.classList.add('active');
                 statusEl.textContent = 'Equipped';
-                card.setAttribute('aria-pressed', 'true');
             } else if (missingItems.length) {
                 statusEl.textContent = 'Locked';
-                card.setAttribute('aria-pressed', 'false');
             } else {
                 statusEl.textContent = 'Equip Loadout';
-                card.setAttribute('aria-pressed', 'false');
             }
+            card.setAttribute('aria-pressed', isActive ? 'true' : 'false');
 
             fragment.appendChild(card);
         }
@@ -6569,13 +6603,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     missingItems.push(getWeaponLabel(loadout.weaponId));
                 }
             }
-            const isActive = Boolean(
-                loadout &&
-                    loadout.characterId === activeCharacterId &&
-                    loadout.weaponId === currentSelection.weapon &&
-                    loadout.skinId === currentSelection.skin &&
-                    loadout.trailId === currentSelection.trail
-            );
+            const matchesSelection = doesLoadoutMatchSelection(loadout, currentSelection);
+            const isActive = Boolean(matchesSelection && loadout?.slot === activeLoadoutId);
             card.classList.toggle('active', isActive);
             card.classList.toggle('has-locked', missingItems.length > 0);
             card.setAttribute('aria-pressed', isActive ? 'true' : 'false');
@@ -7277,6 +7306,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function doesLoadoutMatchSelection(loadout, selection = getCurrentCosmeticsSelection()) {
+        if (!loadout || !selection) {
+            return false;
+        }
+        return (
+            loadout.characterId === activeCharacterId &&
+            loadout.weaponId === selection.weapon &&
+            loadout.skinId === selection.skin &&
+            loadout.trailId === selection.trail
+        );
+    }
+
+    function syncActiveLoadoutState() {
+        if (suppressActiveLoadoutSync > 0) {
+            return;
+        }
+        const currentSelection = getCurrentCosmeticsSelection();
+        if (activeLoadoutId) {
+            const active = getCustomLoadout(activeLoadoutId);
+            if (!doesLoadoutMatchSelection(active, currentSelection)) {
+                const previousId = activeLoadoutId;
+                setActiveLoadoutId(null);
+                if (previousId) {
+                    setLoadoutStatus(
+                        previousId,
+                        'Preset changed. Save your current setup to refresh this loadout.',
+                        'info'
+                    );
+                }
+            } else {
+                updateActiveLoadoutPrompt();
+            }
+            return;
+        }
+        const matching = customLoadouts.find((entry) => doesLoadoutMatchSelection(entry, currentSelection));
+        if (matching?.slot) {
+            setActiveLoadoutId(matching.slot);
+        } else {
+            updateActiveLoadoutPrompt();
+        }
+    }
+
     function normalizeCustomLoadouts({ persist = true } = {}) {
         let mutated = false;
         const defaultCharacter = characterProfiles?.[0]?.id ?? 'nova';
@@ -7332,7 +7403,6 @@ document.addEventListener('DOMContentLoaded', () => {
         normalizeCustomLoadouts({ persist: false });
         const ownership = getOwnedCosmeticSets(latestCosmeticSnapshot);
         const currentSelection = getCurrentCosmeticsSelection();
-        const activeCharacter = activeCharacterId;
         const escapeAttributeValue = (value) => {
             if (typeof value !== 'string') {
                 return '';
@@ -7377,11 +7447,8 @@ document.addEventListener('DOMContentLoaded', () => {
             card.dataset.loadoutId = loadout.slot ?? `slot${index + 1}`;
             card.setAttribute('role', 'listitem');
 
-            const isActive =
-                loadout.characterId === activeCharacter &&
-                loadout.weaponId === currentSelection.weapon &&
-                loadout.skinId === currentSelection.skin &&
-                loadout.trailId === currentSelection.trail;
+            const matchesSelection = doesLoadoutMatchSelection(loadout, currentSelection);
+            const isActive = matchesSelection && loadout.slot === activeLoadoutId;
             if (isActive) {
                 card.classList.add('is-active');
                 const badge = document.createElement('span');
@@ -7602,6 +7669,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        updateActiveLoadoutPrompt();
         renderPilotPreview();
     }
 
@@ -7659,6 +7727,8 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             { persist: true }
         );
+        setActiveLoadoutId(slotId);
+        syncActiveLoadoutState();
         setLoadoutStatus(slotId, 'Saved current setup.', 'success');
         renderCustomLoadouts(latestCosmeticSnapshot);
     }
@@ -7671,46 +7741,52 @@ document.addEventListener('DOMContentLoaded', () => {
         normalizeCustomLoadouts({ persist: false });
         const current = getCurrentCosmeticsSelection();
         const blocked = [];
-        const profile = getCharacterProfile(loadout.characterId);
-        if (profile && loadout.characterId !== activeCharacterId) {
-            setActiveCharacter(profile);
-        }
-        if (challengeManager && typeof challengeManager.equipCosmetic === 'function') {
-            if (loadout.skinId && loadout.skinId !== current.skin) {
-                const equippedSkin = challengeManager.equipCosmetic('skin', loadout.skinId);
-                if (!equippedSkin && loadout.skinId !== current.skin) {
-                    blocked.push(getSkinLabel(loadout.skinId));
-                }
+        runWithSuppressedActiveLoadoutSync(() => {
+            const profile = getCharacterProfile(loadout.characterId);
+            if (profile && loadout.characterId !== activeCharacterId) {
+                setActiveCharacter(profile);
             }
-            if (loadout.trailId && loadout.trailId !== current.trail) {
-                const equippedTrail = challengeManager.equipCosmetic('trail', loadout.trailId);
-                if (!equippedTrail && loadout.trailId !== current.trail) {
-                    blocked.push(getTrailLabel(loadout.trailId));
+            if (challengeManager && typeof challengeManager.equipCosmetic === 'function') {
+                if (loadout.skinId && loadout.skinId !== current.skin) {
+                    const equippedSkin = challengeManager.equipCosmetic('skin', loadout.skinId);
+                    if (!equippedSkin && loadout.skinId !== current.skin) {
+                        blocked.push(getSkinLabel(loadout.skinId));
+                    }
                 }
-            }
-            if (loadout.weaponId && loadout.weaponId !== current.weapon) {
-                const equippedWeapon = challengeManager.equipCosmetic('weapon', loadout.weaponId);
-                if (!equippedWeapon && loadout.weaponId !== current.weapon) {
-                    blocked.push(getWeaponLabel(loadout.weaponId));
+                if (loadout.trailId && loadout.trailId !== current.trail) {
+                    const equippedTrail = challengeManager.equipCosmetic('trail', loadout.trailId);
+                    if (!equippedTrail && loadout.trailId !== current.trail) {
+                        blocked.push(getTrailLabel(loadout.trailId));
+                    }
                 }
+                if (loadout.weaponId && loadout.weaponId !== current.weapon) {
+                    const equippedWeapon = challengeManager.equipCosmetic('weapon', loadout.weaponId);
+                    if (!equippedWeapon && loadout.weaponId !== current.weapon) {
+                        blocked.push(getWeaponLabel(loadout.weaponId));
+                    }
+                }
+            } else {
+                const nextEquipped = {
+                    ...lastEquippedCosmetics,
+                    skin: loadout.skinId,
+                    trail: loadout.trailId,
+                    weapon: loadout.weaponId
+                };
+                applyEquippedCosmetics(nextEquipped);
             }
-        } else {
-            const nextEquipped = {
-                ...lastEquippedCosmetics,
-                skin: loadout.skinId,
-                trail: loadout.trailId,
-                weapon: loadout.weaponId
-            };
-            applyEquippedCosmetics(nextEquipped);
-        }
+        });
 
         if (blocked.length) {
             setLoadoutStatus(slotId, `Unlock required: ${blocked.join(', ')}`, 'error');
-        } else {
-            const label = getCustomLoadout(slotId)?.name ?? 'Loadout';
-            setLoadoutStatus(slotId, `${label} equipped.`, 'success');
+            syncActiveLoadoutState();
+            renderCustomLoadouts(latestCosmeticSnapshot);
+            return;
         }
 
+        setActiveLoadoutId(slotId);
+        syncActiveLoadoutState();
+        const label = getCustomLoadout(slotId)?.name ?? 'Loadout';
+        setLoadoutStatus(slotId, `${label} equipped.`, 'success');
         renderCustomLoadouts(latestCosmeticSnapshot);
     }
 
