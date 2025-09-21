@@ -67,6 +67,10 @@ body.settings-open {
     overflow: hidden;
 }
 
+body.info-modal-open {
+    overflow: hidden;
+}
+
 .touch-only {
     display: none;
 }
@@ -410,14 +414,16 @@ body.touch-enabled #settingsButton {
 #gameShell {
     --layout-gap: clamp(20px, 4vw, 32px);
     position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: var(--layout-gap);
-    align-items: start;
-    width: min(1400px, 100%);
-    padding-inline: var(--layout-gap);
+    width: 100%;
+    padding-inline: clamp(12px, 4vw, 32px);
     z-index: 0;
     margin-inline: auto;
+    align-self: stretch;
 }
 
 #playfield {
@@ -427,7 +433,8 @@ body.touch-enabled #settingsButton {
     align-items: center;
     justify-content: center;
     gap: clamp(12px, 2vw, 20px);
-    width: min(900px, 100%);
+    width: 100%;
+    max-width: none;
     margin-inline: auto;
 }
 
@@ -777,124 +784,8 @@ body.touch-enabled #preflightPrompt .desktop-only {
     margin: 4px 0 0;
 }
 
-#instructions {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    width: min(320px, 28vw);
-    font-size: 14px;
-    text-align: left;
-    opacity: 0.95;
-    line-height: 1.6;
-    z-index: 1;
-    max-height: calc(100vh - 160px);
-    overflow-y: auto;
-    padding-right: 4px;
-    margin-inline: 0;
-    scroll-behavior: smooth;
-    scroll-snap-type: y proximity;
-}
 
-@media (prefers-reduced-motion: reduce) {
-    #instructions {
-        scroll-behavior: auto;
-    }
-}
-
-#instructionPanels {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-}
-
-#instructionPanels > section {
-    scroll-snap-align: start;
-}
-
-#instructions .hud-card {
-    background: linear-gradient(165deg, rgba(15, 23, 42, 0.85), rgba(8, 16, 32, 0.78));
-    border-radius: 16px;
-    padding: 18px 20px;
-    box-shadow: 0 18px 38px rgba(2, 6, 23, 0.45), inset 0 0 0 1px rgba(94, 234, 212, 0.08);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    backdrop-filter: blur(12px);
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-#instructions .card-title {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    color: rgba(148, 210, 255, 0.9);
-    margin: 0 0 12px;
-}
-
-#instructionNav {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 12px 2px 4px;
-    margin: 0 0 12px;
-    background: linear-gradient(165deg, rgba(15, 23, 42, 0.78), rgba(8, 16, 32, 0.74));
-    border-radius: 14px;
-    border: 1px solid rgba(148, 210, 255, 0.18);
-    box-shadow: inset 0 0 0 1px rgba(94, 234, 212, 0.05);
-    backdrop-filter: blur(12px);
-}
-
-#instructions section {
-    scroll-margin-top: clamp(72px, 12vh, 120px);
-}
-
-#instructionNav a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 14px;
-    border-radius: 999px;
-    font-size: 0.68rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: rgba(191, 219, 254, 0.9);
-    text-decoration: none;
-    border: 1px solid rgba(148, 210, 255, 0.28);
-    box-shadow: 0 6px 14px rgba(2, 6, 23, 0.35);
-    transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, color 140ms ease;
-}
-
-#instructionNav a:hover,
-#instructionNav a:focus-visible {
-    background: rgba(56, 189, 248, 0.22);
-    color: rgba(224, 242, 254, 0.95);
-    box-shadow: 0 10px 22px rgba(14, 116, 144, 0.35);
-    transform: translateY(-1px);
-    outline: none;
-}
-
-#instructionNav a:focus-visible {
-    outline: 2px solid rgba(148, 210, 255, 0.75);
-    outline-offset: 3px;
-}
-
-#instructionNav a:active {
-    transform: translateY(1px);
-    box-shadow: 0 6px 12px rgba(2, 6, 23, 0.5);
-}
-
-#instructionNav a.active {
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.88), rgba(99, 102, 241, 0.82));
-    color: rgba(12, 18, 32, 0.92);
-    box-shadow: 0 12px 26px rgba(56, 189, 248, 0.35);
-    border-color: rgba(148, 210, 255, 0.48);
-}
-
-#instructions .control-list {
+.info-panel .control-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -902,20 +793,20 @@ body.touch-enabled #preflightPrompt .desktop-only {
     padding: 0;
 }
 
-#instructions .control-row {
+.info-panel .control-row {
     display: flex;
     gap: 12px;
     align-items: center;
 }
 
-#instructions .control-keys {
+.info-panel .control-keys {
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
     min-width: 96px;
 }
 
-#instructions .keycap {
+.info-panel .keycap {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -931,17 +822,17 @@ body.touch-enabled #preflightPrompt .desktop-only {
     box-shadow: inset 0 -2px 6px rgba(13, 148, 136, 0.25);
 }
 
-#instructions .keycap.wide {
+.info-panel .keycap.wide {
     min-width: 58px;
 }
 
-#instructions .control-action {
+.info-panel .control-action {
     flex: 1;
     color: rgba(226, 232, 240, 0.86);
     font-size: 0.88rem;
 }
 
-#instructions .control-action-title {
+.info-panel .control-action-title {
     margin: 0 0 6px;
     font-size: 0.92rem;
     font-weight: 600;
@@ -950,7 +841,7 @@ body.touch-enabled #preflightPrompt .desktop-only {
     text-transform: uppercase;
 }
 
-#instructions .control-details {
+.info-panel .control-details {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -959,24 +850,24 @@ body.touch-enabled #preflightPrompt .desktop-only {
     gap: 6px;
 }
 
-#instructions .control-details li {
+.info-panel .control-details li {
     line-height: 1.45;
 }
 
-#instructions .control-label {
+.info-panel .control-label {
     display: inline-block;
     font-weight: 600;
     color: rgba(248, 250, 252, 0.95);
     margin-right: 8px;
 }
 
-#instructions .control-tip {
+.info-panel .control-tip {
     margin: 10px 0 0;
     font-size: 0.8rem;
     color: rgba(148, 163, 184, 0.88);
 }
 
-#instructions .mission-list {
+.info-panel .mission-list {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -985,13 +876,13 @@ body.touch-enabled #preflightPrompt .desktop-only {
     gap: 10px;
 }
 
-#instructions .mission-list li {
+.info-panel .mission-list li {
     position: relative;
     padding-left: 18px;
     color: rgba(226, 232, 240, 0.92);
 }
 
-#instructions .mission-list li::before {
+.info-panel .mission-list li::before {
     content: '';
     position: absolute;
     left: 0;
@@ -1004,7 +895,7 @@ body.touch-enabled #preflightPrompt .desktop-only {
     box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
 }
 
-#instructions .card-body {
+.info-panel .card-body {
     margin: 0;
     color: rgba(224, 231, 255, 0.9);
     font-size: 0.88rem;
@@ -2466,186 +2357,46 @@ body.weapon-select-open {
 
 @media (max-width: 1100px) {
     #gameShell {
-        grid-template-columns: 1fr;
-        width: min(900px, 100%);
+        padding-inline: clamp(12px, 5vw, 24px);
     }
 
-    #instructions {
-        width: min(520px, 100%);
-        max-height: none;
-        overflow: visible;
-        padding-right: 0;
-        margin: clamp(18px, 4vw, 28px) auto 0;
-        margin-left: 0;
-    }
-
-    #stats {
-        position: relative;
+    #instructionButtonBar {
+        width: 100%;
+        gap: clamp(6px, 1.6vw, 12px);
     }
 }
 
 @media (max-width: 768px) {
-    :root {
-        --mobile-hud-collapsed-height: clamp(64px, 16vw, 96px);
-    }
-
     body {
         padding: clamp(16px, 4vw, 28px);
-        padding-bottom: calc(var(--mobile-hud-collapsed-height) + clamp(18px, 4vw, 32px));
-        align-items: center;
-    }
-
-    #preflightBar {
-        width: 100%;
-        padding: 0 clamp(12px, 6vw, 20px);
-        margin: 0 auto;
-    }
-
-    #preflightPrompt {
-        width: min(420px, calc(100vw - 32px));
-        max-width: min(420px, calc(100vw - 32px));
-        border-width: 3px;
-        box-shadow:
-            0 0 0 6px #202020,
-            0 12px 0 rgba(0, 0, 0, 0.35);
+        padding-bottom: clamp(80px, 24vw, 128px);
+        align-items: stretch;
     }
 
     #gameShell {
         gap: clamp(16px, 5vw, 24px);
-        grid-template-columns: 1fr;
-        width: 100%;
-        max-width: min(620px, 100%);
-        padding-inline: 0;
-        margin-inline: auto;
+        padding-inline: clamp(12px, 5vw, 20px);
     }
 
-    #playfield {
-        width: 100%;
-        max-width: min(540px, 100%);
-    }
-
-    canvas {
-        width: 100%;
-        height: auto;
-        max-width: 100%;
-        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
-    }
-
-    #loadingStatus {
-        width: min(480px, 100%);
-    }
-
-    #instructions {
-        box-shadow: 0 -14px 32px rgba(2, 6, 23, 0.55);
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-    }
-
-    #instructions {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        width: 100%;
-        max-width: none;
-        margin: 0;
-        padding: 14px clamp(16px, 5vw, 22px) clamp(18px, 5vw, 26px);
-        border-radius: 22px 22px 0 0;
-        background: linear-gradient(165deg, rgba(15, 23, 42, 0.92), rgba(8, 16, 32, 0.9));
-        box-shadow: 0 -18px 40px rgba(2, 6, 23, 0.65);
-        max-height: min(70vh, 420px);
-        overflow: hidden;
-    }
-
-    #instructionNav {
-        position: static;
-        order: 2;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        padding: 0;
-        margin: 0;
-        background: transparent;
-        border: none;
-        box-shadow: none;
+    #instructionButtonBar {
+        padding-inline: clamp(12px, 6vw, 20px);
+        gap: clamp(6px, 1.8vw, 12px);
         overflow-x: auto;
     }
 
-    #instructionNav a {
-        flex: 1;
-        min-width: max(68px, 18%);
-        padding: 10px 12px;
-        font-size: 0.62rem;
-        letter-spacing: 0.12em;
-        border-radius: 999px;
-        border: 1px solid rgba(148, 210, 255, 0.28);
-        background: rgba(15, 23, 42, 0.6);
-        color: rgba(191, 219, 254, 0.92);
-        box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.1);
-        white-space: nowrap;
+    .instruction-button {
+        flex: 1 0 auto;
+        font-size: clamp(0.58rem, 1.8vw, 0.75rem);
+        padding: clamp(10px, 2.5vw, 14px) clamp(12px, 4vw, 18px);
     }
 
-    #instructionNav a:hover,
-    #instructionNav a:focus-visible {
-        transform: none;
+    .info-modal-content {
+        width: min(94vw, 600px);
+        max-height: min(82vh, 720px);
     }
 
-    #instructionNav a.mobile-active {
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(99, 102, 241, 0.82));
-        color: rgba(12, 18, 32, 0.92);
-        box-shadow: 0 8px 18px rgba(56, 189, 248, 0.35);
-    }
-
-    #instructionPanels {
-        order: 1;
-        flex: 1;
-        overflow: hidden;
-        display: none;
-        padding-right: 2px;
-    }
-
-    #instructions[data-mobile-open] {
-        overflow: hidden;
-    }
-
-    #instructions[data-mobile-open] #instructionPanels {
-        display: block;
-        overflow-y: auto;
-    }
-
-    #instructions[data-mobile-open] #instructionPanels > * {
-        display: none;
-    }
-
-    #instructions[data-mobile-open="stats"] #instructionPanels > #stats,
-    #instructions[data-mobile-open="controlsCard"] #instructionPanels > #controlsCard,
-    #instructions[data-mobile-open="missionCard"] #instructionPanels > #missionCard,
-    #instructions[data-mobile-open="intelCard"] #instructionPanels > #intelCard,
-    #instructions[data-mobile-open="socialCard"] #instructionPanels > #socialCard {
-        display: block;
-    }
-
-    #instructions:not([data-mobile-open]) {
-        max-height: var(--mobile-hud-collapsed-height);
-    }
-
-    #instructions:not([data-mobile-open]) #instructionNav {
-        padding-bottom: 2px;
-    }
-
-    #instructions:not([data-mobile-open]) #instructionPanels {
-        display: none;
-    }
-
-    #joystickZone {
-        left: clamp(12px, 6vw, 24px);
-        bottom: calc(var(--mobile-hud-collapsed-height) + clamp(14px, 5vw, 28px));
-    }
-
-    #fireButton {
-        right: clamp(12px, 6vw, 24px);
-        bottom: calc(var(--mobile-hud-collapsed-height) + clamp(18px, 5vw, 32px));
+    .info-modal-body {
+        padding: clamp(16px, 5vw, 24px);
     }
 }
 
@@ -2781,4 +2532,170 @@ body.weapon-select-open {
 
 .pilot-preview-card.active .pilot-preview-bar-fill {
     background: linear-gradient(90deg, rgba(16, 185, 129, 0.9), rgba(59, 130, 246, 0.9));
+}
+#instructions {
+    width: 100%;
+    margin: clamp(24px, 5vw, 40px) auto 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(16px, 4vw, 24px);
+}
+
+#instructionPanels[hidden] {
+    display: none !important;
+}
+
+#instructionButtonBar {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: clamp(8px, 2vw, 18px);
+    width: min(1180px, 100%);
+    margin-inline: auto;
+    padding: 0 clamp(12px, 4vw, 24px);
+    flex-wrap: nowrap;
+}
+
+.instruction-button {
+    flex: 1 1 0;
+    min-width: 0;
+    border: 1px solid rgba(148, 210, 255, 0.28);
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 64, 175, 0.6));
+    color: rgba(224, 242, 254, 0.92);
+    padding: clamp(10px, 1.8vw, 14px) clamp(14px, 3vw, 22px);
+    font-size: clamp(0.62rem, 1.5vw, 0.85rem);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.5);
+    transition: transform 140ms ease, box-shadow 140ms ease, background 160ms ease, color 160ms ease;
+    white-space: nowrap;
+}
+
+.instruction-button:hover,
+.instruction-button:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px rgba(56, 189, 248, 0.35);
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.86), rgba(99, 102, 241, 0.75));
+    color: rgba(12, 18, 32, 0.92);
+    outline: none;
+}
+
+.instruction-button:focus-visible {
+    outline: 2px solid rgba(148, 210, 255, 0.75);
+    outline-offset: 3px;
+}
+
+.instruction-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.55);
+}
+
+.instruction-button.active {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(99, 102, 241, 0.82));
+    color: rgba(12, 18, 32, 0.92);
+    box-shadow: 0 18px 34px rgba(56, 189, 248, 0.45);
+    border-color: rgba(148, 210, 255, 0.48);
+}
+
+.info-panel {
+    background: linear-gradient(165deg, rgba(15, 23, 42, 0.85), rgba(8, 16, 32, 0.78));
+    border-radius: 18px;
+    padding: clamp(18px, 3vw, 26px);
+    box-shadow: 0 18px 38px rgba(2, 6, 23, 0.45), inset 0 0 0 1px rgba(94, 234, 212, 0.08);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(12px, 2.4vw, 18px);
+}
+
+.info-panel .card-title {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: rgba(148, 210, 255, 0.9);
+    margin: 0 0 12px;
+}
+
+.info-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(24px, 6vw, 64px);
+    background: radial-gradient(circle at top, rgba(15, 23, 42, 0.78), rgba(8, 16, 32, 0.86));
+    backdrop-filter: blur(6px);
+}
+
+.info-modal[hidden] {
+    display: none;
+}
+
+.info-modal-content {
+    width: min(960px, 100%);
+    max-height: min(80vh, 880px);
+    background: linear-gradient(165deg, rgba(15, 23, 42, 0.95), rgba(8, 16, 32, 0.88));
+    border-radius: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow: 0 28px 56px rgba(2, 6, 23, 0.65), inset 0 0 0 1px rgba(94, 234, 212, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.info-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: clamp(16px, 3vw, 24px) clamp(20px, 4vw, 28px);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.8));
+}
+
+.info-modal-header h2 {
+    margin: 0;
+    font-size: clamp(0.9rem, 2vw, 1.2rem);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(148, 210, 255, 0.9);
+}
+
+.info-modal-close {
+    border: 1px solid rgba(148, 210, 255, 0.35);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.65);
+    color: rgba(224, 242, 254, 0.92);
+    font-size: clamp(0.72rem, 2vw, 0.9rem);
+    line-height: 1;
+    padding: clamp(6px, 1.4vw, 10px) clamp(10px, 2vw, 14px);
+    cursor: pointer;
+    transition: transform 140ms ease, box-shadow 140ms ease, background 160ms ease, color 160ms ease;
+}
+
+.info-modal-close:hover,
+.info-modal-close:focus-visible {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.8), rgba(99, 102, 241, 0.72));
+    color: rgba(12, 18, 32, 0.92);
+    box-shadow: 0 14px 28px rgba(56, 189, 248, 0.35);
+    outline: none;
+}
+
+.info-modal-close:focus-visible {
+    outline: 2px solid rgba(148, 210, 255, 0.75);
+    outline-offset: 3px;
+}
+
+.info-modal-body {
+    padding: clamp(20px, 4vw, 32px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(18px, 3vw, 28px);
 }

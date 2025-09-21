@@ -1291,8 +1291,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const skinOptionsEl = document.getElementById('skinOptions');
     const trailOptionsEl = document.getElementById('trailOptions');
     const instructionsEl = document.getElementById('instructions');
-    const instructionNavEl = document.getElementById('instructionNav');
     const instructionPanelsEl = document.getElementById('instructionPanels');
+    const instructionButtonBar = document.getElementById('instructionButtonBar');
+    const infoModal = document.getElementById('infoModal');
+    const infoModalBody = document.getElementById('infoModalBody');
+    const infoModalTitle = document.getElementById('infoModalTitle');
+    const infoModalCloseButton = document.getElementById('infoModalClose');
     const settingsButton = document.getElementById('settingsButton');
     const settingsDrawer = document.getElementById('settingsDrawer');
     const settingsCloseButton = document.getElementById('settingsCloseButton');
@@ -1312,11 +1316,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const bodyElement = document.body;
     let reducedEffectsMode = false;
     let reducedMotionListenerCleanup = null;
-    const instructionLinks = instructionNavEl
-        ? Array.from(instructionNavEl.querySelectorAll('a[data-panel-target]'))
-        : [];
-    const instructionPanelNodes = instructionPanelsEl
-        ? Array.from(instructionPanelsEl.children).filter((node) => node instanceof HTMLElement)
+    const instructionButtons = instructionButtonBar
+        ? Array.from(
+              instructionButtonBar.querySelectorAll('button[data-panel-target]')
+          ).filter((button) => button instanceof HTMLElement)
         : [];
     const coarsePointerQuery =
         typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -1731,228 +1734,165 @@ document.addEventListener('DOMContentLoaded', () => {
             { once: true, passive: true }
         );
     }
-    const mobileInstructionQuery = window.matchMedia('(max-width: 768px)');
-    let isMobileInstructionLayout = mobileInstructionQuery.matches;
-    const getFirstInstructionPanelId = () => {
-        const firstPanel = instructionPanelNodes.find(
-            (panel) => panel instanceof HTMLElement && typeof panel.id === 'string' && panel.id.length
-        );
-        return firstPanel?.id ?? null;
-    };
-    const escapePanelId = (value) => {
-        if (typeof value !== 'string') {
-            return '';
-        }
-        if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-            return CSS.escape(value);
-        }
-        return value.replace(/[^a-zA-Z0-9_\-]/g, '\\$&');
-    };
-    let activeInstructionPanelId = getFirstInstructionPanelId();
-    let instructionObserver = null;
+    let activeInstructionPanelId = null;
+    let lastInstructionTrigger = null;
 
-    const updateInstructionLinkHighlight = (panelId) => {
-        instructionLinks.forEach((link) => {
-            const targetId = link.dataset.panelTarget ?? '';
+    const getInstructionPanelElement = (panelId) => {
+        if (typeof panelId !== 'string' || !panelId.length) {
+            return null;
+        }
+        const panel = document.getElementById(panelId);
+        return panel instanceof HTMLElement ? panel : null;
+    };
+
+    const setInstructionButtonState = (panelId) => {
+        instructionButtons.forEach((button) => {
+            const targetId = button.dataset.panelTarget ?? '';
             const isActive = Boolean(panelId) && targetId === panelId;
-            if (isMobileInstructionLayout) {
-                link.classList.toggle('mobile-active', isActive);
-                link.classList.remove('active');
-                link.setAttribute('aria-expanded', String(isActive));
-                if (isActive) {
-                    link.setAttribute('aria-selected', 'true');
-                } else {
-                    link.removeAttribute('aria-selected');
-                }
-                link.removeAttribute('aria-current');
-            } else {
-                link.classList.toggle('active', isActive);
-                link.classList.remove('mobile-active');
-                link.setAttribute('aria-expanded', 'false');
-                link.removeAttribute('aria-selected');
-                if (isActive) {
-                    link.setAttribute('aria-current', 'true');
-                } else {
-                    link.removeAttribute('aria-current');
-                }
-            }
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
         });
     };
 
-    const setActiveInstructionPanel = (panelId, { fromObserver = false, preserveScroll = false } = {}) => {
-        let resolvedId;
-        if (typeof panelId === 'string') {
-            resolvedId = panelId;
-        } else if (panelId === null) {
-            resolvedId = null;
-        } else {
-            resolvedId = activeInstructionPanelId ?? getFirstInstructionPanelId();
-        }
-
-        if (!isMobileInstructionLayout && resolvedId === null) {
-            resolvedId = getFirstInstructionPanelId();
-        }
-
-        activeInstructionPanelId = resolvedId;
-
-        if (instructionsEl) {
-            if (isMobileInstructionLayout && resolvedId) {
-                instructionsEl.setAttribute('data-mobile-open', resolvedId);
-            } else {
-                instructionsEl.removeAttribute('data-mobile-open');
-            }
-        }
-
-        instructionPanelNodes.forEach((panel) => {
-            if (!(panel instanceof HTMLElement)) {
-                return;
-            }
-            if (isMobileInstructionLayout) {
-                const isActive = Boolean(resolvedId) && panel.id === resolvedId;
-                panel.setAttribute('aria-hidden', String(!isActive));
-            } else {
-                panel.removeAttribute('aria-hidden');
-            }
-        });
-
-        updateInstructionLinkHighlight(resolvedId);
-
-        if (!isMobileInstructionLayout && !fromObserver && resolvedId && !preserveScroll) {
-            const selector = `#${escapePanelId(resolvedId)}`;
-            const panel = instructionPanelsEl?.querySelector(selector);
-            if (panel && typeof panel.scrollIntoView === 'function') {
-                try {
-                    panel.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
-                } catch {
-                    panel.scrollIntoView({ block: 'start', inline: 'nearest' });
-                }
-            }
-        }
-    };
-
-    const initializeInstructionObserver = () => {
-        if (instructionObserver) {
-            instructionObserver.disconnect();
-            instructionObserver = null;
-        }
-        if (!instructionPanelsEl || !instructionsEl || isMobileInstructionLayout) {
+    const detachActiveInstructionPanel = () => {
+        if (!activeInstructionPanelId || !instructionPanelsEl) {
             return;
         }
-        instructionObserver = new IntersectionObserver(
-            (entries) => {
-                const visible = entries
-                    .filter((entry) => entry.isIntersecting && entry.target instanceof HTMLElement)
-                    .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-                if (!visible.length) {
-                    return;
-                }
-                const topEntry = visible[0];
-                const observedId = topEntry.target.id;
-                if (observedId && observedId !== activeInstructionPanelId) {
-                    setActiveInstructionPanel(observedId, { fromObserver: true, preserveScroll: true });
-                }
-            },
-            {
-                root: instructionsEl,
-                threshold: [0.35, 0.6],
-                rootMargin: '-10% 0px -35% 0px'
-            }
-        );
-        instructionPanelNodes.forEach((panel) => {
-            if (panel instanceof HTMLElement) {
-                instructionObserver.observe(panel);
-            }
-        });
-    };
-
-    const handleInstructionLayoutChange = (event) => {
-        isMobileInstructionLayout = event.matches;
-        if (instructionObserver) {
-            instructionObserver.disconnect();
-            instructionObserver = null;
+        const activePanel = getInstructionPanelElement(activeInstructionPanelId);
+        if (activePanel && infoModalBody?.contains(activePanel)) {
+            activePanel.setAttribute('hidden', '');
+            instructionPanelsEl.appendChild(activePanel);
         }
-        setActiveInstructionPanel(undefined, { preserveScroll: true });
-        initializeInstructionObserver();
     };
 
-    if (instructionNavEl && instructionsEl && instructionPanelsEl) {
-        instructionLinks.forEach((link) => {
-            link.addEventListener('click', (event) => {
-                const targetId = link.dataset.panelTarget;
+    const getModalFocusableElements = () => {
+        if (!infoModal) {
+            return [];
+        }
+        const nodes = infoModal.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        return Array.from(nodes).filter(
+            (node) =>
+                node instanceof HTMLElement &&
+                !node.hasAttribute('disabled') &&
+                node.getAttribute('aria-hidden') !== 'true'
+        );
+    };
+
+    const closeInstructionModal = () => {
+        if (!infoModal || !instructionPanelsEl || !infoModalBody) {
+            return;
+        }
+        detachActiveInstructionPanel();
+        activeInstructionPanelId = null;
+        infoModal.setAttribute('hidden', '');
+        infoModal.removeAttribute('data-active-panel');
+        instructionsEl?.removeAttribute('data-active-panel');
+        bodyElement.classList.remove('info-modal-open');
+        setInstructionButtonState(null);
+        if (lastInstructionTrigger instanceof HTMLElement) {
+            lastInstructionTrigger.focus();
+        }
+        lastInstructionTrigger = null;
+    };
+
+    const openInstructionModal = (panelId, triggerButton) => {
+        if (!infoModal || !infoModalBody || !instructionPanelsEl) {
+            return;
+        }
+        const panel = getInstructionPanelElement(panelId);
+        if (!panel) {
+            return;
+        }
+
+        if (triggerButton instanceof HTMLElement) {
+            lastInstructionTrigger = triggerButton;
+        }
+
+        detachActiveInstructionPanel();
+        infoModalBody.appendChild(panel);
+        panel.removeAttribute('hidden');
+        infoModalBody.scrollTop = 0;
+        activeInstructionPanelId = panelId;
+        infoModal.removeAttribute('hidden');
+        infoModal.setAttribute('data-active-panel', panelId);
+        instructionsEl?.setAttribute('data-active-panel', panelId);
+        bodyElement.classList.add('info-modal-open');
+        setInstructionButtonState(panelId);
+
+        const panelHeading = panel.querySelector('.card-title') || panel.querySelector('h2');
+        const buttonLabel = triggerButton?.textContent?.trim() ?? '';
+        const resolvedTitle = (panelHeading?.textContent || buttonLabel || 'Panel').trim();
+        if (infoModalTitle) {
+            infoModalTitle.textContent = resolvedTitle;
+        }
+        infoModal.setAttribute('aria-label', resolvedTitle);
+
+        const focusTarget =
+            infoModalCloseButton instanceof HTMLElement ? infoModalCloseButton : infoModal;
+        focusTarget.focus();
+    };
+
+    if (instructionButtons.length && instructionPanelsEl && infoModal && infoModalBody) {
+        instructionButtons.forEach((button) => {
+            button.setAttribute('aria-pressed', 'false');
+            button.addEventListener('click', () => {
+                const targetId = button.dataset.panelTarget;
                 if (!targetId) {
                     return;
                 }
-                event.preventDefault();
-                if (isMobileInstructionLayout && activeInstructionPanelId === targetId) {
-                    setActiveInstructionPanel(null);
+                if (activeInstructionPanelId === targetId) {
+                    closeInstructionModal();
                 } else {
-                    setActiveInstructionPanel(targetId);
+                    openInstructionModal(targetId, button);
                 }
             });
+        });
 
-            link.addEventListener('keydown', (event) => {
-                if (event.key === ' ') {
-                    const targetId = link.dataset.panelTarget;
-                    if (!targetId) {
-                        return;
-                    }
+        infoModalCloseButton?.addEventListener('click', () => {
+            closeInstructionModal();
+        });
+
+        infoModal.addEventListener('click', (event) => {
+            if (event.target === infoModal) {
+                closeInstructionModal();
+            }
+        });
+
+        infoModal.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeInstructionModal();
+                return;
+            }
+            if (event.key === 'Tab' && activeInstructionPanelId) {
+                const focusable = getModalFocusableElements();
+                if (!focusable.length) {
                     event.preventDefault();
-                    if (isMobileInstructionLayout && activeInstructionPanelId === targetId) {
-                        setActiveInstructionPanel(null);
-                    } else {
-                        setActiveInstructionPanel(targetId);
+                    return;
+                }
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                const activeElement = document.activeElement;
+                if (event.shiftKey) {
+                    if (!infoModal.contains(activeElement) || activeElement === first) {
+                        event.preventDefault();
+                        last.focus();
                     }
-                }
-            });
-        });
-
-        instructionNavEl.addEventListener('keydown', (event) => {
-            const key = event.key;
-            if (
-                key !== 'ArrowLeft' &&
-                key !== 'ArrowRight' &&
-                key !== 'ArrowUp' &&
-                key !== 'ArrowDown' &&
-                key !== 'Home' &&
-                key !== 'End'
-            ) {
-                return;
-            }
-            if (!instructionLinks.length) {
-                return;
-            }
-            event.preventDefault();
-            const currentIndex = instructionLinks.indexOf(document.activeElement);
-            let nextIndex = currentIndex >= 0 ? currentIndex : 0;
-            if (key === 'Home') {
-                nextIndex = 0;
-            } else if (key === 'End') {
-                nextIndex = instructionLinks.length - 1;
-            } else if (key === 'ArrowLeft' || key === 'ArrowUp') {
-                nextIndex = currentIndex > 0 ? currentIndex - 1 : instructionLinks.length - 1;
-            } else if (key === 'ArrowRight' || key === 'ArrowDown') {
-                nextIndex = currentIndex >= 0 && currentIndex < instructionLinks.length - 1
-                    ? currentIndex + 1
-                    : 0;
-            }
-            const nextLink = instructionLinks[nextIndex];
-            if (nextLink) {
-                nextLink.focus();
-                const targetId = nextLink.dataset.panelTarget;
-                if (targetId) {
-                    setActiveInstructionPanel(targetId);
+                } else if (activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
                 }
             }
         });
 
-        if (typeof mobileInstructionQuery.addEventListener === 'function') {
-            mobileInstructionQuery.addEventListener('change', handleInstructionLayoutChange);
-        } else if (typeof mobileInstructionQuery.addListener === 'function') {
-            mobileInstructionQuery.addListener(handleInstructionLayoutChange);
-        }
-
-        setActiveInstructionPanel(undefined, { preserveScroll: true });
-        initializeInstructionObserver();
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && activeInstructionPanelId && !event.defaultPrevented) {
+                event.preventDefault();
+                closeInstructionModal();
+            }
+        });
     }
 
     const intelLoreEntries = [
