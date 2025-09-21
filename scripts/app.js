@@ -122,6 +122,176 @@ document.addEventListener('DOMContentLoaded', () => {
         [SCORE_SURGE_POWER]: { r: 255, g: 228, b: 150 },
         [MAGNET_POWER]: { r: 156, g: 220, b: 255 }
     };
+
+    const POWER_UP_RULES = {
+        powerBomb: { weight: 0.65, cooldownMs: 14000 },
+        bulletSpread: { weight: 0.85, cooldownMs: 11000 },
+        missiles: { weight: 0.9, cooldownMs: 10500 },
+        [DOUBLE_TEAM_POWER]: { weight: 0.35, cooldownMs: 20000, blockWhileActive: true, repeatPenalty: 0.25 },
+        [FLAME_WHIP_POWER]: { weight: 0.7, cooldownMs: 12500 },
+        [HYPER_BEAM_POWER]: { weight: 0.55, cooldownMs: 18500, blockWhileActive: true },
+        [SHIELD_POWER]: { weight: 0.78, cooldownMs: 15000 },
+        [PUMP_POWER]: { weight: 0.68, cooldownMs: 15000 },
+        [TIME_DILATION_POWER]: { weight: 0.58, cooldownMs: 17000, blockWhileActive: true },
+        [SCORE_SURGE_POWER]: { weight: 0.72, cooldownMs: 15000 },
+        [MAGNET_POWER]: { weight: 0.82, cooldownMs: 12000 }
+    };
+
+    function createPowerUpSpawnDirector() {
+        const HISTORY_LIMIT = 3;
+        const history = [];
+        const cooldowns = new Map();
+        const defaultRule = {
+            weight: 0.75,
+            cooldownMs: 11000,
+            blockWhileActive: false,
+            repeatPenalty: 0.45
+        };
+
+        const resolveRule = (type) => ({ ...defaultRule, ...(POWER_UP_RULES[type] ?? {}) });
+
+        const countActiveBoosts = () => {
+            if (!state?.powerUpTimers) {
+                return 0;
+            }
+            let active = 0;
+            for (const type of powerUpTypes) {
+                if (state.powerUpTimers[type] > 0) {
+                    active += 1;
+                }
+            }
+            return active;
+        };
+
+        const isOnCooldown = (type, now) => {
+            const readyAt = cooldowns.get(type) ?? 0;
+            return now < readyAt;
+        };
+
+        const registerHistory = (type) => {
+            history.push(type);
+            if (history.length > HISTORY_LIMIT) {
+                history.shift();
+            }
+        };
+
+        const getHistoryWeight = (type, baseWeight) => {
+            if (!history.length) {
+                return baseWeight;
+            }
+            let occurrences = 0;
+            for (let i = history.length - 1; i >= 0; i--) {
+                if (history[i] === type) {
+                    occurrences += 1;
+                }
+            }
+            if (occurrences === 0) {
+                return baseWeight;
+            }
+            const rule = resolveRule(type);
+            const penalty = Number.isFinite(rule.repeatPenalty) ? rule.repeatPenalty : defaultRule.repeatPenalty;
+            const adjusted = baseWeight * Math.max(0, Math.pow(Math.max(0, penalty), occurrences));
+            return adjusted;
+        };
+
+        const chooseType = (now = state?.elapsedTime ?? 0) => {
+            const candidates = [];
+            let totalWeight = 0;
+            for (const type of powerUpTypes) {
+                const rule = resolveRule(type);
+                if (rule.blockWhileActive && state?.powerUpTimers?.[type] > 0) {
+                    continue;
+                }
+                if (isOnCooldown(type, now)) {
+                    continue;
+                }
+                const baseWeight = Number.isFinite(rule.weight) ? Math.max(0, rule.weight) : defaultRule.weight;
+                if (baseWeight <= 0) {
+                    continue;
+                }
+                const weight = getHistoryWeight(type, baseWeight);
+                if (weight <= 0) {
+                    continue;
+                }
+                candidates.push({ type, weight });
+                totalWeight += weight;
+            }
+
+            if (!candidates.length) {
+                cooldowns.clear();
+                return powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+            }
+
+            let roll = Math.random() * totalWeight;
+            for (const candidate of candidates) {
+                roll -= candidate.weight;
+                if (roll <= 0) {
+                    return candidate.type;
+                }
+            }
+            return candidates[candidates.length - 1].type;
+        };
+
+        const planNextInterval = (baseInterval) => {
+            const safeBase = Number.isFinite(baseInterval) ? Math.max(4000, baseInterval) : 10000;
+            const intensity = Number.isFinite(getSpawnIntensity('powerUp'))
+                ? clamp(getSpawnIntensity('powerUp'), 0.6, 1.4)
+                : 1;
+            const speed = Number.isFinite(state?.gameSpeed) ? clamp(state.gameSpeed, 0, 600) : 0;
+            const activeBoosts = countActiveBoosts();
+            const intensityFactor = intensity >= 1
+                ? lerp(1, 0.82, clamp(intensity - 1, 0, 0.8))
+                : lerp(1, 1.18, clamp(1 - intensity, 0, 0.8));
+            const speedFactor = lerp(1, 0.88, clamp(speed / 600, 0, 1));
+            const activeFactor = 1 + activeBoosts * 0.12;
+            const jitter = randomBetween(0.9, 1.25);
+            const rawInterval = safeBase * intensityFactor * speedFactor * activeFactor * jitter;
+            const minInterval = Math.max(6500, safeBase * 0.9);
+            const maxInterval = Math.max(minInterval + 2500, safeBase * 1.4);
+            return clamp(rawInterval, minInterval, maxInterval);
+        };
+
+        const recordSpawn = (type, now) => {
+            const rule = resolveRule(type);
+            registerHistory(type);
+            if (Number.isFinite(rule.cooldownMs) && rule.cooldownMs > 0) {
+                cooldowns.set(type, now + rule.cooldownMs);
+            }
+        };
+
+        const reset = () => {
+            history.length = 0;
+            cooldowns.clear();
+        };
+
+        return {
+            chooseType,
+            planNextInterval,
+            recordSpawn,
+            reset
+        };
+    }
+
+    const powerUpSpawnDirector = createPowerUpSpawnDirector();
+    let nextPowerUpSpawnInterval = 10000;
+
+    function reschedulePowerUps({ resetHistory = false, resetTimer = false, initialDelay = false } = {}) {
+        if (resetHistory) {
+            powerUpSpawnDirector.reset();
+        }
+        const baseInterval = Number.isFinite(config?.powerUpSpawnInterval)
+            ? Math.max(5000, config.powerUpSpawnInterval)
+            : 10000;
+        const plannedInterval = powerUpSpawnDirector.planNextInterval(baseInterval);
+        if (Number.isFinite(plannedInterval) && plannedInterval > 0) {
+            nextPowerUpSpawnInterval = plannedInterval;
+        } else {
+            nextPowerUpSpawnInterval = baseInterval;
+        }
+        if (resetTimer) {
+            spawnTimers.powerUp = initialDelay ? randomBetween(0, baseInterval * 0.4) : 0;
+        }
+    }
     const doubleTeamState = {
         clone: null,
         trail: [],
@@ -6911,6 +7081,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cooldown: config.projectileCooldown,
         speed: config.projectileSpeed
     };
+    reschedulePowerUps({ resetHistory: true, resetTimer: true, initialDelay: true });
     function getCharacterProfile(id) {
         return characterProfileMap.get(id ?? '') ?? null;
     }
@@ -7008,7 +7179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (spawnTimers) {
             spawnTimers.obstacle = 0;
             spawnTimers.collectible = 0;
-            spawnTimers.powerUp = -Math.random() * 2000;
+            reschedulePowerUps({ resetHistory: true, resetTimer: true, initialDelay: true });
         }
 
         const baseCollectScoreRaw = config?.score?.collect;
@@ -8528,7 +8699,7 @@ document.addEventListener('DOMContentLoaded', () => {
         areaBursts.length = 0;
         spawnTimers.obstacle = 0;
         spawnTimers.collectible = 0;
-        spawnTimers.powerUp = 0;
+        reschedulePowerUps({ resetHistory: true, resetTimer: true, initialDelay: true });
         state.meteorShowerTimer = 0;
         state.nextMeteorShower = 0;
         audioManager.stopHyperBeam();
@@ -11161,8 +11332,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return collectibleTiers[collectibleTiers.length - 1];
     }
 
-    function spawnPowerUp() {
-        const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+    function spawnPowerUp(forcedType) {
+        const now = state?.elapsedTime ?? 0;
+        const type = forcedType ?? powerUpSpawnDirector.chooseType(now);
+        if (!type) {
+            return null;
+        }
         const size = config.powerUp.size;
         powerUps.push({
             x: viewport.width + size,
@@ -11173,6 +11348,7 @@ document.addEventListener('DOMContentLoaded', () => {
             wobbleTime: Math.random() * Math.PI * 2,
             type
         });
+        powerUpSpawnDirector.recordSpawn(type, now);
         return powerUps[powerUps.length - 1];
     }
 
@@ -11185,6 +11361,11 @@ document.addEventListener('DOMContentLoaded', () => {
             powerUp.x = viewport.width - powerUp.width * 0.5;
         }
         state.bossBattle.powerUpSpawned = true;
+        spawnTimers.powerUp = 0;
+        const plannedInterval = powerUpSpawnDirector.planNextInterval(config?.powerUpSpawnInterval);
+        if (Number.isFinite(plannedInterval) && plannedInterval > 0) {
+            nextPowerUpSpawnInterval = plannedInterval;
+        }
     }
 
     function applyVillainBehavior(obstacle, deltaSeconds) {
@@ -11916,8 +12097,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const obstacleInterval = config.obstacleSpawnInterval / (1 + state.gameSpeed * 0.005 * getSpawnIntensity('obstacle'));
         const collectibleInterval = config.collectibleSpawnInterval / (1 + state.gameSpeed * 0.004 * getSpawnIntensity('collectible'));
-        const powerUpInterval = config.powerUpSpawnInterval / (1 + state.gameSpeed * 0.003 * getSpawnIntensity('powerUp'));
-
         if (spawnTimers.obstacle >= obstacleInterval) {
             spawnTimers.obstacle = 0;
             spawnObstacle();
@@ -11928,9 +12107,19 @@ document.addEventListener('DOMContentLoaded', () => {
             spawnCollectible();
         }
 
-        if (spawnTimers.powerUp >= powerUpInterval) {
-            spawnTimers.powerUp = -Math.random() * 2000;
-            spawnPowerUp();
+        if (spawnTimers.powerUp >= nextPowerUpSpawnInterval) {
+            spawnTimers.powerUp = 0;
+            const spawned = spawnPowerUp();
+            const plannedInterval = powerUpSpawnDirector.planNextInterval(config?.powerUpSpawnInterval);
+            if (Number.isFinite(plannedInterval) && plannedInterval > 0) {
+                nextPowerUpSpawnInterval = plannedInterval;
+            }
+            if (!spawned) {
+                const fallback = Number.isFinite(config?.powerUpSpawnInterval)
+                    ? Math.max(7000, config.powerUpSpawnInterval)
+                    : nextPowerUpSpawnInterval;
+                nextPowerUpSpawnInterval = fallback;
+            }
         }
     }
 
