@@ -1584,16 +1584,14 @@ body.touch-enabled #preflightPrompt .desktop-only {
     opacity: 0;
 }
 
-#overlay h1 {
-    font-size: clamp(1.95rem, 5.25vw, 3.45rem);
+#overlay .overlay-logo {
     margin: 0;
-    letter-spacing: clamp(0.26rem, 1.05vw, 0.64rem);
-    color: #f9a8d4;
-    text-shadow: 0 0 18px rgba(249, 168, 212, 0.55);
 }
 
-#overlay h1:empty {
-    display: none;
+#overlay .overlay-logo img {
+    display: block;
+    max-width: clamp(200px, 50vw, 360px);
+    height: auto;
 }
 
 #comicIntro {
