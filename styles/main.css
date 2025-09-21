@@ -34,6 +34,35 @@ body {
     position: relative;
 }
 
+#controllerCursor {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(148, 210, 255, 0.9);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 120ms ease, transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+    z-index: 80;
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+#controllerCursor.visible {
+    opacity: 1;
+}
+
+#controllerCursor.clicking {
+    transform: translate(-50%, -50%) scale(0.9);
+    border-color: rgba(59, 130, 246, 1);
+    box-shadow: 0 0 16px rgba(96, 165, 250, 0.8);
+}
+
 body.settings-open {
     overflow: hidden;
 }

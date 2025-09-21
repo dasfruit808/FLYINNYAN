@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     quickStartUsed = false;
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas?.getContext ? canvas.getContext('2d') : null;
+    const controllerCursorEl = document.getElementById('controllerCursor');
 
     const supportsResizeObserver =
         typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
@@ -1278,6 +1279,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateTouchControlsLayout();
         updateDebugOverlay();
+        refreshGamepadCursorBounds();
     }
 
     function requestViewportUpdate() {
@@ -1338,6 +1340,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     updateViewportMetrics({ preserveEntities: false });
+    refreshGamepadCursorBounds({ recenter: true });
     watchDevicePixelRatio();
     updateDebugOverlay();
 
@@ -6500,13 +6503,32 @@ document.addEventListener('DOMContentLoaded', () => {
         moveY: 0,
         firing: false
     };
+    const gamepadCursorState = {
+        x: 0,
+        y: 0,
+        axisX: 0,
+        axisY: 0,
+        active: false,
+        lastUpdate: null,
+        lastInputTime: 0,
+        pointerDownTarget: null,
+        buttonHeld: false
+    };
+    let gamepadCursorBounds = { left: 0, top: 0, right: 0, bottom: 0 };
     const previousGamepadButtons = [];
+    const previousGamepadDirection = { x: 0, y: 0 };
     let activeGamepadIndex = null;
     const hasGamepadSupport =
         typeof window !== 'undefined' &&
         typeof navigator !== 'undefined' &&
         typeof navigator.getGamepads === 'function';
     const GAMEPAD_DEADZONE = 0.2;
+    const GAMEPAD_CURSOR_DEADZONE = 0.25;
+    const GAMEPAD_CURSOR_SPEED = 1500;
+    const GAMEPAD_CURSOR_HALF_SIZE = 11;
+    const GAMEPAD_CURSOR_INACTIVITY_MS = 4000;
+    const GAMEPAD_CURSOR_POINTER_ID = 999;
+    const GAMEPAD_DASH_ACTIVATION_THRESHOLD = 0.6;
     const GAMEPAD_BUTTONS = {
         CROSS: 0,
         CIRCLE: 1,
@@ -6572,6 +6594,300 @@ document.addEventListener('DOMContentLoaded', () => {
         gamepadInput.moveX = 0;
         gamepadInput.moveY = 0;
         gamepadInput.firing = false;
+        resetGamepadCursor({ immediateHide: true });
+        previousGamepadDirection.x = 0;
+        previousGamepadDirection.y = 0;
+    }
+
+    function resetGamepadCursor({ immediateHide = false } = {}) {
+        gamepadCursorState.axisX = 0;
+        gamepadCursorState.axisY = 0;
+        gamepadCursorState.lastUpdate = null;
+        gamepadCursorState.pointerDownTarget = null;
+        gamepadCursorState.buttonHeld = false;
+        if (immediateHide) {
+            gamepadCursorState.active = false;
+            gamepadCursorState.lastInputTime = 0;
+            setGamepadCursorClickState(false);
+            setGamepadCursorVisible(false);
+        } else {
+            setGamepadCursorClickState(false);
+        }
+    }
+
+    function setGamepadCursorVisible(visible) {
+        if (!controllerCursorEl) {
+            return;
+        }
+        controllerCursorEl.classList.toggle('visible', Boolean(visible));
+        if (!visible) {
+            controllerCursorEl.classList.remove('clicking');
+        }
+    }
+
+    function setGamepadCursorClickState(active) {
+        if (!controllerCursorEl) {
+            return;
+        }
+        controllerCursorEl.classList.toggle('clicking', Boolean(active));
+    }
+
+    function updateGamepadCursorPosition(x, y) {
+        if (!controllerCursorEl) {
+            return;
+        }
+        controllerCursorEl.style.left = `${x}px`;
+        controllerCursorEl.style.top = `${y}px`;
+    }
+
+    function markGamepadCursorActive(timestamp = performance.now()) {
+        gamepadCursorState.active = true;
+        gamepadCursorState.lastInputTime = timestamp;
+        setGamepadCursorVisible(true);
+    }
+
+    function refreshGamepadCursorBounds({ recenter = false } = {}) {
+        if (typeof window === 'undefined') {
+            return;
+        }
+        const viewportWidth = window.innerWidth || document.documentElement?.clientWidth || 0;
+        const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0;
+        const minX = GAMEPAD_CURSOR_HALF_SIZE;
+        const minY = GAMEPAD_CURSOR_HALF_SIZE;
+        const maxX = Math.max(minX, viewportWidth - GAMEPAD_CURSOR_HALF_SIZE);
+        const maxY = Math.max(minY, viewportHeight - GAMEPAD_CURSOR_HALF_SIZE);
+        gamepadCursorBounds.left = minX;
+        gamepadCursorBounds.top = minY;
+        gamepadCursorBounds.right = maxX;
+        gamepadCursorBounds.bottom = maxY;
+
+        if (!controllerCursorEl) {
+            return;
+        }
+
+        if (recenter || !gamepadCursorState.active) {
+            const canvasRect = canvas?.getBoundingClientRect();
+            const targetX = canvasRect
+                ? clamp(canvasRect.left + canvasRect.width * 0.5, minX, maxX)
+                : clamp(viewportWidth * 0.5, minX, maxX);
+            const targetY = canvasRect
+                ? clamp(canvasRect.top + canvasRect.height * 0.5, minY, maxY)
+                : clamp(viewportHeight * 0.5, minY, maxY);
+            gamepadCursorState.x = targetX;
+            gamepadCursorState.y = targetY;
+            updateGamepadCursorPosition(targetX, targetY);
+        } else {
+            const clampedX = clamp(gamepadCursorState.x, minX, maxX);
+            const clampedY = clamp(gamepadCursorState.y, minY, maxY);
+            if (clampedX !== gamepadCursorState.x || clampedY !== gamepadCursorState.y) {
+                gamepadCursorState.x = clampedX;
+                gamepadCursorState.y = clampedY;
+            }
+            updateGamepadCursorPosition(gamepadCursorState.x, gamepadCursorState.y);
+        }
+    }
+
+    function updateGamepadCursorAxes(axisX, axisY) {
+        const normalizedX = clamp(axisX, -1, 1);
+        const normalizedY = clamp(axisY, -1, 1);
+        gamepadCursorState.axisX = normalizedX;
+        gamepadCursorState.axisY = normalizedY;
+        if (normalizedX !== 0 || normalizedY !== 0) {
+            markGamepadCursorActive();
+        }
+    }
+
+    function dispatchGamepadPointerEvent(type, target, clientX, clientY, { buttons = 0 } = {}) {
+        if (!target) {
+            return true;
+        }
+        const eventInit = {
+            bubbles: true,
+            cancelable: true,
+            clientX,
+            clientY,
+            screenX: (window?.screenX ?? 0) + clientX,
+            screenY: (window?.screenY ?? 0) + clientY,
+            pointerId: GAMEPAD_CURSOR_POINTER_ID,
+            pointerType: 'mouse',
+            isPrimary: true,
+            button: 0,
+            buttons
+        };
+        if (typeof window !== 'undefined' && typeof window.PointerEvent === 'function') {
+            const event = new PointerEvent(type, eventInit);
+            return target.dispatchEvent(event);
+        }
+        const fallback = new MouseEvent(type.replace('pointer', 'mouse'), eventInit);
+        return target.dispatchEvent(fallback);
+    }
+
+    function dispatchGamepadMouseEvent(type, target, clientX, clientY, { buttons = 0 } = {}) {
+        if (!target) {
+            return true;
+        }
+        const event = new MouseEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            clientX,
+            clientY,
+            screenX: (window?.screenX ?? 0) + clientX,
+            screenY: (window?.screenY ?? 0) + clientY,
+            button: 0,
+            buttons
+        });
+        return target.dispatchEvent(event);
+    }
+
+    function processGamepadCursorPressDown() {
+        const clientX = gamepadCursorState.x;
+        const clientY = gamepadCursorState.y;
+        const target = document.elementFromPoint?.(clientX, clientY) ?? null;
+        markGamepadCursorActive();
+        if (!target) {
+            gamepadCursorState.pointerDownTarget = null;
+            gamepadCursorState.buttonHeld = false;
+            return false;
+        }
+        gamepadCursorState.pointerDownTarget = target;
+        gamepadCursorState.buttonHeld = true;
+        setGamepadCursorClickState(true);
+        dispatchGamepadPointerEvent('pointerdown', target, clientX, clientY, { buttons: 1 });
+        dispatchGamepadMouseEvent('mousedown', target, clientX, clientY, { buttons: 1 });
+        if (typeof target.focus === 'function') {
+            try {
+                target.focus({ preventScroll: true });
+            } catch {
+                // Ignore focus errors
+            }
+        }
+        return true;
+    }
+
+    function processGamepadCursorPressUp() {
+        const clientX = gamepadCursorState.x;
+        const clientY = gamepadCursorState.y;
+        const upTarget = document.elementFromPoint?.(clientX, clientY) ?? null;
+        const downTarget = gamepadCursorState.pointerDownTarget;
+        dispatchGamepadPointerEvent('pointerup', upTarget ?? downTarget, clientX, clientY, { buttons: 0 });
+        dispatchGamepadMouseEvent('mouseup', upTarget ?? downTarget, clientX, clientY, { buttons: 0 });
+        if (downTarget && downTarget === upTarget) {
+            const clickEvent = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                clientX,
+                clientY,
+                screenX: (window?.screenX ?? 0) + clientX,
+                screenY: (window?.screenY ?? 0) + clientY,
+                button: 0
+            });
+            downTarget.dispatchEvent(clickEvent);
+        }
+        gamepadCursorState.pointerDownTarget = null;
+        gamepadCursorState.buttonHeld = false;
+        setGamepadCursorClickState(false);
+    }
+
+    function handleGamepadCursorPress({ isPressed, justPressed, justReleased }) {
+        const usingCursor =
+            gamepadCursorState.active ||
+            gamepadCursorState.buttonHeld ||
+            gamepadCursorState.axisX !== 0 ||
+            gamepadCursorState.axisY !== 0;
+        let consumed = false;
+
+        if (justPressed && usingCursor) {
+            consumed = processGamepadCursorPressDown();
+        }
+
+        if (isPressed && usingCursor) {
+            markGamepadCursorActive();
+            if (gamepadCursorState.buttonHeld) {
+                consumed = true;
+            }
+        }
+
+        if (justReleased && gamepadCursorState.buttonHeld) {
+            consumed = true;
+            processGamepadCursorPressUp();
+        }
+
+        if (justReleased && !gamepadCursorState.buttonHeld) {
+            setGamepadCursorClickState(false);
+        }
+
+        return consumed;
+    }
+
+    function updateGamepadCursor(timestamp = performance.now()) {
+        if (!controllerCursorEl) {
+            return;
+        }
+        if (gamepadCursorState.lastUpdate === null) {
+            gamepadCursorState.lastUpdate = timestamp;
+            if (gamepadCursorState.x === 0 && gamepadCursorState.y === 0) {
+                refreshGamepadCursorBounds({ recenter: true });
+            } else {
+                updateGamepadCursorPosition(gamepadCursorState.x, gamepadCursorState.y);
+            }
+            return;
+        }
+        const delta = Math.max(0, Math.min(48, timestamp - gamepadCursorState.lastUpdate));
+        gamepadCursorState.lastUpdate = timestamp;
+
+        const axisX = gamepadCursorState.axisX;
+        const axisY = gamepadCursorState.axisY;
+
+        if (axisX !== 0 || axisY !== 0) {
+            const distance = (GAMEPAD_CURSOR_SPEED * delta) / 1000;
+            const nextX = clamp(gamepadCursorState.x + axisX * distance, gamepadCursorBounds.left, gamepadCursorBounds.right);
+            const nextY = clamp(gamepadCursorState.y + axisY * distance, gamepadCursorBounds.top, gamepadCursorBounds.bottom);
+            if (nextX !== gamepadCursorState.x || nextY !== gamepadCursorState.y) {
+                gamepadCursorState.x = nextX;
+                gamepadCursorState.y = nextY;
+                updateGamepadCursorPosition(nextX, nextY);
+                markGamepadCursorActive(timestamp);
+            }
+        }
+
+        if (
+            gamepadCursorState.active &&
+            !gamepadCursorState.buttonHeld &&
+            axisX === 0 &&
+            axisY === 0 &&
+            timestamp - gamepadCursorState.lastInputTime > GAMEPAD_CURSOR_INACTIVITY_MS
+        ) {
+            gamepadCursorState.active = false;
+            setGamepadCursorVisible(false);
+        }
+    }
+
+    function handleGamepadDashTap(key, direction, now) {
+        const lastTap = dashTapTracker.get(key);
+        if (lastTap && now - lastTap <= config.player.dash.doubleTapWindow) {
+            dashTapTracker.delete(key);
+            triggerDash(direction);
+        } else {
+            dashTapTracker.set(key, now);
+        }
+    }
+
+    function processGamepadDashInput(digitalX, digitalY) {
+        const now = performance.now();
+        if (digitalX !== previousGamepadDirection.x) {
+            if (digitalX !== 0) {
+                const key = digitalX > 0 ? 'gamepad-right' : 'gamepad-left';
+                handleGamepadDashTap(key, { x: digitalX, y: 0 }, now);
+            }
+        }
+        if (digitalY !== previousGamepadDirection.y) {
+            if (digitalY !== 0) {
+                const key = digitalY > 0 ? 'gamepad-down' : 'gamepad-up';
+                handleGamepadDashTap(key, { x: 0, y: digitalY }, now);
+            }
+        }
+        previousGamepadDirection.x = digitalX;
+        previousGamepadDirection.y = digitalY;
     }
 
     function applyGamepadDeadZone(value, threshold = GAMEPAD_DEADZONE) {
@@ -6605,7 +6921,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function handleGamepadMetaActions(buttonStates) {
+    function handleGamepadMetaActions(buttonStates, { suppressCross = false } = {}) {
         if (!buttonStates) {
             return;
         }
@@ -6626,7 +6942,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (state.gameState !== 'running' && justPressed(GAMEPAD_BUTTONS.CROSS)) {
+        if (!suppressCross && state.gameState !== 'running' && justPressed(GAMEPAD_BUTTONS.CROSS)) {
             handleGamepadPrimaryAction();
         }
     }
@@ -6658,9 +6974,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!gamepad) {
-            if (gamepadInput.moveX || gamepadInput.moveY || gamepadInput.firing) {
-                resetGamepadInput();
-            }
+            resetGamepadInput();
             if (previousGamepadButtons.length) {
                 previousGamepadButtons.length = 0;
             }
@@ -6670,10 +6984,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const axes = gamepad.axes || [];
         const axisX = applyGamepadDeadZone(axes[0] ?? 0);
         const axisY = applyGamepadDeadZone(axes[1] ?? 0);
+        const pointerAxisX = applyGamepadDeadZone(axes[2] ?? 0, GAMEPAD_CURSOR_DEADZONE);
+        const pointerAxisY = applyGamepadDeadZone(axes[3] ?? 0, GAMEPAD_CURSOR_DEADZONE);
+        updateGamepadCursorAxes(pointerAxisX, pointerAxisY);
 
         const buttons = gamepad.buttons || [];
         const buttonStates = buttons.map((button) => Boolean(button?.pressed));
-        handleGamepadMetaActions(buttonStates);
+
+        const crossPressed = Boolean(buttons[GAMEPAD_BUTTONS.CROSS]?.pressed);
+        const previousCross = Boolean(previousGamepadButtons[GAMEPAD_BUTTONS.CROSS]);
+        const crossJustPressed = crossPressed && !previousCross;
+        const crossJustReleased = !crossPressed && previousCross;
+        const cursorConsumed = handleGamepadCursorPress({
+            isPressed: crossPressed,
+            justPressed: crossJustPressed,
+            justReleased: crossJustReleased
+        });
+
+        handleGamepadMetaActions(buttonStates, { suppressCross: cursorConsumed });
 
         const dpadX = (buttons[GAMEPAD_BUTTONS.DPAD_RIGHT]?.pressed ? 1 : 0) -
             (buttons[GAMEPAD_BUTTONS.DPAD_LEFT]?.pressed ? 1 : 0);
@@ -6682,6 +7010,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         gamepadInput.moveX = clamp(axisX + dpadX, -1, 1);
         gamepadInput.moveY = clamp(axisY + dpadY, -1, 1);
+
+        const analogDashX = Math.abs(axisX) >= GAMEPAD_DASH_ACTIVATION_THRESHOLD ? (axisX > 0 ? 1 : -1) : 0;
+        const analogDashY = Math.abs(axisY) >= GAMEPAD_DASH_ACTIVATION_THRESHOLD ? (axisY > 0 ? 1 : -1) : 0;
+        const dashX = dpadX !== 0 ? dpadX : analogDashX;
+        const dashY = dpadY !== 0 ? dpadY : analogDashY;
+        processGamepadDashInput(dashX, dashY);
 
         const rightTrigger = buttons[GAMEPAD_BUTTONS.R2];
         const leftTrigger = buttons[GAMEPAD_BUTTONS.L2];
@@ -8245,6 +8579,7 @@ document.addEventListener('DOMContentLoaded', () => {
         keys.clear();
         dashTapTracker.clear();
         resetVirtualControls();
+        resetGamepadInput();
     });
 
     function triggerDash(direction) {
@@ -11348,6 +11683,7 @@ document.addEventListener('DOMContentLoaded', () => {
         requestAnimationFrame(gameLoop);
 
         updateGamepadInput();
+        updateGamepadCursor(timestamp);
 
         if (state.gameState === 'ready') {
             stepNonRunning(FIXED_TIMESTEP);
