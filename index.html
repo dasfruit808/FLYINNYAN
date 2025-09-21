@@ -518,6 +518,48 @@
             </div>
         </div>
     </div>
+    <div id="loadoutEditorModal" hidden aria-hidden="true">
+        <div class="loadout-editor-backdrop" data-loadout-editor-dismiss="backdrop" aria-hidden="true"></div>
+        <div
+            class="loadout-editor-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="loadoutEditorTitle"
+        >
+            <div class="loadout-editor-header">
+                <h2 id="loadoutEditorTitle">Customize Loadout</h2>
+                <button
+                    id="loadoutEditorClose"
+                    type="button"
+                    class="loadout-editor-close"
+                    aria-label="Close loadout editor"
+                >
+                    ✕
+                </button>
+            </div>
+            <p id="loadoutEditorSubtitle" class="loadout-editor-subtitle">
+                Browse pilots and weapons to tailor this preset. Saving will store the selections to the chosen loadout slot.
+            </p>
+            <section class="loadout-editor-section" aria-labelledby="loadoutEditorPilotsTitle">
+                <div class="loadout-editor-section-header">
+                    <h3 id="loadoutEditorPilotsTitle">Select Pilot</h3>
+                    <p class="loadout-editor-section-note">Highlights update as you switch between pilots.</p>
+                </div>
+                <div class="character-grid" role="list" data-loadout-editor-pilots></div>
+            </section>
+            <section class="loadout-editor-section" aria-labelledby="loadoutEditorWeaponsTitle">
+                <div class="loadout-editor-section-header">
+                    <h3 id="loadoutEditorWeaponsTitle">Select Weapon</h3>
+                    <p class="loadout-editor-section-note">Pair a weapon kit with your pilot to complete the preset.</p>
+                </div>
+                <div class="character-grid" role="list" data-loadout-editor-weapons></div>
+            </section>
+            <div class="loadout-editor-actions">
+                <button id="loadoutEditorSave" type="button">Save Loadout</button>
+                <button id="loadoutEditorCancel" type="button" class="secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
     <div
         id="settingsDrawer"
         role="dialog"
