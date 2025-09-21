@@ -1432,6 +1432,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const callsignForm = document.getElementById('callsignForm');
     const playerNameInput = document.getElementById('playerNameInput');
     const callsignHint = document.getElementById('callsignHint');
+    const preflightBar = document.getElementById('preflightBar');
     const preflightPrompt = document.getElementById('preflightPrompt');
     const mobilePreflightButton = document.getElementById('mobilePreflightButton');
     const comicIntro = document.getElementById('comicIntro');
@@ -6439,68 +6440,106 @@ document.addEventListener('DOMContentLoaded', () => {
         characterCards = cards;
     }
 
-    const pilotStatDescriptors = [
-        { key: 'speed', label: 'Speed' },
-        { key: 'dash', label: 'Dash' },
-        { key: 'firepower', label: 'Firepower' },
-        { key: 'shield', label: 'Shield' }
-    ];
-    const MAX_PILOT_STAT_LEVEL = 5;
-    const pilotStatLevels = {
-        nova: { speed: 3, dash: 3, firepower: 3, shield: 3 },
-        comet: { speed: 5, dash: 4, firepower: 4, shield: 2 },
-        nebula: { speed: 3, dash: 5, firepower: 3, shield: 4 }
-    };
-
     function renderPilotPreview() {
         if (!pilotPreviewGrid) {
             return;
         }
         pilotPreviewGrid.innerHTML = '';
-        for (const profile of characterProfiles) {
+        normalizeCustomLoadouts({ persist: false });
+        const ownership = getOwnedCosmeticSets(latestCosmeticSnapshot);
+        const currentSelection = getCurrentCosmeticsSelection();
+        const fragment = document.createDocumentFragment();
+
+        for (let index = 0; index < customLoadouts.length; index += 1) {
+            const loadout = customLoadouts[index];
+            if (!loadout) {
+                continue;
+            }
+            const slotMeta = getLoadoutSlotMeta(loadout.slot) ?? CUSTOM_LOADOUT_SLOTS[index] ?? null;
+            const fallbackName = slotMeta?.defaultName ?? `Custom Loadout ${index + 1}`;
             const card = document.createElement('button');
             card.type = 'button';
             card.className = 'pilot-preview-card';
-            card.dataset.characterId = profile.id;
+            card.dataset.loadoutId = loadout.slot ?? `slot${index + 1}`;
             card.setAttribute('role', 'listitem');
+
             const nameRow = document.createElement('div');
             nameRow.className = 'pilot-preview-header-row';
             const nameEl = document.createElement('span');
             nameEl.className = 'pilot-preview-name';
-            nameEl.textContent = profile.name;
-            const roleEl = document.createElement('span');
-            roleEl.className = 'pilot-preview-role';
-            roleEl.textContent = profile.role ?? '';
+            nameEl.textContent = loadout.name ?? fallbackName;
+            const statusEl = document.createElement('span');
+            statusEl.className = 'pilot-preview-role';
             nameRow.appendChild(nameEl);
-            nameRow.appendChild(roleEl);
-            const statsContainer = document.createElement('div');
-            statsContainer.className = 'pilot-preview-stats';
-            const levels = pilotStatLevels[profile.id] ?? {};
-            for (const descriptor of pilotStatDescriptors) {
-                const row = document.createElement('div');
-                row.className = 'pilot-preview-stat';
-                const label = document.createElement('span');
-                label.className = 'pilot-preview-stat-label';
-                label.textContent = descriptor.label;
-                const bar = document.createElement('div');
-                bar.className = 'pilot-preview-bar';
-                const fill = document.createElement('div');
-                fill.className = 'pilot-preview-bar-fill';
-                const level = Math.max(
-                    0,
-                    Math.min(MAX_PILOT_STAT_LEVEL, Number(levels[descriptor.key] ?? 0))
-                );
-                fill.style.width = `${(level / MAX_PILOT_STAT_LEVEL) * 100}%`;
-                fill.dataset.level = String(level);
-                bar.appendChild(fill);
-                row.appendChild(label);
-                row.appendChild(bar);
-                statsContainer.appendChild(row);
-            }
+            nameRow.appendChild(statusEl);
             card.appendChild(nameRow);
-            card.appendChild(statsContainer);
-            pilotPreviewGrid.appendChild(card);
+
+            const details = document.createElement('div');
+            details.className = 'pilot-preview-meta';
+            const pilotProfile = getCharacterProfile(loadout.characterId);
+            const weaponProfile = getWeaponProfile(loadout.weaponId) ?? getDefaultWeaponProfile();
+
+            const addDetailRow = (label, value) => {
+                const row = document.createElement('div');
+                row.className = 'pilot-preview-meta-row';
+                const labelEl = document.createElement('span');
+                labelEl.className = 'pilot-preview-meta-label';
+                labelEl.textContent = label;
+                const valueEl = document.createElement('span');
+                valueEl.className = 'pilot-preview-meta-value';
+                valueEl.textContent = value;
+                row.appendChild(labelEl);
+                row.appendChild(valueEl);
+                details.appendChild(row);
+            };
+
+            addDetailRow('Pilot', pilotProfile?.name ?? loadout.characterId ?? 'Pilot');
+            addDetailRow('Weapon', weaponProfile?.name ?? getWeaponLabel(loadout.weaponId));
+            addDetailRow('Suit', getSkinLabel(loadout.skinId));
+            addDetailRow('Stream', getTrailLabel(loadout.trailId));
+            card.appendChild(details);
+
+            const missingItems = [];
+            if (!ownership.ownedSkins.has(loadout.skinId)) {
+                missingItems.push(getSkinLabel(loadout.skinId));
+            }
+            if (!ownership.ownedTrails.has(loadout.trailId)) {
+                missingItems.push(getTrailLabel(loadout.trailId));
+            }
+            if (!ownership.ownedWeapons.has(loadout.weaponId)) {
+                missingItems.push(getWeaponLabel(loadout.weaponId));
+            }
+
+            if (missingItems.length) {
+                card.classList.add('has-locked');
+                const lockedNote = document.createElement('p');
+                lockedNote.className = 'pilot-preview-locked';
+                lockedNote.textContent = `Unlock required: ${missingItems.join(', ')}`;
+                card.appendChild(lockedNote);
+            }
+
+            const isActive =
+                loadout.characterId === activeCharacterId &&
+                loadout.weaponId === currentSelection.weapon &&
+                loadout.skinId === currentSelection.skin &&
+                loadout.trailId === currentSelection.trail;
+            if (isActive) {
+                card.classList.add('active');
+                statusEl.textContent = 'Equipped';
+                card.setAttribute('aria-pressed', 'true');
+            } else if (missingItems.length) {
+                statusEl.textContent = 'Locked';
+                card.setAttribute('aria-pressed', 'false');
+            } else {
+                statusEl.textContent = 'Equip Loadout';
+                card.setAttribute('aria-pressed', 'false');
+            }
+
+            fragment.appendChild(card);
         }
+
+        pilotPreviewGrid.appendChild(fragment);
+        refreshPilotPreviewStates();
     }
 
     function refreshPilotPreviewStates() {
@@ -6508,13 +6547,56 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const cards = pilotPreviewGrid.querySelectorAll('.pilot-preview-card');
+        const currentSelection = getCurrentCosmeticsSelection();
+        const ownership = getOwnedCosmeticSets(latestCosmeticSnapshot);
         cards.forEach((card) => {
             if (!(card instanceof HTMLElement)) {
                 return;
             }
-            const characterId = card.dataset.characterId;
-            card.classList.toggle('active', characterId === activeCharacterId);
-            card.classList.toggle('pending', characterId === pendingCharacterId && pendingCharacterId !== activeCharacterId);
+            const slotId = card.dataset.loadoutId;
+            const loadout = slotId ? getCustomLoadout(slotId) : null;
+            const statusEl = card.querySelector('.pilot-preview-role');
+            const lockedEl = card.querySelector('.pilot-preview-locked');
+            const missingItems = [];
+            if (loadout) {
+                if (!ownership.ownedSkins.has(loadout.skinId)) {
+                    missingItems.push(getSkinLabel(loadout.skinId));
+                }
+                if (!ownership.ownedTrails.has(loadout.trailId)) {
+                    missingItems.push(getTrailLabel(loadout.trailId));
+                }
+                if (!ownership.ownedWeapons.has(loadout.weaponId)) {
+                    missingItems.push(getWeaponLabel(loadout.weaponId));
+                }
+            }
+            const isActive = Boolean(
+                loadout &&
+                    loadout.characterId === activeCharacterId &&
+                    loadout.weaponId === currentSelection.weapon &&
+                    loadout.skinId === currentSelection.skin &&
+                    loadout.trailId === currentSelection.trail
+            );
+            card.classList.toggle('active', isActive);
+            card.classList.toggle('has-locked', missingItems.length > 0);
+            card.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            if (statusEl instanceof HTMLElement) {
+                if (missingItems.length) {
+                    statusEl.textContent = 'Locked';
+                } else if (isActive) {
+                    statusEl.textContent = 'Equipped';
+                } else {
+                    statusEl.textContent = 'Equip Loadout';
+                }
+            }
+            if (lockedEl instanceof HTMLElement) {
+                if (missingItems.length) {
+                    lockedEl.textContent = `Unlock required: ${missingItems.join(', ')}`;
+                    lockedEl.removeAttribute('hidden');
+                } else {
+                    lockedEl.textContent = '';
+                    lockedEl.setAttribute('hidden', '');
+                }
+            }
         });
     }
 
@@ -7518,6 +7600,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+
+        renderPilotPreview();
     }
 
     function focusCosmeticOption(container, datasetKey, value) {
@@ -8399,12 +8483,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!target) {
                 return;
             }
-            const characterId = target.dataset.characterId;
-            if (!characterId || !characterSelectModal) {
+            const slotId = target.dataset.loadoutId;
+            if (!slotId) {
                 return;
             }
-            requestPilotSelection('preview');
-            setPendingCharacter(characterId, { focusCard: true });
+            event.preventDefault();
+            applyCustomLoadout(slotId);
         });
     }
     if (characterSelectConfirm) {
@@ -10397,11 +10481,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setPreflightPromptVisibility(visible) {
-        if (!preflightPrompt) {
-            return;
+        if (preflightBar) {
+            preflightBar.hidden = !visible;
+            preflightBar.setAttribute('aria-hidden', visible ? 'false' : 'true');
         }
-        preflightPrompt.hidden = !visible;
-        preflightPrompt.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        if (preflightPrompt) {
+            preflightPrompt.hidden = !visible;
+            preflightPrompt.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        }
         if (mobilePreflightButton) {
             mobilePreflightButton.disabled = !visible || !isTouchInterface;
         }
