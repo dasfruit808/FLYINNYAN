@@ -270,6 +270,82 @@ body.touch-enabled #settingsButton {
     background: #f8fafc;
 }
 
+.settings-row.difficulty-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.settings-row.difficulty-row .setting-label {
+    flex-basis: 160px;
+}
+
+.difficulty-selector {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+}
+
+.difficulty-option {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(59, 130, 246, 0.28);
+    cursor: pointer;
+    transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.difficulty-option input[type='radio'] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.difficulty-option .difficulty-name {
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(226, 232, 240, 0.92);
+}
+
+.difficulty-option .difficulty-note {
+    font-size: 0.7rem;
+    color: rgba(148, 163, 184, 0.78);
+}
+
+.difficulty-option.selected {
+    border-color: rgba(59, 130, 246, 0.65);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+    background: rgba(30, 41, 59, 0.75);
+}
+
+.difficulty-option:focus-within {
+    border-color: rgba(191, 219, 254, 0.85);
+    box-shadow: 0 0 0 1px rgba(191, 219, 254, 0.4);
+}
+
+.difficulty-description {
+    margin: -4px 0 0 0;
+    font-size: 0.76rem;
+    color: rgba(226, 232, 240, 0.78);
+    line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+    .settings-row.difficulty-row .setting-label {
+        flex-basis: 100%;
+    }
+
+    .difficulty-selector {
+        width: 100%;
+    }
+}
+
 #settingsCloseButton {
     align-self: flex-end;
     border: none;
