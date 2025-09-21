@@ -1485,6 +1485,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const challengeListEl = document.getElementById('challengeList');
     const skinOptionsEl = document.getElementById('skinOptions');
     const trailOptionsEl = document.getElementById('trailOptions');
+    const customLoadoutGrid =
+        document.getElementById('customLoadoutSection')?.querySelector('[data-loadout-grid]') ?? null;
     const instructionsEl = document.getElementById('instructions');
     const instructionPanelsEl = document.getElementById('instructionPanels');
     const instructionButtonBar = document.getElementById('instructionButtonBar');
@@ -2625,7 +2627,8 @@ document.addEventListener('DOMContentLoaded', () => {
         firstRunComplete: 'nyanEscape.firstRunComplete',
         settings: 'nyanEscape.settings',
         challenges: 'nyanEscape.challenges',
-        deviceId: 'nyanEscape.deviceId'
+        deviceId: 'nyanEscape.deviceId',
+        customLoadouts: 'nyanEscape.customLoadouts'
     };
 
     let storageAvailable = false;
@@ -2655,6 +2658,177 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             storageAvailable = false;
         }
+    }
+
+    const CUSTOM_LOADOUT_VERSION = 1;
+    const CUSTOM_LOADOUT_SLOTS = [
+        { slot: 'slotA', defaultName: 'Custom Loadout A' },
+        { slot: 'slotB', defaultName: 'Custom Loadout B' }
+    ];
+    const MAX_LOADOUT_NAME_LENGTH = 32;
+
+    function sanitizeLoadoutName(name, fallback) {
+        const base = typeof name === 'string' ? name.trim() : '';
+        if (!base) {
+            return fallback;
+        }
+        return base.slice(0, MAX_LOADOUT_NAME_LENGTH);
+    }
+
+    function createDefaultCustomLoadout(slotMeta, index = 0) {
+        const fallbackName = slotMeta?.defaultName ?? `Custom Loadout ${index + 1}`;
+        return {
+            slot: slotMeta?.slot ?? `slot${index + 1}`,
+            name: fallbackName,
+            characterId: 'nova',
+            weaponId: 'pulse',
+            skinId: 'default',
+            trailId: 'rainbow'
+        };
+    }
+
+    function coerceLoadoutRecord(entry, fallback, slotMeta, index) {
+        const base = fallback ?? createDefaultCustomLoadout(slotMeta, index);
+        if (!entry || typeof entry !== 'object') {
+            return { ...base };
+        }
+        const slotId = typeof entry.slot === 'string' ? entry.slot : base.slot;
+        const defaultName = slotMeta?.defaultName ?? base.name;
+        return {
+            slot: slotId,
+            name: sanitizeLoadoutName(entry.name, defaultName),
+            characterId:
+                typeof entry.characterId === 'string' && entry.characterId
+                    ? entry.characterId
+                    : base.characterId,
+            weaponId:
+                typeof entry.weaponId === 'string' && entry.weaponId ? entry.weaponId : base.weaponId,
+            skinId: typeof entry.skinId === 'string' && entry.skinId ? entry.skinId : base.skinId,
+            trailId: typeof entry.trailId === 'string' && entry.trailId ? entry.trailId : base.trailId
+        };
+    }
+
+    function loadCustomLoadouts() {
+        const defaults = CUSTOM_LOADOUT_SLOTS.map((slotMeta, index) =>
+            createDefaultCustomLoadout(slotMeta, index)
+        );
+        if (!storageAvailable) {
+            return defaults;
+        }
+        const raw = readStorage(STORAGE_KEYS.customLoadouts);
+        if (!raw) {
+            return defaults;
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            const slots = Array.isArray(parsed?.slots) ? parsed.slots : [];
+            const sanitized = CUSTOM_LOADOUT_SLOTS.map((slotMeta, index) => {
+                const match =
+                    slots.find((entry) => entry && typeof entry.slot === 'string' && entry.slot === slotMeta.slot) ??
+                    slots[index];
+                return coerceLoadoutRecord(match, defaults[index], slotMeta, index);
+            });
+            return sanitized;
+        } catch (error) {
+            return defaults;
+        }
+    }
+
+    function persistCustomLoadouts(loadouts = customLoadouts) {
+        if (!storageAvailable) {
+            return;
+        }
+        const payload = {
+            version: CUSTOM_LOADOUT_VERSION,
+            slots: Array.isArray(loadouts)
+                ? loadouts.map((entry, index) => {
+                      const slotMeta = CUSTOM_LOADOUT_SLOTS[index] ?? null;
+                      const defaultName = slotMeta?.defaultName ?? entry?.name ?? `Custom Loadout ${index + 1}`;
+                      return {
+                          slot: entry?.slot ?? slotMeta?.slot ?? `slot${index + 1}`,
+                          name: sanitizeLoadoutName(entry?.name, defaultName),
+                          characterId: entry?.characterId ?? 'nova',
+                          weaponId: entry?.weaponId ?? 'pulse',
+                          skinId: entry?.skinId ?? 'default',
+                          trailId: entry?.trailId ?? 'rainbow'
+                      };
+                  })
+                : []
+        };
+        writeStorage(STORAGE_KEYS.customLoadouts, JSON.stringify(payload));
+    }
+
+    let customLoadouts = loadCustomLoadouts();
+    const loadoutStatusMessages = new Map();
+    let latestCosmeticSnapshot = null;
+
+    function getLoadoutSlotMeta(slotId) {
+        return CUSTOM_LOADOUT_SLOTS.find((slot) => slot.slot === slotId) ?? null;
+    }
+
+    function getLoadoutIndex(slotId) {
+        if (!slotId) {
+            return -1;
+        }
+        return customLoadouts.findIndex((entry) => entry && entry.slot === slotId);
+    }
+
+    function getCustomLoadout(slotId) {
+        const index = getLoadoutIndex(slotId);
+        return index >= 0 ? customLoadouts[index] : null;
+    }
+
+    function updateCustomLoadout(slotId, updates, { persist = true } = {}) {
+        const index = getLoadoutIndex(slotId);
+        if (index === -1) {
+            return null;
+        }
+        const target = customLoadouts[index];
+        if (!target || !updates || typeof updates !== 'object') {
+            return target;
+        }
+        const slotMeta = getLoadoutSlotMeta(slotId) ?? CUSTOM_LOADOUT_SLOTS[index] ?? null;
+        const defaultName = slotMeta?.defaultName ?? target.name;
+        if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
+            target.name = sanitizeLoadoutName(updates.name, defaultName);
+        } else {
+            target.name = sanitizeLoadoutName(target.name, defaultName);
+        }
+        if (typeof updates.characterId === 'string' && updates.characterId) {
+            target.characterId = updates.characterId;
+        }
+        if (typeof updates.weaponId === 'string' && updates.weaponId) {
+            target.weaponId = updates.weaponId;
+        }
+        if (typeof updates.skinId === 'string' && updates.skinId) {
+            target.skinId = updates.skinId;
+        }
+        if (typeof updates.trailId === 'string' && updates.trailId) {
+            target.trailId = updates.trailId;
+        }
+        if (persist) {
+            persistCustomLoadouts();
+        }
+        return target;
+    }
+
+    function setCustomLoadoutName(slotId, name, { persist = true } = {}) {
+        const index = getLoadoutIndex(slotId);
+        if (index === -1) {
+            return null;
+        }
+        const slotMeta = getLoadoutSlotMeta(slotId) ?? CUSTOM_LOADOUT_SLOTS[index] ?? null;
+        const defaultName = slotMeta?.defaultName ?? `Custom Loadout ${index + 1}`;
+        const sanitized = sanitizeLoadoutName(name, defaultName);
+        const target = customLoadouts[index];
+        if (target.name === sanitized) {
+            return target;
+        }
+        target.name = sanitized;
+        if (persist) {
+            persistCustomLoadouts();
+        }
+        return target;
     }
 
     const API_CONFIG = (() => {
@@ -5365,6 +5539,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resetWeaponPatternState(weaponId);
         }
         refreshWeaponSelectionDisplay();
+        renderCustomLoadouts(latestCosmeticSnapshot);
     }
 
     function renderChallengeList(snapshot = {}) {
@@ -5461,6 +5636,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderCosmeticOptions(snapshot = {}) {
+        if (snapshot && typeof snapshot === 'object') {
+            latestCosmeticSnapshot = snapshot;
+        }
         const cosmetics = snapshot?.cosmetics ?? {};
         const ownedSkins = new Set(Array.isArray(cosmetics.ownedSkins) ? cosmetics.ownedSkins : []);
         const ownedTrails = new Set(Array.isArray(cosmetics.ownedTrails) ? cosmetics.ownedTrails : []);
@@ -5606,6 +5784,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             refreshWeaponSelectionDisplay();
         }
+        renderCustomLoadouts(snapshot);
     }
 
     if (challengeListEl) {
@@ -5645,6 +5824,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 challengeManager.equipCosmetic('trail', trailId);
             }
         });
+    }
+
+    if (customLoadoutGrid) {
+        customLoadoutGrid.addEventListener('click', handleCustomLoadoutClick);
+        customLoadoutGrid.addEventListener('change', handleCustomLoadoutChange);
     }
 
     if (openWeaponSelectButton) {
@@ -6912,6 +7096,575 @@ document.addEventListener('DOMContentLoaded', () => {
     weaponProfileMap = new Map(weaponProfiles.map((profile) => [profile.id, profile]));
     renderWeaponSelectCards();
     refreshWeaponSelectionDisplay();
+
+    function getCurrentCosmeticsSelection() {
+        const fallbackWeapon = typeof activeWeaponId === 'string' && activeWeaponId ? activeWeaponId : 'pulse';
+        const equipped =
+            lastEquippedCosmetics && typeof lastEquippedCosmetics === 'object' ? lastEquippedCosmetics : {};
+        const currentWeapon =
+            typeof equipped.weapon === 'string' && equipped.weapon ? equipped.weapon : fallbackWeapon;
+        const currentSkin =
+            typeof equipped.skin === 'string' && equipped.skin ? equipped.skin : 'default';
+        const currentTrail =
+            typeof equipped.trail === 'string' && equipped.trail ? equipped.trail : 'rainbow';
+        return { weapon: currentWeapon, skin: currentSkin, trail: currentTrail };
+    }
+
+    function getSkinLabel(id) {
+        if (playerSkins?.[id]?.label) {
+            return playerSkins[id].label;
+        }
+        return typeof id === 'string' ? id : 'Hull';
+    }
+
+    function getTrailLabel(id) {
+        if (trailStyles?.[id]?.label) {
+            return trailStyles[id].label;
+        }
+        return typeof id === 'string' ? id : 'Stream';
+    }
+
+    function getWeaponLabel(id) {
+        const profile = getWeaponProfile(id) ?? getDefaultWeaponProfile();
+        return profile?.name ?? (typeof id === 'string' ? id : 'Weapon');
+    }
+
+    function getOwnedCosmeticSets(snapshot = latestCosmeticSnapshot) {
+        const cosmetics = snapshot?.cosmetics ?? {};
+        const ownedSkins = new Set(Array.isArray(cosmetics.ownedSkins) ? cosmetics.ownedSkins : []);
+        if (!ownedSkins.size) {
+            ownedSkins.add('default');
+        }
+        const ownedTrails = new Set(Array.isArray(cosmetics.ownedTrails) ? cosmetics.ownedTrails : []);
+        if (!ownedTrails.size) {
+            ownedTrails.add('rainbow');
+        }
+        const ownedWeapons = new Set(Array.isArray(cosmetics.ownedWeapons) ? cosmetics.ownedWeapons : []);
+        if (!ownedWeapons.size) {
+            ownedWeapons.add('pulse');
+            ownedWeapons.add('scatter');
+            ownedWeapons.add('lance');
+        }
+        return { ownedSkins, ownedTrails, ownedWeapons };
+    }
+
+    function setLoadoutStatus(slotId, message, type = 'info') {
+        if (!slotId) {
+            return;
+        }
+        if (message) {
+            loadoutStatusMessages.set(slotId, { message, type });
+        } else {
+            loadoutStatusMessages.delete(slotId);
+        }
+    }
+
+    function normalizeCustomLoadouts({ persist = true } = {}) {
+        let mutated = false;
+        const defaultCharacter = characterProfiles?.[0]?.id ?? 'nova';
+        const defaultWeapon = weaponProfiles?.[0]?.id ?? 'pulse';
+        for (let index = 0; index < customLoadouts.length; index += 1) {
+            const entry = customLoadouts[index];
+            if (!entry) {
+                continue;
+            }
+            const slotMeta = getLoadoutSlotMeta(entry.slot) ?? CUSTOM_LOADOUT_SLOTS[index] ?? null;
+            const defaultName = slotMeta?.defaultName ?? entry.name ?? `Custom Loadout ${index + 1}`;
+            const sanitizedName = sanitizeLoadoutName(entry.name, defaultName);
+            if (sanitizedName !== entry.name) {
+                entry.name = sanitizedName;
+                mutated = true;
+            }
+            if (!getCharacterProfile(entry.characterId)) {
+                entry.characterId = defaultCharacter;
+                mutated = true;
+            }
+            if (!weaponLoadouts?.[entry.weaponId]) {
+                entry.weaponId = defaultWeapon;
+                mutated = true;
+            }
+            if (!playerSkins?.[entry.skinId]) {
+                entry.skinId = 'default';
+                mutated = true;
+            }
+            if (!trailStyles?.[entry.trailId]) {
+                entry.trailId = 'rainbow';
+                mutated = true;
+            }
+        }
+        if (mutated && persist) {
+            persistCustomLoadouts();
+        }
+    }
+
+    function buildTrailSwatchStyle(trail) {
+        if (trail && Array.isArray(trail.colors) && trail.colors.length) {
+            return `linear-gradient(90deg, ${trail.colors.join(', ')})`;
+        }
+        return 'linear-gradient(90deg, rgba(56, 189, 248, 0.85), rgba(129, 140, 248, 0.85))';
+    }
+
+    function renderCustomLoadouts(snapshot = latestCosmeticSnapshot) {
+        if (!customLoadoutGrid) {
+            return;
+        }
+        if (snapshot !== undefined) {
+            latestCosmeticSnapshot = snapshot;
+        }
+        normalizeCustomLoadouts({ persist: false });
+        const ownership = getOwnedCosmeticSets(latestCosmeticSnapshot);
+        const currentSelection = getCurrentCosmeticsSelection();
+        const activeCharacter = activeCharacterId;
+        const escapeAttributeValue = (value) => {
+            if (typeof value !== 'string') {
+                return '';
+            }
+            if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+                return CSS.escape(value);
+            }
+            return value.replace(/"/g, '\\"');
+        };
+
+        const activeElement =
+            document.activeElement instanceof HTMLElement && customLoadoutGrid.contains(document.activeElement)
+                ? document.activeElement
+                : null;
+        let restoreFocusSelector = null;
+        if (activeElement) {
+            const activeCard = activeElement.closest('[data-loadout-id]');
+            const slotId = activeCard?.dataset.loadoutId;
+            if (slotId) {
+                const escapedSlot = escapeAttributeValue(slotId);
+                if (activeElement.dataset.loadoutAction) {
+                    const escapedAction = escapeAttributeValue(activeElement.dataset.loadoutAction);
+                    restoreFocusSelector = `[data-loadout-id="${escapedSlot}"] [data-loadout-action="${escapedAction}"]`;
+                } else if (activeElement.dataset.loadoutControl) {
+                    const escapedControl = escapeAttributeValue(activeElement.dataset.loadoutControl);
+                    restoreFocusSelector = `[data-loadout-id="${escapedSlot}"] [data-loadout-control="${escapedControl}"]`;
+                }
+            }
+        }
+
+        customLoadoutGrid.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+
+        for (let index = 0; index < customLoadouts.length; index += 1) {
+            const loadout = customLoadouts[index];
+            if (!loadout) {
+                continue;
+            }
+            const slotMeta = getLoadoutSlotMeta(loadout.slot) ?? CUSTOM_LOADOUT_SLOTS[index] ?? null;
+            const card = document.createElement('section');
+            card.className = 'custom-loadout-card';
+            card.dataset.loadoutId = loadout.slot ?? `slot${index + 1}`;
+            card.setAttribute('role', 'listitem');
+
+            const isActive =
+                loadout.characterId === activeCharacter &&
+                loadout.weaponId === currentSelection.weapon &&
+                loadout.skinId === currentSelection.skin &&
+                loadout.trailId === currentSelection.trail;
+            if (isActive) {
+                card.classList.add('is-active');
+                const badge = document.createElement('span');
+                badge.className = 'custom-loadout-badge';
+                badge.textContent = 'Active';
+                card.appendChild(badge);
+            }
+
+            const header = document.createElement('div');
+            header.className = 'custom-loadout-header';
+            const nameField = document.createElement('div');
+            nameField.className = 'custom-loadout-name-field';
+            const inputId = `customLoadoutName-${loadout.slot ?? index}`;
+            const nameLabel = document.createElement('label');
+            nameLabel.className = 'custom-loadout-name-label';
+            nameLabel.setAttribute('for', inputId);
+            nameLabel.textContent = 'Preset Name';
+            const nameInput = document.createElement('input');
+            nameInput.id = inputId;
+            nameInput.type = 'text';
+            nameInput.className = 'custom-loadout-name-input';
+            nameInput.value = loadout.name ?? slotMeta?.defaultName ?? `Custom Loadout ${index + 1}`;
+            nameInput.placeholder = slotMeta?.defaultName ?? `Custom Loadout ${index + 1}`;
+            nameInput.maxLength = MAX_LOADOUT_NAME_LENGTH;
+            nameInput.autocomplete = 'off';
+            nameInput.spellcheck = false;
+            nameInput.dataset.loadoutControl = 'name';
+            nameField.appendChild(nameLabel);
+            nameField.appendChild(nameInput);
+            header.appendChild(nameField);
+
+            const saveButton = document.createElement('button');
+            saveButton.type = 'button';
+            saveButton.className = 'custom-loadout-save';
+            saveButton.dataset.loadoutAction = 'save';
+            saveButton.textContent = 'Save Current Setup';
+            header.appendChild(saveButton);
+            card.appendChild(header);
+
+            const body = document.createElement('div');
+            body.className = 'custom-loadout-body';
+            const pilotProfile =
+                getCharacterProfile(loadout.characterId) ??
+                getCharacterProfile(activeCharacter) ??
+                characterProfiles?.[0] ??
+                null;
+            const pilotRow = document.createElement('div');
+            pilotRow.className = 'custom-loadout-preview-row';
+            const pilotThumb = document.createElement('div');
+            pilotThumb.className = 'custom-loadout-preview-thumb';
+            const pilotImage = document.createElement('img');
+            const pilotSrc =
+                pilotProfile?.image?.src ??
+                playerSkins?.[loadout.skinId]?.image?.src ??
+                playerSkins?.default?.image?.src ??
+                playerBaseImage?.src ??
+                'assets/player.png';
+            pilotImage.src = pilotSrc;
+            pilotImage.alt = pilotProfile?.name ? `${pilotProfile.name} portrait` : 'Pilot preview';
+            pilotImage.loading = 'lazy';
+            pilotThumb.appendChild(pilotImage);
+            pilotRow.appendChild(pilotThumb);
+            const pilotInfo = document.createElement('div');
+            pilotInfo.className = 'custom-loadout-preview-info';
+            const pilotTitle = document.createElement('span');
+            pilotTitle.className = 'custom-loadout-preview-title';
+            pilotTitle.textContent = 'Pilot';
+            const pilotName = document.createElement('span');
+            pilotName.className = 'custom-loadout-preview-value';
+            pilotName.textContent = pilotProfile?.name ?? loadout.characterId ?? 'Pilot';
+            const pilotButton = document.createElement('button');
+            pilotButton.type = 'button';
+            pilotButton.className = 'custom-loadout-link';
+            pilotButton.dataset.loadoutAction = 'open-pilot';
+            pilotButton.textContent = 'Choose Pilot';
+            pilotInfo.appendChild(pilotTitle);
+            pilotInfo.appendChild(pilotName);
+            pilotInfo.appendChild(pilotButton);
+            pilotRow.appendChild(pilotInfo);
+            body.appendChild(pilotRow);
+
+            const weaponRow = document.createElement('div');
+            weaponRow.className = 'custom-loadout-preview-row';
+            const weaponThumb = document.createElement('div');
+            weaponThumb.className = 'custom-loadout-preview-thumb';
+            const weaponImage = document.createElement('img');
+            const weaponProfile = getWeaponProfile(loadout.weaponId) ?? getDefaultWeaponProfile();
+            weaponImage.src = weaponProfile?.image?.src ?? defaultWeaponImageSrc;
+            weaponImage.alt = weaponProfile?.name ? `${weaponProfile.name} loadout` : 'Weapon loadout';
+            weaponImage.loading = 'lazy';
+            weaponThumb.appendChild(weaponImage);
+            weaponRow.appendChild(weaponThumb);
+            const weaponInfo = document.createElement('div');
+            weaponInfo.className = 'custom-loadout-preview-info';
+            const weaponTitle = document.createElement('span');
+            weaponTitle.className = 'custom-loadout-preview-title';
+            weaponTitle.textContent = 'Weapon';
+            const weaponName = document.createElement('span');
+            weaponName.className = 'custom-loadout-preview-value';
+            weaponName.textContent = weaponProfile?.name ?? loadout.weaponId ?? 'Weapon';
+            const weaponButton = document.createElement('button');
+            weaponButton.type = 'button';
+            weaponButton.className = 'custom-loadout-link';
+            weaponButton.dataset.loadoutAction = 'open-weapon';
+            weaponButton.textContent = 'Choose Weapon';
+            weaponInfo.appendChild(weaponTitle);
+            weaponInfo.appendChild(weaponName);
+            weaponInfo.appendChild(weaponButton);
+            weaponRow.appendChild(weaponInfo);
+            body.appendChild(weaponRow);
+
+            const tagGrid = document.createElement('div');
+            tagGrid.className = 'custom-loadout-tags';
+            const suitTag = document.createElement('div');
+            suitTag.className = 'custom-loadout-tag';
+            const suitLabel = document.createElement('span');
+            suitLabel.className = 'custom-loadout-tag-label';
+            suitLabel.textContent = 'Suit';
+            const suitValue = document.createElement('span');
+            suitValue.className = 'custom-loadout-tag-value';
+            suitValue.textContent = getSkinLabel(loadout.skinId);
+            const suitButton = document.createElement('button');
+            suitButton.type = 'button';
+            suitButton.className = 'custom-loadout-link';
+            suitButton.dataset.loadoutAction = 'open-skin';
+            suitButton.textContent = 'Adjust Suit';
+            suitTag.appendChild(suitLabel);
+            suitTag.appendChild(suitValue);
+            suitTag.appendChild(suitButton);
+
+            const trailTag = document.createElement('div');
+            trailTag.className = 'custom-loadout-tag';
+            const trailLabel = document.createElement('span');
+            trailLabel.className = 'custom-loadout-tag-label';
+            trailLabel.textContent = 'Stream';
+            const trailValue = document.createElement('span');
+            trailValue.className = 'custom-loadout-tag-value';
+            trailValue.textContent = getTrailLabel(loadout.trailId);
+            const trailSwatch = document.createElement('span');
+            trailSwatch.className = 'custom-loadout-trail-swatch';
+            const trailStyle = trailStyles?.[loadout.trailId] ?? trailStyles?.rainbow;
+            trailSwatch.style.background = buildTrailSwatchStyle(trailStyle);
+            const trailButton = document.createElement('button');
+            trailButton.type = 'button';
+            trailButton.className = 'custom-loadout-link';
+            trailButton.dataset.loadoutAction = 'open-trail';
+            trailButton.textContent = 'Adjust Stream';
+            trailTag.appendChild(trailLabel);
+            trailTag.appendChild(trailValue);
+            trailTag.appendChild(trailSwatch);
+            trailTag.appendChild(trailButton);
+
+            tagGrid.appendChild(suitTag);
+            tagGrid.appendChild(trailTag);
+            body.appendChild(tagGrid);
+
+            const missingItems = [];
+            if (!ownership.ownedSkins.has(loadout.skinId)) {
+                missingItems.push(getSkinLabel(loadout.skinId));
+            }
+            if (!ownership.ownedTrails.has(loadout.trailId)) {
+                missingItems.push(getTrailLabel(loadout.trailId));
+            }
+            if (!ownership.ownedWeapons.has(loadout.weaponId)) {
+                missingItems.push(getWeaponLabel(loadout.weaponId));
+            }
+            if (missingItems.length) {
+                card.classList.add('has-locked');
+                const lockedNote = document.createElement('p');
+                lockedNote.className = 'custom-loadout-locked';
+                lockedNote.textContent = `Unlock required: ${missingItems.join(', ')}`;
+                body.appendChild(lockedNote);
+            }
+            card.appendChild(body);
+
+            const footer = document.createElement('div');
+            footer.className = 'custom-loadout-footer';
+            const applyButton = document.createElement('button');
+            applyButton.type = 'button';
+            applyButton.className = 'custom-loadout-apply';
+            applyButton.dataset.loadoutAction = 'apply';
+            applyButton.textContent = 'Equip Loadout';
+            footer.appendChild(applyButton);
+            const status = document.createElement('p');
+            status.className = 'custom-loadout-status';
+            status.setAttribute('role', 'status');
+            const statusInfo = loadoutStatusMessages.get(loadout.slot);
+            status.classList.remove('error');
+            status.classList.remove('success');
+            if (statusInfo && statusInfo.message) {
+                status.textContent = statusInfo.message;
+                if (statusInfo.type === 'error') {
+                    status.classList.add('error');
+                } else if (statusInfo.type === 'success') {
+                    status.classList.add('success');
+                }
+                status.removeAttribute('hidden');
+            } else {
+                status.textContent = '';
+                status.setAttribute('hidden', '');
+            }
+            footer.appendChild(status);
+            card.appendChild(footer);
+
+            fragment.appendChild(card);
+        }
+
+        customLoadoutGrid.appendChild(fragment);
+
+        if (restoreFocusSelector) {
+            const nextFocus = customLoadoutGrid.querySelector(restoreFocusSelector);
+            if (nextFocus instanceof HTMLElement) {
+                try {
+                    nextFocus.focus({ preventScroll: true });
+                } catch (error) {
+                    nextFocus.focus();
+                }
+            }
+        }
+    }
+
+    function focusCosmeticOption(container, datasetKey, value) {
+        if (!container) {
+            return;
+        }
+        const escapeValue = (raw) => {
+            if (typeof raw !== 'string') {
+                return '';
+            }
+            if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+                return CSS.escape(raw);
+            }
+            return raw.replace(/"/g, '\\"');
+        };
+        let selector = `[data-${datasetKey}]`;
+        if (typeof value === 'string' && value) {
+            selector = `[data-${datasetKey}="${escapeValue(value)}"]`;
+        }
+        let target = null;
+        if (typeof value === 'string' && value) {
+            target = container.querySelector(selector);
+        }
+        if (!(target instanceof HTMLElement)) {
+            target = container.querySelector(`[data-${datasetKey}]`);
+        }
+        if (target instanceof HTMLElement) {
+            try {
+                target.focus({ preventScroll: false });
+            } catch (error) {
+                target.focus();
+            }
+            if (typeof target.scrollIntoView === 'function') {
+                target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        } else if (typeof container.scrollIntoView === 'function') {
+            container.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+    }
+
+    function saveCustomLoadoutFromCurrent(slotId) {
+        const loadout = getCustomLoadout(slotId);
+        if (!loadout) {
+            return;
+        }
+        const current = getCurrentCosmeticsSelection();
+        updateCustomLoadout(
+            slotId,
+            {
+                characterId: activeCharacterId ?? loadout.characterId,
+                weaponId: current.weapon,
+                skinId: current.skin,
+                trailId: current.trail
+            },
+            { persist: true }
+        );
+        setLoadoutStatus(slotId, 'Saved current setup.', 'success');
+        renderCustomLoadouts(latestCosmeticSnapshot);
+    }
+
+    function applyCustomLoadout(slotId) {
+        const loadout = getCustomLoadout(slotId);
+        if (!loadout) {
+            return;
+        }
+        normalizeCustomLoadouts({ persist: false });
+        const current = getCurrentCosmeticsSelection();
+        const blocked = [];
+        const profile = getCharacterProfile(loadout.characterId);
+        if (profile && loadout.characterId !== activeCharacterId) {
+            setActiveCharacter(profile);
+        }
+        if (challengeManager && typeof challengeManager.equipCosmetic === 'function') {
+            if (loadout.skinId && loadout.skinId !== current.skin) {
+                const equippedSkin = challengeManager.equipCosmetic('skin', loadout.skinId);
+                if (!equippedSkin && loadout.skinId !== current.skin) {
+                    blocked.push(getSkinLabel(loadout.skinId));
+                }
+            }
+            if (loadout.trailId && loadout.trailId !== current.trail) {
+                const equippedTrail = challengeManager.equipCosmetic('trail', loadout.trailId);
+                if (!equippedTrail && loadout.trailId !== current.trail) {
+                    blocked.push(getTrailLabel(loadout.trailId));
+                }
+            }
+            if (loadout.weaponId && loadout.weaponId !== current.weapon) {
+                const equippedWeapon = challengeManager.equipCosmetic('weapon', loadout.weaponId);
+                if (!equippedWeapon && loadout.weaponId !== current.weapon) {
+                    blocked.push(getWeaponLabel(loadout.weaponId));
+                }
+            }
+        } else {
+            const nextEquipped = {
+                ...lastEquippedCosmetics,
+                skin: loadout.skinId,
+                trail: loadout.trailId,
+                weapon: loadout.weaponId
+            };
+            applyEquippedCosmetics(nextEquipped);
+        }
+
+        if (blocked.length) {
+            setLoadoutStatus(slotId, `Unlock required: ${blocked.join(', ')}`, 'error');
+        } else {
+            const label = getCustomLoadout(slotId)?.name ?? 'Loadout';
+            setLoadoutStatus(slotId, `${label} equipped.`, 'success');
+        }
+
+        renderCustomLoadouts(latestCosmeticSnapshot);
+    }
+
+    function handleCustomLoadoutClick(event) {
+        const trigger =
+            event.target instanceof HTMLElement ? event.target.closest('[data-loadout-action]') : null;
+        if (!trigger || trigger.disabled) {
+            return;
+        }
+        const slotElement = trigger.closest('[data-loadout-id]');
+        const slotId = slotElement?.dataset.loadoutId;
+        if (!slotId) {
+            return;
+        }
+        const action = trigger.dataset.loadoutAction;
+        if (action === 'save') {
+            event.preventDefault();
+            saveCustomLoadoutFromCurrent(slotId);
+            return;
+        }
+        if (action === 'apply') {
+            event.preventDefault();
+            applyCustomLoadout(slotId);
+            return;
+        }
+        if (action === 'open-pilot') {
+            event.preventDefault();
+            setLoadoutStatus(slotId, null);
+            requestPilotSelection('loadout');
+            return;
+        }
+        if (action === 'open-weapon') {
+            event.preventDefault();
+            setLoadoutStatus(slotId, null);
+            openWeaponSelect({ trigger });
+            return;
+        }
+        if (action === 'open-skin') {
+            event.preventDefault();
+            setLoadoutStatus(slotId, null);
+            focusCosmeticOption(skinOptionsEl, 'skin-id', getCustomLoadout(slotId)?.skinId);
+            return;
+        }
+        if (action === 'open-trail') {
+            event.preventDefault();
+            setLoadoutStatus(slotId, null);
+            focusCosmeticOption(trailOptionsEl, 'trail-id', getCustomLoadout(slotId)?.trailId);
+            return;
+        }
+    }
+
+    function handleCustomLoadoutChange(event) {
+        const target = event.target instanceof HTMLInputElement ? event.target : null;
+        if (!target || target.dataset.loadoutControl !== 'name') {
+            return;
+        }
+        const slotElement = target.closest('[data-loadout-id]');
+        const slotId = slotElement?.dataset.loadoutId;
+        if (!slotId) {
+            return;
+        }
+        const slotMeta = getLoadoutSlotMeta(slotId) ?? null;
+        const fallbackName = slotMeta?.defaultName ?? target.value ?? 'Custom Loadout';
+        const sanitized = sanitizeLoadoutName(target.value, fallbackName);
+        if (sanitized !== target.value) {
+            target.value = sanitized;
+        }
+        const previous = getCustomLoadout(slotId)?.name;
+        setCustomLoadoutName(slotId, sanitized, { persist: true });
+        if (previous !== sanitized) {
+            setLoadoutStatus(slotId, 'Name updated.', 'success');
+            renderCustomLoadouts(latestCosmeticSnapshot);
+        }
+    }
     const projectileArchetypes = {
         standard: {
             width: 24,
@@ -7701,6 +8454,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     } else {
         applyEquippedCosmetics();
+        renderCustomLoadouts(latestCosmeticSnapshot);
     }
 
     const asteroidImageSources =
