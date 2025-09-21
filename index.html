@@ -37,13 +37,15 @@
     <div id="controllerCursor" aria-hidden="true"></div>
     <div id="gameShell">
         <div id="playfield">
-            <canvas id="gameCanvas" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
-            <div id="debugOverlay" aria-hidden="true" hidden>
-                <div data-debug-line="logical"></div>
-                <div data-debug-line="physical"></div>
-                <div data-debug-line="ratio"></div>
+            <div id="playfieldStage">
+                <canvas id="gameCanvas" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
+                <div id="debugOverlay" aria-hidden="true" hidden>
+                    <div data-debug-line="logical"></div>
+                    <div data-debug-line="physical"></div>
+                    <div data-debug-line="ratio"></div>
+                </div>
+                <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
             </div>
-            <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
             <div id="preflightBar">
                 <div id="preflightPrompt" role="status" aria-live="polite" hidden>
                     <span class="hud-title" aria-hidden="true">Nyan Ready</span>
