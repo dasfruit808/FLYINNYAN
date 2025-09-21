@@ -1041,6 +1041,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const TOUCH_SMOOTHING_RATE = 26;
     const DEBUG_OVERLAY_STORAGE_KEY = 'nyanEscape.debugOverlay';
     const TARGET_ASPECT_RATIO = 3 / 2;
+    const GAMEPAD_CURSOR_HALF_SIZE = 11;
     const viewport = {
         width: 900,
         height: 600,
@@ -6525,7 +6526,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const GAMEPAD_DEADZONE = 0.2;
     const GAMEPAD_CURSOR_DEADZONE = 0.25;
     const GAMEPAD_CURSOR_SPEED = 1500;
-    const GAMEPAD_CURSOR_HALF_SIZE = 11;
     const GAMEPAD_CURSOR_INACTIVITY_MS = 4000;
     const GAMEPAD_CURSOR_POINTER_ID = 999;
     const GAMEPAD_DASH_ACTIVATION_THRESHOLD = 0.6;
