@@ -1588,6 +1588,26 @@ document.addEventListener('DOMContentLoaded', () => {
             : null;
     let isTouchInterface = coarsePointerQuery?.matches ?? ('ontouchstart' in window);
     const TOUCH_SMOOTHING_RATE = 26;
+    const MOTION_SMOOTHING_RATE = 18;
+    const MOTION_MAX_TILT = 45;
+    const MOTION_DEADZONE = 0.1;
+    const MOTION_IDLE_TIMEOUT = 750;
+    const hasDeviceOrientationSupport =
+        typeof window !== 'undefined' && typeof window.DeviceOrientationEvent === 'function';
+    const motionInput = {
+        enabled: false,
+        permissionState: 'unknown',
+        active: false,
+        moveX: 0,
+        moveY: 0,
+        smoothedX: 0,
+        smoothedY: 0,
+        lastUpdate: 0
+    };
+    const getTimestamp = () =>
+        typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now();
     const DEBUG_OVERLAY_STORAGE_KEY = 'nyanEscape.debugOverlay';
     const TARGET_ASPECT_RATIO = 16 / 9;
     const gameShell = document.getElementById('gameShell');
@@ -1678,6 +1698,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateTouchControlsLayout() {
         if (!touchControls || !canvas) {
+            return;
+        }
+
+        if (motionInput.enabled) {
             return;
         }
 
@@ -2019,6 +2043,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 : 'Press Start (Enter) or click Launch to begin a run.';
         }
         updateTouchControlsLayout();
+        updateMotionBodyClasses();
     }
 
     refreshInteractionHints();
@@ -11352,6 +11377,173 @@ document.addEventListener('DOMContentLoaded', () => {
         joystickThumb.style.setProperty('--thumb-y', yValue);
     }
 
+    function resetMotionInput() {
+        motionInput.moveX = 0;
+        motionInput.moveY = 0;
+        motionInput.smoothedX = 0;
+        motionInput.smoothedY = 0;
+        motionInput.lastUpdate = getTimestamp();
+    }
+
+    function updateMotionBodyClasses() {
+        if (!bodyElement) {
+            return;
+        }
+        bodyElement.classList.toggle('motion-controls-enabled', motionInput.enabled);
+        bodyElement.classList.toggle(
+            'motion-controls-landscape',
+            motionInput.enabled && motionInput.active
+        );
+    }
+
+    function normalizeOrientationAngle(angle) {
+        if (!Number.isFinite(angle)) {
+            return 0;
+        }
+        let normalized = angle % 360;
+        if (normalized < 0) {
+            normalized += 360;
+        }
+        if (normalized >= 315 || normalized < 45) {
+            return 0;
+        }
+        if (normalized >= 45 && normalized < 135) {
+            return 90;
+        }
+        if (normalized >= 135 && normalized < 225) {
+            return 180;
+        }
+        return 270;
+    }
+
+    function getOrientationAngle() {
+        if (typeof window === 'undefined') {
+            return 0;
+        }
+        const orientation = window.screen?.orientation;
+        if (orientation && typeof orientation.angle === 'number') {
+            return normalizeOrientationAngle(orientation.angle);
+        }
+        if (typeof window.orientation === 'number') {
+            return normalizeOrientationAngle(window.orientation);
+        }
+        return 0;
+    }
+
+    function isLandscapeOrientation() {
+        const angle = getOrientationAngle();
+        return angle === 90 || angle === 270;
+    }
+
+    function applyMotionVector(xTilt, yTilt) {
+        const normalizedX = clamp(xTilt / MOTION_MAX_TILT, -1, 1);
+        const normalizedY = clamp(yTilt / MOTION_MAX_TILT, -1, 1);
+        motionInput.moveX = Math.abs(normalizedX) < MOTION_DEADZONE ? 0 : normalizedX;
+        motionInput.moveY = Math.abs(normalizedY) < MOTION_DEADZONE ? 0 : normalizedY;
+        motionInput.lastUpdate = getTimestamp();
+    }
+
+    function updateMotionOrientationState() {
+        motionInput.active = isLandscapeOrientation();
+        if (!motionInput.active) {
+            resetMotionInput();
+        }
+        updateMotionBodyClasses();
+    }
+
+    function handleOrientationChange() {
+        if (!motionInput.enabled) {
+            return;
+        }
+        updateMotionOrientationState();
+    }
+
+    function handleDeviceOrientation(event) {
+        if (!motionInput.enabled) {
+            return;
+        }
+        const landscape = isLandscapeOrientation();
+        motionInput.active = landscape;
+        if (!landscape) {
+            resetMotionInput();
+            updateMotionBodyClasses();
+            return;
+        }
+        const beta = typeof event.beta === 'number' ? event.beta : null;
+        const gamma = typeof event.gamma === 'number' ? event.gamma : null;
+        if (beta == null || gamma == null) {
+            return;
+        }
+        const angle = getOrientationAngle();
+        let xTilt;
+        let yTilt;
+        if (angle === 90) {
+            xTilt = gamma;
+            yTilt = -beta;
+        } else if (angle === 270) {
+            xTilt = -gamma;
+            yTilt = beta;
+        } else if (angle === 180) {
+            xTilt = -gamma;
+            yTilt = beta;
+        } else {
+            xTilt = gamma;
+            yTilt = beta;
+        }
+        applyMotionVector(xTilt, yTilt);
+        updateMotionBodyClasses();
+    }
+
+    function enableMotionControls() {
+        if (motionInput.enabled) {
+            return;
+        }
+        motionInput.enabled = true;
+        resetJoystick();
+        resetMotionInput();
+        updateMotionOrientationState();
+        window.addEventListener('deviceorientation', handleDeviceOrientation);
+        window.addEventListener('orientationchange', handleOrientationChange);
+    }
+
+    function shouldAttemptMotionControls() {
+        return isTouchInterface && hasDeviceOrientationSupport;
+    }
+
+    async function tryEnableMotionControls() {
+        if (!shouldAttemptMotionControls()) {
+            return;
+        }
+        if (motionInput.permissionState === 'granted') {
+            enableMotionControls();
+            return;
+        }
+        if (motionInput.permissionState === 'denied' || motionInput.permissionState === 'pending') {
+            return;
+        }
+        motionInput.permissionState = 'pending';
+        let granted = false;
+        try {
+            if (
+                typeof DeviceOrientationEvent !== 'undefined' &&
+                typeof DeviceOrientationEvent.requestPermission === 'function'
+            ) {
+                const result = await DeviceOrientationEvent.requestPermission();
+                granted = result === 'granted';
+            } else {
+                granted = true;
+            }
+        } catch {
+            granted = false;
+        }
+        motionInput.permissionState = granted ? 'granted' : 'denied';
+        if (!granted) {
+            updateMotionBodyClasses();
+            return;
+        }
+        enableMotionControls();
+    }
+
     function resetJoystick() {
         const pointerId = joystickState.pointerId;
         if (pointerId !== null && joystickZone?.hasPointerCapture?.(pointerId)) {
@@ -11382,6 +11574,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetVirtualControls() {
         resetJoystick();
         resetFiring();
+        if (motionInput.enabled) {
+            resetMotionInput();
+        }
     }
 
     function updateJoystickFromPointer(event) {
@@ -11442,14 +11637,15 @@ document.addEventListener('DOMContentLoaded', () => {
         endJoystickControl();
     }
 
-    function engageFireControl(event) {
+    function engageFireControl(event, options = {}) {
         const pointerId = event?.pointerId ?? null;
+        const { pointerCapture = true } = options;
         firePointerId = pointerId;
         fireTouchId = null;
         virtualInput.firing = true;
         if (fireButton) {
             fireButton.classList.add('active');
-            if (pointerId !== null) {
+            if (pointerCapture && pointerId !== null) {
                 fireButton.setPointerCapture?.(pointerId);
             }
         }
@@ -11635,15 +11831,90 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function shouldUseMotionFire(pointerType = null) {
+        if (!motionInput.enabled || !motionInput.active) {
+            return false;
+        }
+        if (!isTouchInterface) {
+            return false;
+        }
+        if (state.gameState !== 'playing') {
+            return false;
+        }
+        if (pointerType && pointerType !== 'touch') {
+            return false;
+        }
+        return true;
+    }
+
     if (canvas) {
-        canvas.addEventListener('pointerdown', () => {
+        canvas.addEventListener('pointerdown', (event) => {
             focusGameCanvas();
+            const pointerType = typeof event.pointerType === 'string' ? event.pointerType.toLowerCase() : null;
+            if (pointerType === 'touch') {
+                if (!isTouchInterface) {
+                    isTouchInterface = true;
+                    refreshInteractionHints();
+                }
+                tryEnableMotionControls();
+            }
+            if (shouldUseMotionFire(pointerType)) {
+                event.preventDefault();
+                engageFireControl(event, { pointerCapture: false });
+            }
         });
         if (!supportsPointerEvents) {
-            canvas.addEventListener('touchstart', () => {
-                focusGameCanvas();
-            }, { passive: true });
+            canvas.addEventListener(
+                'touchstart',
+                (event) => {
+                    focusGameCanvas();
+                    if (!isTouchInterface) {
+                        isTouchInterface = true;
+                        refreshInteractionHints();
+                    }
+                    tryEnableMotionControls();
+                    if (!shouldUseMotionFire()) {
+                        return;
+                    }
+                    const touch = event.changedTouches?.item?.(0) ?? event.changedTouches?.[0];
+                    if (!touch) {
+                        return;
+                    }
+                    event.preventDefault();
+                    engageFireTouchControl(touch.identifier);
+                },
+                { passive: false }
+            );
         }
+    }
+
+    if (supportsPointerEvents) {
+        window.addEventListener(
+            'pointerdown',
+            (event) => {
+                const pointerType = typeof event.pointerType === 'string' ? event.pointerType.toLowerCase() : null;
+                if (pointerType === 'touch') {
+                    if (!isTouchInterface) {
+                        isTouchInterface = true;
+                        refreshInteractionHints();
+                    }
+                    tryEnableMotionControls();
+                }
+            },
+            { passive: true }
+        );
+    } else if (typeof window !== 'undefined') {
+        window.addEventListener(
+            'touchstart',
+            () => {
+                if (!isTouchInterface) {
+                    isTouchInterface = true;
+                    refreshInteractionHints();
+                }
+                tryEnableMotionControls();
+            },
+            { passive: true }
+        );
     }
 
     if (joystickZone) {
@@ -12444,8 +12715,29 @@ document.addEventListener('DOMContentLoaded', () => {
             virtualInput.smoothedX = virtualInput.moveX;
             virtualInput.smoothedY = virtualInput.moveY;
         }
-        const inputX = clamp(keyboardX + virtualX + gamepadInput.moveX, -1, 1);
-        const inputY = clamp(keyboardY + virtualY + gamepadInput.moveY, -1, 1);
+        if (motionInput.enabled && motionInput.active) {
+            const now = getTimestamp();
+            if (now - motionInput.lastUpdate > MOTION_IDLE_TIMEOUT) {
+                motionInput.moveX = 0;
+                motionInput.moveY = 0;
+            }
+        }
+        let motionX = 0;
+        let motionY = 0;
+        if (motionInput.enabled) {
+            if (motionInput.active) {
+                const motionSmoothing = clamp(deltaSeconds * MOTION_SMOOTHING_RATE, 0, 1);
+                motionInput.smoothedX += (motionInput.moveX - motionInput.smoothedX) * motionSmoothing;
+                motionInput.smoothedY += (motionInput.moveY - motionInput.smoothedY) * motionSmoothing;
+                motionX = motionInput.smoothedX;
+                motionY = motionInput.smoothedY;
+            } else {
+                motionInput.smoothedX = motionInput.moveX;
+                motionInput.smoothedY = motionInput.moveY;
+            }
+        }
+        const inputX = clamp(keyboardX + virtualX + gamepadInput.moveX + motionX, -1, 1);
+        const inputY = clamp(keyboardY + virtualY + gamepadInput.moveY + motionY, -1, 1);
 
         const accel = config.player.acceleration;
         const drag = config.player.drag;
