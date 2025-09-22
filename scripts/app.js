@@ -6328,10 +6328,17 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     }
 
-    const initialCharacterProfile = getCharacterProfile(activeCharacterId);
-    if (initialCharacterProfile) {
-        setActiveCharacter(initialCharacterProfile);
-        setPendingCharacter(initialCharacterProfile.id, { updateSummary: false });
+    if (
+        typeof getCharacterProfile === 'function' &&
+        typeof setActiveCharacter === 'function' &&
+        typeof setPendingCharacter === 'function' &&
+        typeof activeCharacterId !== 'undefined'
+    ) {
+        const initialCharacterProfile = getCharacterProfile(activeCharacterId);
+        if (initialCharacterProfile) {
+            setActiveCharacter(initialCharacterProfile);
+            setPendingCharacter(initialCharacterProfile.id, { updateSummary: false });
+        }
     }
     const baseCollectScoreRaw = config?.score?.collect;
     const baseCollectScore = Number.isFinite(Number(baseCollectScoreRaw))
