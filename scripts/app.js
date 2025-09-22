@@ -1538,6 +1538,16 @@ document.addEventListener('DOMContentLoaded', () => {
         loadoutEditorModal?.querySelector('[data-loadout-editor-pilots]') ?? null;
     const loadoutEditorWeaponGrid =
         loadoutEditorModal?.querySelector('[data-loadout-editor-weapons]') ?? null;
+    const loadoutEditorSkinGrid =
+        loadoutEditorModal?.querySelector('[data-loadout-editor-skins]') ?? null;
+    const loadoutEditorTrailGrid =
+        loadoutEditorModal?.querySelector('[data-loadout-editor-trails]') ?? null;
+    const loadoutEditorSummaryValues = {
+        pilot: loadoutEditorModal?.querySelector('[data-loadout-editor-summary="pilot"]') ?? null,
+        weapon: loadoutEditorModal?.querySelector('[data-loadout-editor-summary="weapon"]') ?? null,
+        skin: loadoutEditorModal?.querySelector('[data-loadout-editor-summary="skin"]') ?? null,
+        trail: loadoutEditorModal?.querySelector('[data-loadout-editor-summary="trail"]') ?? null
+    };
     const loadoutEditorSaveButton = document.getElementById('loadoutEditorSave');
     const loadoutEditorCancelButton = document.getElementById('loadoutEditorCancel');
     const loadoutEditorCloseButton = document.getElementById('loadoutEditorClose');
@@ -2825,6 +2835,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let loadoutEditorWeaponButtons = [];
     let loadoutEditorPendingCharacterId = null;
     let loadoutEditorPendingWeaponId = null;
+    let loadoutEditorSkinButtons = [];
+    let loadoutEditorTrailButtons = [];
+    let loadoutEditorPendingSkinId = null;
+    let loadoutEditorPendingTrailId = null;
 
     function setActiveLoadoutId(slotId) {
         if (slotId && getCustomLoadout(slotId)) {
@@ -7513,6 +7527,26 @@ document.addEventListener('DOMContentLoaded', () => {
             button.classList.toggle('selected', isSelected);
             button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
         }
+        for (const button of loadoutEditorSkinButtons) {
+            if (!(button instanceof HTMLElement)) {
+                continue;
+            }
+            const skinId = button.dataset.skinId ?? '';
+            const isSelected = skinId === loadoutEditorPendingSkinId;
+            button.classList.toggle('selected', isSelected);
+            button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+            button.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+        }
+        for (const button of loadoutEditorTrailButtons) {
+            if (!(button instanceof HTMLElement)) {
+                continue;
+            }
+            const trailId = button.dataset.trailId ?? '';
+            const isSelected = trailId === loadoutEditorPendingTrailId;
+            button.classList.toggle('selected', isSelected);
+            button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+            button.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+        }
     }
 
     function updateLoadoutEditorSaveState() {
@@ -7521,7 +7555,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const hasCharacter = typeof loadoutEditorPendingCharacterId === 'string' && loadoutEditorPendingCharacterId;
         const hasWeapon = typeof loadoutEditorPendingWeaponId === 'string' && loadoutEditorPendingWeaponId;
-        const disabled = !(hasCharacter && hasWeapon);
+        const hasSkin = typeof loadoutEditorPendingSkinId === 'string' && loadoutEditorPendingSkinId;
+        const hasTrail = typeof loadoutEditorPendingTrailId === 'string' && loadoutEditorPendingTrailId;
+        const disabled = !(hasCharacter && hasWeapon && hasSkin && hasTrail);
         loadoutEditorSaveButton.disabled = disabled;
         loadoutEditorSaveButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
     }
@@ -7533,8 +7569,39 @@ document.addEventListener('DOMContentLoaded', () => {
         if (type === 'weapon' && typeof value === 'string') {
             loadoutEditorPendingWeaponId = value;
         }
+        if (type === 'skin' && typeof value === 'string') {
+            loadoutEditorPendingSkinId = value;
+        }
+        if (type === 'trail' && typeof value === 'string') {
+            loadoutEditorPendingTrailId = value;
+        }
         refreshLoadoutEditorSelectionState();
         updateLoadoutEditorSaveState();
+        updateLoadoutEditorSummary();
+    }
+
+    function updateLoadoutEditorSummary() {
+        const pilotLabel = loadoutEditorPendingCharacterId
+            ? getCharacterProfile(loadoutEditorPendingCharacterId)?.name ??
+              String(loadoutEditorPendingCharacterId)
+            : '—';
+        const weaponLabel = loadoutEditorPendingWeaponId
+            ? getWeaponLabel(loadoutEditorPendingWeaponId)
+            : '—';
+        const skinLabel = loadoutEditorPendingSkinId ? getSkinLabel(loadoutEditorPendingSkinId) : '—';
+        const trailLabel = loadoutEditorPendingTrailId ? getTrailLabel(loadoutEditorPendingTrailId) : '—';
+        if (loadoutEditorSummaryValues.pilot) {
+            loadoutEditorSummaryValues.pilot.textContent = pilotLabel;
+        }
+        if (loadoutEditorSummaryValues.weapon) {
+            loadoutEditorSummaryValues.weapon.textContent = weaponLabel ?? '—';
+        }
+        if (loadoutEditorSummaryValues.skin) {
+            loadoutEditorSummaryValues.skin.textContent = skinLabel ?? '—';
+        }
+        if (loadoutEditorSummaryValues.trail) {
+            loadoutEditorSummaryValues.trail.textContent = trailLabel ?? '—';
+        }
     }
 
     function renderLoadoutEditorOptions() {
@@ -7543,6 +7610,10 @@ document.addEventListener('DOMContentLoaded', () => {
             loadoutEditorWeaponButtons = [];
             return;
         }
+
+        const ownership = getOwnedCosmeticSets(latestCosmeticSnapshot);
+        const ownedSkins = ownership?.ownedSkins ?? new Set(['default']);
+        const ownedTrails = ownership?.ownedTrails ?? new Set(['rainbow']);
 
         loadoutEditorPilotGrid.innerHTML = '';
         const pilotFragment = document.createDocumentFragment();
@@ -7666,8 +7737,123 @@ document.addEventListener('DOMContentLoaded', () => {
         loadoutEditorWeaponGrid.appendChild(weaponFragment);
         loadoutEditorWeaponButtons = weaponButtons;
 
+        if (loadoutEditorSkinGrid) {
+            loadoutEditorSkinGrid.innerHTML = '';
+            const skinFragment = document.createDocumentFragment();
+            const skinButtons = [];
+            const skinOrder = ['default', 'midnight', 'sunrise'];
+            for (const skinId of skinOrder) {
+                const skin = playerSkins?.[skinId];
+                if (!skin) {
+                    continue;
+                }
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'loadout-editor-option';
+                button.dataset.skinId = skinId;
+                button.setAttribute('role', 'radio');
+                button.setAttribute('aria-pressed', 'false');
+                button.setAttribute('aria-checked', 'false');
+
+                const thumb = document.createElement('span');
+                thumb.className = 'loadout-editor-option-thumb';
+                const image = document.createElement('img');
+                image.src = skin.image?.src ?? playerBaseImage?.src ?? 'assets/player.png';
+                image.alt = '';
+                image.setAttribute('aria-hidden', 'true');
+                thumb.appendChild(image);
+                button.appendChild(thumb);
+
+                const meta = document.createElement('span');
+                meta.className = 'loadout-editor-option-meta';
+                const title = document.createElement('strong');
+                title.textContent = skin.label ?? getSkinLabel(skinId);
+                meta.appendChild(title);
+                const subtitle = document.createElement('span');
+                subtitle.textContent = skin.description ?? 'Hull finish';
+                meta.appendChild(subtitle);
+                button.appendChild(meta);
+
+                if (!ownedSkins.has(skinId)) {
+                    button.disabled = true;
+                    button.classList.add('locked');
+                    button.setAttribute('title', 'Unlock by completing challenges');
+                }
+
+                button.addEventListener('click', () => {
+                    setLoadoutEditorSelection('skin', skinId);
+                });
+
+                skinFragment.appendChild(button);
+                skinButtons.push(button);
+            }
+            loadoutEditorSkinGrid.appendChild(skinFragment);
+            loadoutEditorSkinButtons = skinButtons;
+        } else {
+            loadoutEditorSkinButtons = [];
+        }
+
+        if (loadoutEditorTrailGrid) {
+            loadoutEditorTrailGrid.innerHTML = '';
+            const trailFragment = document.createDocumentFragment();
+            const trailButtons = [];
+            const trailOrder = ['rainbow', 'aurora', 'ember'];
+            for (const trailId of trailOrder) {
+                const trail = trailStyles?.[trailId];
+                if (!trail) {
+                    continue;
+                }
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'loadout-editor-option';
+                button.dataset.trailId = trailId;
+                button.setAttribute('role', 'radio');
+                button.setAttribute('aria-pressed', 'false');
+                button.setAttribute('aria-checked', 'false');
+
+                const preview = document.createElement('span');
+                preview.className = 'loadout-editor-trail-preview';
+                preview.style.background = buildTrailSwatchStyle(trail);
+                button.appendChild(preview);
+
+                const meta = document.createElement('span');
+                meta.className = 'loadout-editor-option-meta';
+                const title = document.createElement('strong');
+                title.textContent = trail.label ?? getTrailLabel(trailId);
+                meta.appendChild(title);
+                const subtitle = document.createElement('span');
+                if (trail.type === 'palette') {
+                    subtitle.textContent = 'Color cycle stream';
+                } else if (trail.type === 'spectrum') {
+                    subtitle.textContent = 'Spectrum trail';
+                } else {
+                    subtitle.textContent = 'Trail effect';
+                }
+                meta.appendChild(subtitle);
+                button.appendChild(meta);
+
+                if (!ownedTrails.has(trailId)) {
+                    button.disabled = true;
+                    button.classList.add('locked');
+                    button.setAttribute('title', 'Unlock by completing challenges');
+                }
+
+                button.addEventListener('click', () => {
+                    setLoadoutEditorSelection('trail', trailId);
+                });
+
+                trailFragment.appendChild(button);
+                trailButtons.push(button);
+            }
+            loadoutEditorTrailGrid.appendChild(trailFragment);
+            loadoutEditorTrailButtons = trailButtons;
+        } else {
+            loadoutEditorTrailButtons = [];
+        }
+
         refreshLoadoutEditorSelectionState();
         updateLoadoutEditorSaveState();
+        updateLoadoutEditorSummary();
     }
 
     function closeLoadoutEditor({ restoreFocus = true } = {}) {
@@ -7682,6 +7868,11 @@ document.addEventListener('DOMContentLoaded', () => {
         loadoutEditorWeaponButtons = [];
         loadoutEditorPendingCharacterId = null;
         loadoutEditorPendingWeaponId = null;
+        loadoutEditorSkinButtons = [];
+        loadoutEditorTrailButtons = [];
+        loadoutEditorPendingSkinId = null;
+        loadoutEditorPendingTrailId = null;
+        updateLoadoutEditorSummary();
         if (restoreFocus && loadoutEditorReturnFocus instanceof HTMLElement) {
             try {
                 loadoutEditorReturnFocus.focus({ preventScroll: true });
@@ -7703,19 +7894,24 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoadoutStatus(slotId, null);
         loadoutEditorActiveSlotId = slotId;
         loadoutEditorReturnFocus = trigger instanceof HTMLElement ? trigger : null;
+        const currentSelection = getCurrentCosmeticsSelection();
         loadoutEditorPendingCharacterId = loadout.characterId ?? activeCharacterId ?? 'nova';
-        loadoutEditorPendingWeaponId = loadout.weaponId ?? activeWeaponId ?? 'pulse';
+        loadoutEditorPendingWeaponId =
+            loadout.weaponId ?? currentSelection?.weapon ?? activeWeaponId ?? 'pulse';
+        loadoutEditorPendingSkinId = loadout.skinId ?? currentSelection?.skin ?? 'default';
+        loadoutEditorPendingTrailId = loadout.trailId ?? currentSelection?.trail ?? 'rainbow';
         if (loadoutEditorTitle) {
             const presetName = loadout.name ?? 'Custom Loadout';
             loadoutEditorTitle.textContent = `Customize ${presetName}`;
         }
         if (loadoutEditorSubtitle) {
             const presetName = loadout.name ?? 'this preset';
-            loadoutEditorSubtitle.textContent = `Browse pilots and weapons to tailor ${presetName}. Saving will store the selections to the chosen loadout slot.`;
+            loadoutEditorSubtitle.textContent = `Browse pilots, weapons, suits, and streams to tailor ${presetName}. Saving will store the selections to the chosen loadout slot.`;
         }
         renderLoadoutEditorOptions();
         refreshLoadoutEditorSelectionState();
         updateLoadoutEditorSaveState();
+        updateLoadoutEditorSummary();
 
         loadoutEditorModal.hidden = false;
         loadoutEditorModal.setAttribute('aria-hidden', 'false');
@@ -7740,11 +7936,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const characterId = loadoutEditorPendingCharacterId;
         const weaponId = loadoutEditorPendingWeaponId;
-        if (!characterId || !weaponId) {
+        const skinId = loadoutEditorPendingSkinId;
+        const trailId = loadoutEditorPendingTrailId;
+        if (!characterId || !weaponId || !skinId || !trailId) {
             return;
         }
         const slotId = loadoutEditorActiveSlotId;
-        updateCustomLoadout(slotId, { characterId, weaponId }, { persist: true });
+        updateCustomLoadout(slotId, { characterId, weaponId, skinId, trailId }, { persist: true });
         applyCustomLoadout(slotId, { statusMessage: 'Preset saved and equipped.' });
         if (customLoadoutGrid) {
             loadoutEditorReturnFocus = customLoadoutGrid.querySelector(

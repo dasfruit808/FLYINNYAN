@@ -541,8 +541,26 @@
                 </button>
             </div>
             <p id="loadoutEditorSubtitle" class="loadout-editor-subtitle">
-                Browse pilots and weapons to tailor this preset. Saving will store the selections to the chosen loadout slot.
+                Browse pilots, weapons, suits, and streams to tailor this preset. Saving will store the selections to the chosen loadout slot.
             </p>
+            <div class="loadout-editor-summary" aria-live="polite">
+                <div class="loadout-editor-summary-row">
+                    <span class="loadout-editor-summary-label">Pilot</span>
+                    <span class="loadout-editor-summary-value" data-loadout-editor-summary="pilot"></span>
+                </div>
+                <div class="loadout-editor-summary-row">
+                    <span class="loadout-editor-summary-label">Weapon</span>
+                    <span class="loadout-editor-summary-value" data-loadout-editor-summary="weapon"></span>
+                </div>
+                <div class="loadout-editor-summary-row">
+                    <span class="loadout-editor-summary-label">Suit</span>
+                    <span class="loadout-editor-summary-value" data-loadout-editor-summary="skin"></span>
+                </div>
+                <div class="loadout-editor-summary-row">
+                    <span class="loadout-editor-summary-label">Stream</span>
+                    <span class="loadout-editor-summary-value" data-loadout-editor-summary="trail"></span>
+                </div>
+            </div>
             <section class="loadout-editor-section" aria-labelledby="loadoutEditorPilotsTitle">
                 <div class="loadout-editor-section-header">
                     <h3 id="loadoutEditorPilotsTitle">Select Pilot</h3>
@@ -556,6 +574,20 @@
                     <p class="loadout-editor-section-note">Pair a weapon kit with your pilot to complete the preset.</p>
                 </div>
                 <div class="character-grid" role="list" data-loadout-editor-weapons></div>
+            </section>
+            <section class="loadout-editor-section" aria-labelledby="loadoutEditorSkinsTitle">
+                <div class="loadout-editor-section-header">
+                    <h3 id="loadoutEditorSkinsTitle">Select Suit</h3>
+                    <p class="loadout-editor-section-note">Swap hull coatings to update the loadout's look.</p>
+                </div>
+                <div class="loadout-editor-chip-grid" role="radiogroup" data-loadout-editor-skins></div>
+            </section>
+            <section class="loadout-editor-section" aria-labelledby="loadoutEditorTrailsTitle">
+                <div class="loadout-editor-section-header">
+                    <h3 id="loadoutEditorTrailsTitle">Select Stream</h3>
+                    <p class="loadout-editor-section-note">Trail effects complete the preset's signature.</p>
+                </div>
+                <div class="loadout-editor-chip-grid" role="radiogroup" data-loadout-editor-trails></div>
             </section>
             <div class="loadout-editor-actions">
                 <button id="loadoutEditorSave" type="button">Save Loadout</button>
