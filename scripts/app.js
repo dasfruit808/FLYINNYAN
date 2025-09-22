@@ -6340,6 +6340,10 @@ document.addEventListener('DOMContentLoaded', () => {
             setPendingCharacter(initialCharacterProfile.id, { updateSummary: false });
         }
     }
+    if (!config || typeof config !== 'object') {
+        config = {};
+    }
+
     const defaultCollectScore = 84;
     const baseCollectScoreRaw = config?.score?.collect;
     const baseCollectScore = Number.isFinite(Number(baseCollectScoreRaw))
