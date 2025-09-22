@@ -5460,9 +5460,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
                 }
                 case 'runEnd': {
-                    const time = Number(payload?.timeMs);
-                    const score = Number(payload?.score);
-                    const best = Number(payload?.bestStreak);
+                    const time = Number(payload && payload.timeMs);
+                    const score = Number(payload && payload.score);
+                    const best = Number(payload && payload.bestStreak);
                     if (Number.isFinite(time)) {
                         state.stats.time = Math.max(state.stats.time, time);
                     }
@@ -5492,37 +5492,47 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!condition || typeof condition !== 'object') {
                 return false;
             }
-            const target = condition.event ?? condition.type ?? null;
-            const threshold = condition.threshold ?? condition.value ?? null;
+            const target = condition.event != null
+                ? condition.event
+                : (condition.type != null ? condition.type : null);
+            const threshold = condition.threshold != null
+                ? condition.threshold
+                : (condition.value != null ? condition.value : null);
             switch (target) {
                 case 'runStart':
                     return eventType === 'runStart';
                 case 'runEnd':
                     return eventType === 'runEnd';
-                case 'time':
-                    return state.stats.time >= Number(threshold ?? 0);
-                case 'score':
-                    return state.stats.score >= Number(threshold ?? 0);
-                case 'collectible':
-                    return state.stats.collectibles >= Number((threshold ?? 0) || 0);
+                case 'time': {
+                    const value = threshold != null ? threshold : 0;
+                    return state.stats.time >= Number(value);
+                }
+                case 'score': {
+                    const value = threshold != null ? threshold : 0;
+                    return state.stats.score >= Number(value);
+                }
+                case 'collectible': {
+                    const value = threshold != null ? threshold : 0;
+                    return state.stats.collectibles >= Number(value || 0);
+                }
                 case 'powerUp':
                     if (eventType !== 'powerUp') {
                         return false;
                     }
-                    if (condition.type && condition.type !== payload?.type) {
+                    if (condition.type && (!payload || condition.type !== payload.type)) {
                         return false;
                     }
                     return true;
                 case 'streak':
-                    return state.stats.bestStreak >= Number(threshold ?? 0);
+                    return state.stats.bestStreak >= Number(threshold != null ? threshold : 0);
                 case 'boss':
                     if (eventType !== 'boss') {
                         return false;
                     }
-                    if (condition.status && condition.status !== payload?.status) {
+                    if (condition.status && (!payload || condition.status !== payload.status)) {
                         return false;
                     }
-                    if (condition.key && condition.key !== payload?.boss) {
+                    if (condition.key && (!payload || condition.key !== payload.boss)) {
                         return false;
                     }
                     return true;
@@ -5536,10 +5546,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             updateStats(eventType, payload);
-            const candidates = [
-                ...(beatsByEvent.get(eventType) ?? []),
-                ...(beatsByEvent.get('*') ?? [])
-            ];
+            const candidates = [];
+            const directMatches = beatsByEvent.get(eventType) || [];
+            const wildcardMatches = beatsByEvent.get('*') || [];
+            for (let i = 0; i < directMatches.length; i += 1) {
+                candidates.push(directMatches[i]);
+            }
+            for (let i = 0; i < wildcardMatches.length; i += 1) {
+                candidates.push(wildcardMatches[i]);
+            }
             if (!candidates.length) {
                 if (eventType === 'runStart' || eventType === 'runEnd') {
                     refreshUI();
