@@ -281,6 +281,38 @@
                             <div class="custom-loadout-grid" data-loadout-grid role="list"></div>
                         </div>
                     </div>
+                    <div class="meta-progress-grid">
+                        <section class="meta-card">
+                            <h3>Reward Catalogue</h3>
+                            <ul id="rewardCatalogueList" class="reward-catalogue" role="list" aria-live="polite"></ul>
+                        </section>
+                        <section
+                            id="seasonPassPanel"
+                            class="meta-card season-pass-card"
+                            aria-live="polite"
+                            hidden
+                        >
+                            <h3>Season Pass</h3>
+                            <p id="seasonPassSummary" class="meta-card-summary"></p>
+                            <div
+                                class="season-pass-progress"
+                                role="progressbar"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                            >
+                                <div id="seasonPassProgressFill"></div>
+                            </div>
+                            <ol id="seasonPassTierList" class="season-pass-tier-list" role="list"></ol>
+                        </section>
+                        <section class="meta-card community-card">
+                            <h3>Community Goals</h3>
+                            <ul id="communityGoalList" class="community-goal-list" role="list" aria-live="polite"></ul>
+                        </section>
+                        <section class="meta-card achievement-card">
+                            <h3>Achievement Badges</h3>
+                            <ul id="achievementBadgeList" class="achievement-badge-list" role="list" aria-live="polite"></ul>
+                        </section>
+                    </div>
                     <ul class="intel-log" id="intelLog" role="list" aria-live="polite"></ul>
                 </div>
             </section>
