@@ -6271,6 +6271,48 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${tenths}`;
     }
 
+    function updateTimerDisplay() {
+        if (!timerValueEl) {
+            return;
+        }
+
+        let displayMs = 0;
+        if (state.gameState === 'running' || state.gameState === 'paused') {
+            displayMs = state.elapsedTime;
+        } else if (pendingSubmission && pendingSubmission.timeMs != null) {
+            const pendingMs = Number(pendingSubmission.timeMs);
+            if (Number.isFinite(pendingMs)) {
+                displayMs = pendingMs;
+            }
+        } else if (Number.isFinite(state.elapsedTime) && state.elapsedTime > 0) {
+            displayMs = state.elapsedTime;
+        } else if (lastRunSummary && lastRunSummary.timeMs != null) {
+            const summaryMs = Number(lastRunSummary.timeMs);
+            if (Number.isFinite(summaryMs)) {
+                displayMs = summaryMs;
+            }
+        }
+
+        if (!Number.isFinite(displayMs)) {
+            displayMs = 0;
+        }
+
+        const safeMs = Math.max(0, displayMs);
+        const formatted = formatTime(safeMs);
+        if (formatted !== lastFormattedTimer) {
+            timerValueEl.textContent = formatted;
+            lastFormattedTimer = formatted;
+        }
+
+        if (survivalTimerEl) {
+            const ariaPrefix = state.gameState === 'paused' ? 'Flight time paused' : 'Flight time';
+            const ariaLabel = `${ariaPrefix}: ${formatted}`;
+            if (survivalTimerEl.getAttribute('aria-label') !== ariaLabel) {
+                survivalTimerEl.setAttribute('aria-label', ariaLabel);
+            }
+        }
+    }
+
     function normalizeHighScoreEntry(entry = {}) {
         const normalized = {
             timeMs: Number.isFinite(entry.timeMs) ? Math.max(0, Math.floor(entry.timeMs)) : 0,
