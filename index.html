@@ -85,6 +85,7 @@
             <button type="button" class="instruction-button" data-panel-target="stats">Telemetry</button>
             <button type="button" class="instruction-button" data-panel-target="controlsCard">Controls</button>
             <button type="button" class="instruction-button" data-panel-target="missionCard">Mission</button>
+            <button type="button" class="instruction-button" data-panel-target="storyCard">Story</button>
             <button type="button" class="instruction-button" data-panel-target="intelCard">Intel</button>
             <button type="button" class="instruction-button" data-panel-target="socialCard">Feed</button>
         </div>
@@ -198,6 +199,41 @@
                         <li>Channel Hyper Beam cores to carve safe corridors when the lane is crowded.</li>
                         <li>Keep the combo meter charged to amplify every point.</li>
                     </ul>
+                </div>
+            </section>
+            <section class="hud-card info-panel" id="storyCard" aria-labelledby="storyCardTitle">
+                <h2 class="card-title" id="storyCardTitle">Campaign Log</h2>
+                <div class="card-body storyline-body">
+                    <article class="storyline-current" id="storyCurrent" aria-live="polite">
+                        <div class="storyline-heading">
+                            <p class="storyline-meta" id="storyCurrentMeta">Awaiting launch window.</p>
+                            <h3 class="storyline-title" id="storyCurrentTitle">Story uplink offline</h3>
+                        </div>
+                        <p class="storyline-text" id="storyCurrentBody">
+                            Launch a flight to receive live transmissions from Aurora.
+                        </p>
+                        <ul
+                            class="story-objectives"
+                            id="storyCurrentObjectives"
+                            hidden
+                            aria-live="polite"
+                            aria-label="Mission directives"
+                        ></ul>
+                        <figure class="storyboard-preview" id="storyboardPreview" hidden>
+                            <img id="storyboardImage" alt="" loading="lazy" />
+                            <figcaption id="storyboardCaption"></figcaption>
+                        </figure>
+                    </article>
+                    <div class="storyline-grid">
+                        <section class="storyline-panel">
+                            <h3 class="storyline-panel-title">Chronicle</h3>
+                            <ul class="storyline-list" id="storyTimeline" role="list"></ul>
+                        </section>
+                        <section class="storyline-panel">
+                            <h3 class="storyline-panel-title">Next Signals</h3>
+                            <ul class="storyline-list" id="storyUpcoming" role="list"></ul>
+                        </section>
+                    </div>
                 </div>
             </section>
             <section class="hud-card info-panel" id="intelCard" aria-labelledby="intelCardTitle">
