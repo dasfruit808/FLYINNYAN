@@ -8298,6 +8298,34 @@ document.addEventListener('DOMContentLoaded', () => {
         vy: 0
     };
 
+    function resetWeaponPatternState(weaponId) {
+        const weaponCollection = typeof weaponLoadouts !== 'undefined' && weaponLoadouts ? weaponLoadouts : null;
+        if (!weaponCollection || typeof weaponCollection !== 'object') {
+            return;
+        }
+
+        const idsToReset =
+            typeof weaponId === 'string' && weaponId.length > 0 ? [weaponId] : Object.keys(weaponCollection);
+
+        for (const id of idsToReset) {
+            const loadout = weaponCollection[id];
+            if (!loadout || typeof loadout !== 'object') {
+                continue;
+            }
+
+            if (typeof loadout.resetPatternState === 'function') {
+                loadout.resetPatternState();
+                continue;
+            }
+
+            if (typeof loadout.createPatternState === 'function') {
+                loadout.patternState = loadout.createPatternState();
+            } else if ('patternState' in loadout) {
+                loadout.patternState = undefined;
+            }
+        }
+    }
+
     function resetGame() {
         storyManager.prepareForRun();
         state.score = 0;
