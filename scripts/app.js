@@ -1436,6 +1436,168 @@ document.addEventListener('DOMContentLoaded', () => {
         return defaultSrc;
     }
 
+    const baseGameConfig = {
+        baseGameSpeed: 165,
+        speedGrowth: 5.4,
+        baseTrailLength: 28,
+        trailGrowthPerStreak: 1.5,
+        trailSpacing: 7,
+        tailSmoothing: { growth: 120, shrink: 160 },
+        comboDecayWindow: 5200,
+        comboMultiplierStep: 0.045,
+        obstacleSpawnInterval: 1100,
+        collectibleSpawnInterval: 1400,
+        powerUpSpawnInterval: 12000,
+        projectileCooldown: 180,
+        projectileSpeed: 760,
+        star: {
+            count: 42,
+            baseSpeed: 60
+        },
+        player: {
+            width: 48,
+            height: 36,
+            acceleration: 18,
+            drag: 10.5,
+            maxSpeed: 320,
+            verticalBleed: 0.18,
+            dash: {
+                boostSpeed: 580,
+                duration: 220,
+                dragMultiplier: 0.4,
+                doubleTapWindow: 220
+            }
+        },
+        collectible: {
+            size: 32,
+            verticalPadding: 48,
+            minSpeed: 110,
+            maxSpeed: 210
+        },
+        powerUp: {
+            size: 42,
+            minSpeed: 150,
+            maxSpeed: 250,
+            wobbleSpeed: 2.3,
+            wobbleAmplitude: 26,
+            duration: {
+                powerBomb: 9000,
+                bulletSpread: 9000,
+                missiles: 9000,
+                [DOUBLE_TEAM_POWER]: 14000,
+                [FLAME_WHIP_POWER]: 8000,
+                [HYPER_BEAM_POWER]: 6000,
+                [SHIELD_POWER]: 9000,
+                [PUMP_POWER]: 8000,
+                [TIME_DILATION_POWER]: 8000,
+                [SCORE_SURGE_POWER]: 7000,
+                [MAGNET_POWER]: 8000
+            }
+        },
+        score: {
+            collect: 84,
+            destroy: 120,
+            asteroid: 60,
+            dodge: 18,
+            villainEscape: 150
+        },
+        scoreSurgePower: {
+            scoreMultiplier: 2
+        },
+        timeDilationPower: {
+            worldSpeedMultiplier: 0.6,
+            spawnRateMultiplier: 0.6
+        },
+        magnetPower: {
+            pullRadius: 260,
+            pullStrength: 1100,
+            maxSpeed: 280
+        },
+        hyperBeam: {
+            beamHeight: 180,
+            extraLength: 80,
+            waveSpeed: 0.006,
+            damagePerSecond: 32,
+            asteroidDamagePerSecond: 48,
+            rampUp: 260,
+            fadeOut: 260,
+            hitSparkRate: 7,
+            jitterAmplitude: 18,
+            sparkInterval: 140
+        },
+        doubleTeamPower: {
+            separation: 140,
+            catchUpRate: 6.2,
+            wobbleAmplitude: 16,
+            wobbleSpeed: 3.2,
+            trailSpacingScale: 0.82
+        },
+        defensePower: {
+            obstacleKnockback: 540,
+            obstacleBounceDuration: 520,
+            obstacleSpeedMultiplier: 0.32,
+            asteroidKnockback: 640,
+            clearance: 48,
+            hitCooldown: 600,
+            auraColor: 'rgba(148, 210, 255, 0.6)',
+            auraPulse: 1600,
+            particleColor: { r: 148, g: 210, b: 255 }
+        },
+        difficulty: {
+            rampDuration: 100000,
+            speedRamp: { start: 0.24, end: 0.84 },
+            spawnIntensity: {
+                obstacle: { start: 0.42, end: 1.18 },
+                collectible: { start: 0.64, end: 0.98 },
+                powerUp: { start: 0.54, end: 0.9 }
+            },
+            healthRamp: { start: 0.82, end: 1.32 }
+        },
+        asteroid: {
+            scale: 1,
+            depthRange: [0.08, 0.92],
+            sizeRange: [48, 148],
+            speedRange: [140, 300],
+            rotationSpeedRange: [-0.6, 0.6],
+            driftRange: [-24, 24],
+            clusterRadius: 220,
+            minSpacing: 24,
+            spawnOffset: 150,
+            placementAttempts: 24,
+            initialCount: 4,
+            maxCount: 8,
+            spawnInterval: 2600,
+            meteorShowerInterval: 26000,
+            meteorShowerVariance: 9000,
+            meteorShowerCount: 5,
+            meteorShowerSpeedMultiplier: 1.18,
+            meteorShowerFormation: [
+                { x: 0, y: 0 },
+                { x: 70, y: -56 },
+                { x: 70, y: 56 },
+                { x: 140, y: -112 },
+                { x: 140, y: 112 }
+            ],
+            collisionRadiusMultiplier: 1,
+            flowLerp: 0.08,
+            trail: {
+                spacing: 36,
+                maxPoints: 14,
+                life: 560,
+                widthScale: 0.44,
+                lengthScale: 0.78
+            }
+        }
+    };
+
+    config = applyOverrides(cloneConfig(baseGameConfig), gameplayOverrides);
+    basePlayerConfig = cloneConfig(baseGameConfig.player);
+    baseDashConfig = cloneConfig(baseGameConfig.player.dash);
+    baseProjectileSettings = {
+        speed: baseGameConfig.projectileSpeed,
+        cooldown: baseGameConfig.projectileCooldown
+    };
+
     const defaultBackgrounds = [
         'assets/background1.png',
         'assets/background2.png',
