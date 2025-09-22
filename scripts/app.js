@@ -5597,6 +5597,31 @@ document.addEventListener('DOMContentLoaded', () => {
         flyNowButton.disabled = !shouldShow;
     }
 
+    function refreshOverlayLaunchButton() {
+        if (!overlayButton) {
+            return;
+        }
+        const mode = overlayButton.dataset.launchMode || (state.gameState === 'ready' ? 'launch' : 'retry');
+        let label = overlayButton.textContent ?? '';
+        if (mode === 'launch') {
+            label = getLaunchControlText();
+        } else if (mode === 'retry') {
+            label = getRetryControlText();
+        } else if (mode === 'prepare') {
+            label = 'Confirm Callsign';
+        }
+        let shouldDisable = false;
+        if (mode === 'prepare' && playerNameInput) {
+            const pendingInput = sanitizePlayerName(playerNameInput.value);
+            shouldDisable = pendingInput.length === 0;
+        }
+        overlayButton.disabled = shouldDisable;
+        overlayButton.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
+        if (label && overlayButton.textContent !== label) {
+            overlayButton.textContent = label;
+        }
+    }
+
     function startTutorialFlight() {
         if (!flyNowButton || state.gameState === 'running') {
             return;
