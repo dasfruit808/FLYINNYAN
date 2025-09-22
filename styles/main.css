@@ -1598,6 +1598,11 @@ body.touch-enabled #preflightPrompt .desktop-only {
     }
 }
 
+body.motion-controls-enabled #touchControls {
+    display: none !important;
+    pointer-events: none;
+}
+
 #joystickZone {
     position: absolute;
     width: clamp(132px, 26vw, 188px);
