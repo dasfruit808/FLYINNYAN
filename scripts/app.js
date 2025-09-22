@@ -5674,6 +5674,207 @@ document.addEventListener('DOMContentLoaded', () => {
     let leaderboardEntries = leaderboardState.scopes[activeLeaderboardScope] ?? [];
     const leaderboardStatusState = { message: '', type: 'info' };
     let leaderboardFetchPromise = null;
+
+    function setLeaderboardStatus(message, type = 'info') {
+        leaderboardStatusState.message = typeof message === 'string' ? message.trim() : '';
+        const allowedTypes = new Set(['info', 'success', 'error', 'warning', 'loading']);
+        const nextType = allowedTypes.has(type) ? type : 'info';
+        leaderboardStatusState.type = nextType;
+        if (!leaderboardStatusEl) {
+            return leaderboardStatusState;
+        }
+        leaderboardStatusEl.classList.remove('success', 'error', 'warning', 'loading');
+        if (!leaderboardStatusState.message) {
+            leaderboardStatusEl.textContent = '';
+            leaderboardStatusEl.hidden = true;
+            return leaderboardStatusState;
+        }
+        leaderboardStatusEl.hidden = false;
+        leaderboardStatusEl.textContent = leaderboardStatusState.message;
+        if (nextType !== 'info') {
+            leaderboardStatusEl.classList.add(nextType);
+        }
+        return leaderboardStatusState;
+    }
+
+    function renderLeaderboardEntries(entries) {
+        if (!leaderboardListEl) {
+            return;
+        }
+        leaderboardListEl.textContent = '';
+        const list = Array.isArray(entries) ? entries : [];
+        if (!list.length) {
+            const emptyItem = document.createElement('li');
+            emptyItem.className = 'empty';
+            emptyItem.textContent = 'No ranked flights logged yet.';
+            leaderboardListEl.append(emptyItem);
+            return;
+        }
+        list.forEach((entry) => {
+            if (!entry || typeof entry !== 'object') {
+                return;
+            }
+            const item = document.createElement('li');
+            const primaryLine = document.createElement('div');
+            const playerName = typeof entry.player === 'string' ? entry.player : DEFAULT_PLAYER_NAME;
+            const score = Number.isFinite(entry.score) ? Math.max(0, Math.floor(entry.score)) : 0;
+            const timeMs = Number.isFinite(entry.timeMs) ? Math.max(0, Math.floor(entry.timeMs)) : 0;
+            primaryLine.textContent = `${playerName} — ${score.toLocaleString()} pts`;
+            const metaLine = document.createElement('div');
+            metaLine.className = 'meta';
+            const streak = Number.isFinite(entry.bestStreak) ? Math.max(0, Math.floor(entry.bestStreak)) : 0;
+            const nyan = Number.isFinite(entry.nyan) ? Math.max(0, Math.floor(entry.nyan)) : 0;
+            const details = [`Time ${formatTime(timeMs)}`];
+            if (streak) {
+                details.push(`Tail x${streak}`);
+            }
+            if (nyan) {
+                details.push(`${nyan.toLocaleString()} pickups`);
+            }
+            const recordedAt = Number.isFinite(entry.recordedAt)
+                ? Math.max(0, Math.floor(entry.recordedAt))
+                : Date.now();
+            const relative = formatRelativeTime(recordedAt);
+            if (relative) {
+                details.push(relative);
+            }
+            metaLine.textContent = details.join(' • ');
+            item.append(primaryLine, metaLine);
+            leaderboardListEl.append(item);
+        });
+    }
+
+    function updateLeaderboardTitle() {
+        if (!leaderboardTitleEl) {
+            return;
+        }
+        const scopeLabel = activeLeaderboardScope === 'weekly' ? 'Weekly Standings' : 'Galaxy Standings';
+        const updated = leaderboardState.fetchedAt ? formatRelativeTime(leaderboardState.fetchedAt) : '';
+        const finalTitle = updated ? `${scopeLabel} • Synced ${updated}` : scopeLabel;
+        if (leaderboardTitleEl.textContent !== finalTitle) {
+            leaderboardTitleEl.textContent = finalTitle;
+        }
+        leaderboardTitleEl.dataset.scope = activeLeaderboardScope;
+    }
+
+    function setActiveLeaderboardScope(nextScope) {
+        const availableScopes = Array.isArray(API_CONFIG.scopes) && API_CONFIG.scopes.length
+            ? API_CONFIG.scopes
+            : ['global'];
+        const normalized = availableScopes.includes(nextScope) ? nextScope : 'global';
+        activeLeaderboardScope = normalized;
+        leaderboardEntries = Array.isArray(leaderboardState.scopes[normalized])
+            ? leaderboardState.scopes[normalized].slice()
+            : [];
+        leaderboardTabButtons.forEach((button) => {
+            if (!(button instanceof HTMLElement)) {
+                return;
+            }
+            const scope = button.dataset.leaderboardScope ?? '';
+            const isActive = scope === normalized;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            button.setAttribute('tabindex', isActive ? '0' : '-1');
+        });
+        if (leaderboardListEl) {
+            leaderboardListEl.dataset.scope = normalized;
+        }
+        renderLeaderboardEntries(leaderboardEntries);
+        updateLeaderboardTitle();
+        return leaderboardEntries;
+    }
+
+    function applyLeaderboardSnapshot(snapshot, { source = 'remote', persist = true } = {}) {
+        const sanitized = sanitizeLeaderboardSnapshot(snapshot);
+        leaderboardState.scopes = {
+            ...leaderboardState.scopes,
+            global: sanitized.global ?? [],
+            weekly: sanitized.weekly ?? []
+        };
+        leaderboardState.fetchedAt = sanitized.fetchedAt ?? Date.now();
+        leaderboardState.source = source;
+        leaderboardState.error = null;
+        if (persist) {
+            persistLeaderboard({
+                global: leaderboardState.scopes.global,
+                weekly: leaderboardState.scopes.weekly,
+                fetchedAt: leaderboardState.fetchedAt
+            });
+        }
+        setActiveLeaderboardScope(activeLeaderboardScope);
+        if (source === 'cache' && leaderboardState.fetchedAt) {
+            const relative = formatRelativeTime(leaderboardState.fetchedAt);
+            const suffix = relative ? ` — last synced ${relative}.` : '.';
+            setLeaderboardStatus(`Showing cached standings${suffix}`, 'info');
+        } else if (source === 'empty') {
+            setLeaderboardStatus('No standings available yet. Complete a ranked run to take the lead!', 'info');
+        }
+        return sanitized;
+    }
+
+    function refreshLeaderboardsFromApi({ force = false } = {}) {
+        if (!API_CONFIG.baseUrl) {
+            return Promise.resolve(null);
+        }
+        const now = Date.now();
+        const cacheAge = now - (leaderboardState.fetchedAt || 0);
+        if (!force && leaderboardState.fetchedAt && cacheAge < API_CONFIG.cacheTtlMs) {
+            return Promise.resolve(null);
+        }
+        if (leaderboardFetchPromise) {
+            return leaderboardFetchPromise;
+        }
+        const scopes = Array.isArray(API_CONFIG.scopes) && API_CONFIG.scopes.length
+            ? API_CONFIG.scopes.join(',')
+            : 'global';
+        const endpoint = buildApiUrl(`leaderboards?scopes=${encodeURIComponent(scopes)}`);
+        if (!endpoint) {
+            return Promise.resolve(null);
+        }
+        leaderboardFetchPromise = (async () => {
+            try {
+                setLeaderboardStatus('Syncing galaxy standings…', 'loading');
+                const response = await fetchWithTimeout(endpoint, {
+                    method: 'GET',
+                    headers: { Accept: 'application/json' }
+                });
+                if (!response.ok) {
+                    throw new Error(`Leaderboard request failed with status ${response.status}`);
+                }
+                const payload = await parseJsonSafely(response);
+                if (!payload || typeof payload !== 'object') {
+                    throw new Error('Invalid leaderboard response payload.');
+                }
+                const leaderboards =
+                    payload && typeof payload === 'object' && payload.leaderboards && typeof payload.leaderboards === 'object'
+                        ? payload.leaderboards
+                        : {};
+                const sanitized = applyLeaderboardSnapshot(
+                    {
+                        global: leaderboards.global ?? [],
+                        weekly: leaderboards.weekly ?? [],
+                        fetchedAt: payload.fetchedAt
+                    },
+                    { source: 'remote', persist: true }
+                );
+                const relative = leaderboardState.fetchedAt ? formatRelativeTime(leaderboardState.fetchedAt) : '';
+                const suffix = relative ? ` — synced ${relative}.` : '.';
+                setLeaderboardStatus(`Standings updated${suffix}`, 'success');
+                return sanitized;
+            } catch (error) {
+                console.error('Failed to refresh leaderboards', error);
+                leaderboardState.error = error;
+                setLeaderboardStatus(
+                    'Unable to sync leaderboards right now. Showing last known standings.',
+                    'error'
+                );
+                return null;
+            } finally {
+                leaderboardFetchPromise = null;
+            }
+        })();
+        return leaderboardFetchPromise;
+    }
     const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
     let lastRunSummary = null;
     let pendingSubmission = null;
