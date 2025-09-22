@@ -3726,6 +3726,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return DIFFICULTY_PRESETS[normalized] ?? DIFFICULTY_PRESETS[DEFAULT_DIFFICULTY_ID];
     }
 
+    function applyDifficultyPreset(id, { announce = false } = {}) {
+        const preset = getDifficultyPreset(id);
+        const normalizedId = preset?.id ?? DEFAULT_DIFFICULTY_ID;
+        activeDifficultyPreset = normalizedId;
+
+        const baseConfig = applyOverrides(cloneConfig(baseGameConfig), gameplayOverrides);
+        const overrides = preset?.overrides;
+        const nextConfig = overrides ? applyOverrides(baseConfig, overrides) : baseConfig;
+
+        config = nextConfig;
+
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.dataset.difficultyPreset = normalizedId;
+        }
+
+        if (announce && preset?.label) {
+            const message = preset.description
+                ? `${preset.label}: ${preset.description}`
+                : `${preset.label} difficulty engaged`;
+            console.info(`[difficulty] ${message}`);
+        }
+
+        return preset;
+    }
+
     const DEFAULT_SETTINGS = {
         masterVolume: typeof audioManager.getMasterVolume === 'function'
             ? audioManager.getMasterVolume()
