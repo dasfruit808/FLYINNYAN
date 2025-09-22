@@ -1699,6 +1699,260 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingScreen = document.getElementById('loadingScreen');
     const loadingStatus = document.getElementById('loadingStatus');
     const loadingImageEl = document.getElementById('loadingImage');
+    const modalFocusMemory = new WeakMap();
+    const loadingSequenceTimers = new Set();
+
+    function isModalOpen(modal) {
+        return Boolean(modal && !modal.hidden && modal.getAttribute('aria-hidden') !== 'true');
+    }
+
+    function focusElement(element) {
+        if (!(element instanceof HTMLElement)) {
+            return;
+        }
+        const needsTemporaryTabIndex = element.tabIndex < 0 && !element.hasAttribute('tabindex');
+        if (needsTemporaryTabIndex) {
+            element.setAttribute('tabindex', '-1');
+        }
+        const focusFn = () => {
+            try {
+                element.focus({ preventScroll: true });
+            } catch {
+                element.focus();
+            }
+            if (needsTemporaryTabIndex) {
+                element.addEventListener(
+                    'blur',
+                    () => {
+                        element.removeAttribute('tabindex');
+                    },
+                    { once: true }
+                );
+            }
+        };
+        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(focusFn);
+        } else {
+            focusFn();
+        }
+    }
+
+    function openModal(modal, { bodyClass, initialFocus } = {}) {
+        if (!modal || isModalOpen(modal)) {
+            return;
+        }
+        const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        modalFocusMemory.set(modal, previousFocus);
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+        if (bodyClass && bodyElement) {
+            bodyElement.classList.add(bodyClass);
+        }
+        const resolvedInitialFocus =
+            typeof initialFocus === 'function'
+                ? initialFocus()
+                : initialFocus ??
+                  modal.querySelector('[data-initial-focus]') ??
+                  modal.querySelector('[autofocus]') ??
+                  modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        focusElement(resolvedInitialFocus instanceof HTMLElement ? resolvedInitialFocus : modal);
+    }
+
+    function closeModal(modal, { bodyClass, restoreFocus = true } = {}) {
+        if (!modal || !isModalOpen(modal)) {
+            return;
+        }
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+        if (bodyClass && bodyElement) {
+            bodyElement.classList.remove(bodyClass);
+        }
+        const previousFocus = modalFocusMemory.get(modal);
+        modalFocusMemory.delete(modal);
+        if (restoreFocus && previousFocus instanceof HTMLElement) {
+            focusElement(previousFocus);
+        }
+    }
+
+    function clearLoadingSequenceTimers() {
+        if (typeof window === 'undefined' || typeof window.clearTimeout !== 'function') {
+            loadingSequenceTimers.clear();
+            return;
+        }
+        for (const timerId of loadingSequenceTimers) {
+            window.clearTimeout(timerId);
+        }
+        loadingSequenceTimers.clear();
+    }
+
+    function runCyborgLoadingSequence() {
+        clearLoadingSequenceTimers();
+        if (!loadingScreen || !loadingStatus) {
+            return;
+        }
+
+        loadingScreen.classList.remove('hidden');
+
+        const prefixEl = loadingStatus.querySelector('.loading-prefix');
+        const lineEl = loadingStatus.querySelector('.loading-line');
+
+        const steps = [
+            { prefix: '[SYS-BOOT:01]', message: 'Spooling quantum cores', percent: 8, delay: 450 },
+            { prefix: '[SYS-BOOT:02]', message: 'Aligning gravitic fins', percent: 22, delay: 550 },
+            { prefix: '[SYS-BOOT:03]', message: 'Synchronizing neural uplink', percent: 38, delay: 620 },
+            { prefix: '[SYS-BOOT:04]', message: 'Priming starlight cannons', percent: 54, delay: 520 },
+            { prefix: '[SYS-BOOT:05]', message: 'Charging harmonic shields', percent: 68, delay: 560 },
+            { prefix: '[SYS-BOOT:06]', message: 'Mapping asteroid trajectories', percent: 82, delay: 640 },
+            { prefix: '[SYS-BOOT:07]', message: 'Finalizing launch window', percent: 94, delay: 600 },
+            { prefix: '[SYS-BOOT:08]', message: 'All systems nominal', percent: 100, delay: 700 }
+        ];
+
+        const updateLoadingLine = (message, percent) => {
+            if (!lineEl) {
+                return;
+            }
+            const formattedPercent = `${String(Math.round(percent)).padStart(3, '0')}%`;
+            lineEl.textContent = `${message} — `;
+            const percentSpan = document.createElement('span');
+            percentSpan.className = 'loading-percent';
+            percentSpan.textContent = formattedPercent;
+            lineEl.appendChild(percentSpan);
+        };
+
+        const runStep = (index) => {
+            if (index >= steps.length) {
+                if (loadingImageEl) {
+                    loadingImageEl.classList.add('loaded');
+                }
+                const hideDelay = typeof window !== 'undefined' ? window.setTimeout : null;
+                if (hideDelay) {
+                    const timerId = hideDelay(() => {
+                        loadingSequenceTimers.delete(timerId);
+                        loadingScreen.classList.add('hidden');
+                    }, 450);
+                    loadingSequenceTimers.add(timerId);
+                } else {
+                    loadingScreen.classList.add('hidden');
+                }
+                return;
+            }
+
+            const step = steps[index];
+            if (prefixEl) {
+                prefixEl.textContent = step.prefix;
+            }
+            updateLoadingLine(step.message, step.percent);
+
+            const timeoutFn = typeof window !== 'undefined' ? window.setTimeout : null;
+            if (timeoutFn) {
+                const timerId = timeoutFn(() => {
+                    loadingSequenceTimers.delete(timerId);
+                    runStep(index + 1);
+                }, Math.max(0, step.delay ?? 600));
+                loadingSequenceTimers.add(timerId);
+            } else {
+                runStep(index + 1);
+            }
+        };
+
+        runStep(0);
+    }
+
+    function isCharacterSelectOpen() {
+        return isModalOpen(characterSelectModal);
+    }
+
+    function openCharacterSelect(reason = '') {
+        if (!characterSelectModal) {
+            return;
+        }
+        if (reason) {
+            characterSelectModal.dataset.openReason = reason;
+        } else {
+            delete characterSelectModal.dataset.openReason;
+        }
+        openModal(characterSelectModal, {
+            bodyClass: 'character-select-open',
+            initialFocus: () =>
+                (characterSelectConfirm && !characterSelectConfirm.disabled
+                    ? characterSelectConfirm
+                    : characterSelectModal.querySelector('[data-character-grid] button:not([disabled])')) ??
+                characterSelectModal.querySelector('.character-select-content')
+        });
+    }
+
+    function closeCharacterSelect(options = {}) {
+        closeModal(characterSelectModal, {
+            bodyClass: 'character-select-open',
+            restoreFocus: options.restoreFocus !== false
+        });
+    }
+
+    function isWeaponSelectOpen() {
+        return isModalOpen(weaponSelectModal);
+    }
+
+    function openWeaponSelect(reason = '') {
+        if (!weaponSelectModal) {
+            return;
+        }
+        if (reason) {
+            weaponSelectModal.dataset.openReason = reason;
+        } else {
+            delete weaponSelectModal.dataset.openReason;
+        }
+        openModal(weaponSelectModal, {
+            bodyClass: 'weapon-select-open',
+            initialFocus: () =>
+                (weaponSelectConfirm && !weaponSelectConfirm.disabled
+                    ? weaponSelectConfirm
+                    : weaponSelectModal.querySelector('[data-weapon-grid] button:not([disabled])')) ??
+                weaponSelectModal.querySelector('.character-select-content')
+        });
+    }
+
+    function closeWeaponSelect(options = {}) {
+        closeModal(weaponSelectModal, {
+            bodyClass: 'weapon-select-open',
+            restoreFocus: options.restoreFocus !== false
+        });
+    }
+
+    const characterSelectBackdrop =
+        characterSelectModal?.querySelector('.character-select-backdrop') ?? null;
+    if (characterSelectBackdrop) {
+        characterSelectBackdrop.addEventListener('click', () => closeCharacterSelect());
+    }
+    const weaponSelectBackdrop = weaponSelectModal?.querySelector('.character-select-backdrop') ?? null;
+    if (weaponSelectBackdrop) {
+        weaponSelectBackdrop.addEventListener('click', () => closeWeaponSelect());
+    }
+
+    if (characterSelectCancel) {
+        characterSelectCancel.addEventListener('click', () => closeCharacterSelect());
+    }
+    if (weaponSelectCancel) {
+        weaponSelectCancel.addEventListener('click', () => closeWeaponSelect());
+    }
+
+    const characterSelectOpenButtons = [swapPilotButton, preflightSwapPilotButton];
+    for (const button of characterSelectOpenButtons) {
+        if (button) {
+            button.addEventListener('click', () => openCharacterSelect(button.id ?? 'button'));
+        }
+    }
+
+    const weaponSelectOpenButtons = [swapWeaponButton, preflightSwapWeaponButton, openWeaponSelectButton];
+    for (const button of weaponSelectOpenButtons) {
+        if (button) {
+            button.addEventListener('click', () => openWeaponSelect(button.id ?? 'button'));
+        }
+    }
+
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('beforeunload', clearLoadingSequenceTimers);
+    }
+
     const timerValueEl = document.getElementById('timerValue');
     const survivalTimerEl = document.getElementById('survivalTimer');
     const pauseOverlay = document.getElementById('pauseOverlay');
