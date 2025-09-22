@@ -2081,6 +2081,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function setButtonDisabledState(button, disabled) {
+        if (!button) {
+            return;
+        }
+        button.disabled = disabled;
+        button.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    }
+
+    function shouldDisablePreflightControls(modalAvailable) {
+        if (!modalAvailable) {
+            return true;
+        }
+        const gameState = state?.gameState;
+        return gameState === 'running' || gameState === 'paused';
+    }
+
+    function updateSwapPilotButton() {
+        const shouldDisable = shouldDisablePreflightControls(Boolean(characterSelectModal));
+        setButtonDisabledState(swapPilotButton, shouldDisable);
+        setButtonDisabledState(preflightSwapPilotButton, shouldDisable);
+    }
+
+    function updateSwapWeaponButtons() {
+        const shouldDisable = shouldDisablePreflightControls(Boolean(weaponSelectModal));
+        setButtonDisabledState(swapWeaponButton, shouldDisable);
+        setButtonDisabledState(preflightSwapWeaponButton, shouldDisable);
+        setButtonDisabledState(openWeaponSelectButton, shouldDisable);
+    }
+
+    updateSwapPilotButton();
+    updateSwapWeaponButtons();
+
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
         window.addEventListener('beforeunload', clearLoadingSequenceTimers);
     }
@@ -9093,6 +9125,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function enterPreflightReadyState({ focusCanvas = true } = {}) {
         preflightOverlayDismissed = true;
         state.gameState = 'ready';
+        updateSwapPilotButton();
+        updateSwapWeaponButtons();
         bodyElement?.classList.remove('paused');
         survivalTimerEl?.classList.remove('paused');
         hidePauseOverlay();
@@ -9608,6 +9642,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         state.gameState = 'running';
+        updateSwapPilotButton();
+        updateSwapWeaponButtons();
         lastTime = null;
         accumulatedDelta = 0;
         hideOverlay();
@@ -12995,6 +13031,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function triggerGameOver(message) {
         if (state.gameState !== 'running') return;
         state.gameState = 'gameover';
+        updateSwapPilotButton();
+        updateSwapWeaponButtons();
         mascotAnnouncer.lamentSetback({ force: true });
         hidePauseOverlay();
         bodyElement?.classList.remove('paused');
@@ -14260,6 +14298,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         lastPauseReason = reason;
         state.gameState = 'paused';
+        updateSwapPilotButton();
+        updateSwapWeaponButtons();
         bodyElement?.classList.add('paused');
         survivalTimerEl?.classList.add('paused');
         audioManager.suspendForVisibilityChange();
@@ -14282,6 +14322,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return false;
         }
         state.gameState = 'running';
+        updateSwapPilotButton();
+        updateSwapWeaponButtons();
         bodyElement?.classList.remove('paused');
         survivalTimerEl?.classList.remove('paused');
         hidePauseOverlay();
