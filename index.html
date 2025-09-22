@@ -75,23 +75,21 @@
             </div>
         </div>
     </div>
-    <div id="instructions" aria-label="Flight telemetry, controls, and mission information">
+    <div id="instructions" aria-label="Flight status and mission information">
         <div
             id="instructionButtonBar"
             class="instruction-button-bar"
             role="toolbar"
             aria-label="Mission information panels"
         >
-            <button type="button" class="instruction-button" data-panel-target="stats">Telemetry</button>
-            <button type="button" class="instruction-button" data-panel-target="controlsCard">Controls</button>
+            <button type="button" class="instruction-button" data-panel-target="stats">Flight Status</button>
             <button type="button" class="instruction-button" data-panel-target="missionCard">Mission</button>
-            <button type="button" class="instruction-button" data-panel-target="storyCard">Story</button>
             <button type="button" class="instruction-button" data-panel-target="intelCard">Intel</button>
-            <button type="button" class="instruction-button" data-panel-target="socialCard">Feed</button>
+            <button type="button" class="instruction-button" data-panel-target="loadoutCard">Loadout</button>
         </div>
         <div id="instructionPanels" hidden aria-hidden="true">
             <section id="stats" class="info-panel telemetry-panel" role="complementary" aria-live="polite">
-                <h2 class="card-title">Flight Telemetry</h2>
+                <h2 class="card-title">Flight Status</h2>
                 <div class="stat-list" role="presentation">
                     <div class="stat-row">
                         <span class="stat-label">Score</span>
@@ -132,60 +130,78 @@
                 >
                     <div id="comboFill"></div>
                 </div>
-            </section>
-            <section class="hud-card info-panel" id="controlsCard" aria-labelledby="controlsCardTitle">
-                <h2 class="card-title" id="controlsCardTitle">Flight Controls</h2>
-                <div class="card-body">
-                    <div class="control-list" role="list">
-                        <div class="control-row" role="listitem">
-                            <div class="control-keys" aria-label="Movement keys">
-                                <span class="keycap" aria-hidden="true">←</span>
-                                <span class="keycap" aria-hidden="true">↑</span>
-                                <span class="keycap" aria-hidden="true">↓</span>
-                                <span class="keycap" aria-hidden="true">→</span>
+                <div class="flight-controls-toggle">
+                    <button
+                        type="button"
+                        id="controlsToggleButton"
+                        class="controls-toggle"
+                        aria-expanded="false"
+                        aria-controls="flightControlsSection"
+                    >
+                        Show Controls
+                    </button>
+                    <section
+                        id="flightControlsSection"
+                        class="flight-controls-section"
+                        aria-labelledby="flightControlsTitle"
+                        hidden
+                    >
+                        <h3 class="flight-controls-title" id="flightControlsTitle">Flight Controls</h3>
+                        <div class="flight-controls-content">
+                            <div class="control-list" role="list">
+                                <div class="control-row" role="listitem">
+                                    <div class="control-keys" aria-label="Movement keys">
+                                        <span class="keycap" aria-hidden="true">←</span>
+                                        <span class="keycap" aria-hidden="true">↑</span>
+                                        <span class="keycap" aria-hidden="true">↓</span>
+                                        <span class="keycap" aria-hidden="true">→</span>
+                                    </div>
+                                    <div class="control-action">Vector the catship through hazards.</div>
+                                </div>
+                                <div class="control-row" role="listitem">
+                                    <div class="control-keys" aria-label="Fire control">
+                                        <span class="keycap wide" aria-hidden="true">Space</span>
+                                    </div>
+                                    <div class="control-action">Launch precision plasma bolts.</div>
+                                </div>
+                                <div class="control-row" role="listitem">
+                                    <div class="control-keys" aria-label="Pause control">
+                                        <span class="keycap wide" aria-hidden="true">P</span>
+                                    </div>
+                                    <div class="control-action">Pause or resume the flight deck.</div>
+                                </div>
+                                <div class="control-row" role="listitem">
+                                    <div class="control-keys" aria-label="Settings shortcut">
+                                        <span class="keycap wide" aria-hidden="true">Esc</span>
+                                    </div>
+                                    <div class="control-action">Open the quick settings panel mid-flight.</div>
+                                </div>
+                                <div class="control-row" role="listitem">
+                                    <div class="control-keys" aria-label="Touch controls">
+                                        <span class="keycap wide" aria-hidden="true">Touch</span>
+                                    </div>
+                                    <div class="control-action">
+                                        Rotate your phone to landscape, tilt to steer, and tap anywhere to fire. Tap ⚙ to tweak settings.
+                                    </div>
+                                </div>
+                                <div class="control-row" role="listitem">
+                                    <div class="control-keys" aria-label="PS5 DualSense controls">
+                                        <span class="keycap wide" aria-hidden="true">DualSense</span>
+                                    </div>
+                                    <div class="control-action">
+                                        <p class="control-action-title">PS5 controller mapping</p>
+                                        <ul class="control-details" aria-label="DualSense button map">
+                                            <li><span class="control-label">Left Stick / D-Pad</span> Steer the catship. Double-tap a direction to trigger a dash burst through hazards.</li>
+                                            <li><span class="control-label">R2 / L2 / ✕ / □ / L1 / R1</span> Hold to keep the plasma cannons firing. Any of these triggers or face buttons will sustain fire.</li>
+                                            <li><span class="control-label">Options</span> Pause or resume mid-flight. From pre-flight or after a crash, Options also activates the highlighted launch, retry, or submit action.</li>
+                                            <li><span class="control-label">✕ (Cross)</span> Confirm prompts and advance menus, mirroring the main launch button.</li>
+                                        </ul>
+                                        <p class="control-tip">When pause or results overlays are open, focus snaps to the primary action. Use ✕ to confirm, or press Options again to return to the cockpit without selecting anything.</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="control-action">Vector the catship through hazards.</div>
                         </div>
-                        <div class="control-row" role="listitem">
-                            <div class="control-keys" aria-label="Fire control">
-                                <span class="keycap wide" aria-hidden="true">Space</span>
-                            </div>
-                            <div class="control-action">Launch precision plasma bolts.</div>
-                        </div>
-                        <div class="control-row" role="listitem">
-                            <div class="control-keys" aria-label="Pause control">
-                                <span class="keycap wide" aria-hidden="true">P</span>
-                            </div>
-                            <div class="control-action">Pause or resume the flight deck.</div>
-                        </div>
-                        <div class="control-row" role="listitem">
-                            <div class="control-keys" aria-label="Settings shortcut">
-                                <span class="keycap wide" aria-hidden="true">Esc</span>
-                            </div>
-                            <div class="control-action">Open the quick settings panel mid-flight.</div>
-                        </div>
-                        <div class="control-row" role="listitem">
-                            <div class="control-keys" aria-label="Touch controls">
-                                <span class="keycap wide" aria-hidden="true">Touch</span>
-                            </div>
-                            <div class="control-action">Rotate your phone to landscape, tilt to steer, and tap anywhere to fire. Tap ⚙ to tweak settings.</div>
-                        </div>
-                        <div class="control-row" role="listitem">
-                            <div class="control-keys" aria-label="PS5 DualSense controls">
-                                <span class="keycap wide" aria-hidden="true">DualSense</span>
-                            </div>
-                            <div class="control-action">
-                                <p class="control-action-title">PS5 controller mapping</p>
-                                <ul class="control-details" aria-label="DualSense button map">
-                                    <li><span class="control-label">Left Stick / D-Pad</span> Steer the catship. Double-tap a direction to trigger a dash burst through hazards.</li>
-                                    <li><span class="control-label">R2 / L2 / ✕ / □ / L1 / R1</span> Hold to keep the plasma cannons firing. Any of these triggers or face buttons will sustain fire.</li>
-                                    <li><span class="control-label">Options</span> Pause or resume mid-flight. From pre-flight or after a crash, Options also activates the highlighted launch, retry, or submit action.</li>
-                                    <li><span class="control-label">✕ (Cross)</span> Confirm prompts and advance menus, mirroring the main launch button.</li>
-                                </ul>
-                                <p class="control-tip">When pause or results overlays are open, focus snaps to the primary action. Use ✕ to confirm, or press Options again to return to the cockpit without selecting anything.</p>
-                            </div>
-                        </div>
-                    </div>
+                    </section>
                 </div>
             </section>
             <section class="hud-card info-panel" id="missionCard" aria-labelledby="missionCardTitle">
@@ -199,41 +215,6 @@
                         <li>Channel Hyper Beam cores to carve safe corridors when the lane is crowded.</li>
                         <li>Keep the combo meter charged to amplify every point.</li>
                     </ul>
-                </div>
-            </section>
-            <section class="hud-card info-panel" id="storyCard" aria-labelledby="storyCardTitle">
-                <h2 class="card-title" id="storyCardTitle">Campaign Log</h2>
-                <div class="card-body storyline-body">
-                    <article class="storyline-current" id="storyCurrent" aria-live="polite">
-                        <div class="storyline-heading">
-                            <p class="storyline-meta" id="storyCurrentMeta">Awaiting launch window.</p>
-                            <h3 class="storyline-title" id="storyCurrentTitle">Story uplink offline</h3>
-                        </div>
-                        <p class="storyline-text" id="storyCurrentBody">
-                            Launch a flight to receive live transmissions from Aurora.
-                        </p>
-                        <ul
-                            class="story-objectives"
-                            id="storyCurrentObjectives"
-                            hidden
-                            aria-live="polite"
-                            aria-label="Mission directives"
-                        ></ul>
-                        <figure class="storyboard-preview" id="storyboardPreview" hidden>
-                            <img id="storyboardImage" alt="" loading="lazy" />
-                            <figcaption id="storyboardCaption"></figcaption>
-                        </figure>
-                    </article>
-                    <div class="storyline-grid">
-                        <section class="storyline-panel">
-                            <h3 class="storyline-panel-title">Chronicle</h3>
-                            <ul class="storyline-list" id="storyTimeline" role="list"></ul>
-                        </section>
-                        <section class="storyline-panel">
-                            <h3 class="storyline-panel-title">Next Signals</h3>
-                            <ul class="storyline-list" id="storyUpcoming" role="list"></ul>
-                        </section>
-                    </div>
                 </div>
             </section>
             <section class="hud-card info-panel" id="intelCard" aria-labelledby="intelCardTitle">
@@ -272,14 +253,6 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="custom-loadout-section" id="customLoadoutSection" aria-live="polite">
-                            <h4>Custom Loadouts</h4>
-                            <p class="custom-loadout-description">
-                                Capture two personalized presets. Pick your pilot, suit, stream, and weapon, then save the
-                                configuration for fast launches.
-                            </p>
-                            <div class="custom-loadout-grid" data-loadout-grid role="list"></div>
-                        </div>
                     </div>
                     <div class="meta-progress-grid">
                         <section class="meta-card">
@@ -316,10 +289,15 @@
                     <ul class="intel-log" id="intelLog" role="list" aria-live="polite"></ul>
                 </div>
             </section>
-            <section class="hud-card info-panel" id="socialCard" aria-labelledby="socialCardTitle">
-                <h2 class="card-title" id="socialCardTitle">Squadron Feed</h2>
+            <section class="hud-card info-panel" id="loadoutCard" aria-labelledby="loadoutCardTitle">
+                <h2 class="card-title" id="loadoutCardTitle">Custom Loadouts</h2>
                 <div class="card-body">
-                    <ul id="socialFeed" role="list"></ul>
+                    <p class="custom-loadout-description">
+                        Capture two personalized presets. Pick your pilot, suit, stream, and weapon, then save the configuration for fast launches.
+                    </p>
+                    <div class="custom-loadout-section" id="customLoadoutSection" aria-live="polite">
+                        <div class="custom-loadout-grid" data-loadout-grid role="list"></div>
+                    </div>
                 </div>
             </section>
         </div>
