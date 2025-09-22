@@ -3328,6 +3328,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const playerSkinOverrides =
+        isPlainObject(cosmeticOverrides?.skins) && cosmeticOverrides.skins
+            ? cosmeticOverrides.skins
+            : {};
+    const DEFAULT_PLAYER_SKIN_ID = 'default';
+    const playerSkinBaseSources = {
+        default: 'assets/player.png',
+        midnight: 'assets/player2.png',
+        sunrise: 'assets/player3.png'
+    };
+    const playerSkinImages = new Map();
+    let activePlayerImage = null;
+
+    function resolvePlayerSkinAsset(id) {
+        const normalizedId = typeof id === 'string' && id ? id : DEFAULT_PLAYER_SKIN_ID;
+        return resolveAssetConfig(playerSkinOverrides?.[normalizedId], playerSkinBaseSources[normalizedId] ?? null);
+    }
+
+    function getPlayerSkinImage(id) {
+        const normalizedId = typeof id === 'string' && id ? id : DEFAULT_PLAYER_SKIN_ID;
+        if (!playerSkinImages.has(normalizedId)) {
+            const assetConfig = resolvePlayerSkinAsset(normalizedId);
+            playerSkinImages.set(
+                normalizedId,
+                loadImageWithFallback(assetConfig, () => createPlayerVariantDataUrl(normalizedId))
+            );
+        }
+        return playerSkinImages.get(normalizedId);
+    }
+
+    function setActivePlayerSkinById(id) {
+        const normalizedId = typeof id === 'string' && id ? id : DEFAULT_PLAYER_SKIN_ID;
+        activePlayerImage = getPlayerSkinImage(normalizedId);
+        return activePlayerImage;
+    }
+
+    setActivePlayerSkinById(DEFAULT_PLAYER_SKIN_ID);
+
     const villainFallbackPalette = ['#f472b6', '#34d399', '#fde68a'];
     function createVillainFallbackDataUrl(index = 0) {
         const size = 128;
@@ -4573,6 +4611,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         setActiveTrailStyleById(defaultState.cosmetics.equipped.trail);
+        setActivePlayerSkinById(defaultState.cosmetics.equipped.skin);
         return defaultState;
     }
 
@@ -4701,6 +4740,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
         setActiveTrailStyleById(state.cosmetics.equipped.trail);
+        setActivePlayerSkinById(state.cosmetics.equipped.skin);
         if (!isPlainObject(state.milestones)) {
             state.milestones = { streak: { achieved: [] } };
         }
@@ -5079,6 +5119,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (state.cosmetics.equipped.skin === 'default') {
                     state.cosmetics.equipped.skin = reward.id;
+                    setActivePlayerSkinById(reward.id);
                     changed = true;
                 }
                 return changed;
@@ -5306,6 +5347,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return false;
                 }
                 state.cosmetics.equipped.skin = id;
+                setActivePlayerSkinById(id);
                 mutated = true;
             } else if (category === 'trail') {
                 if (!state.cosmetics.ownedTrails.includes(id) || state.cosmetics.equipped.trail === id) {
