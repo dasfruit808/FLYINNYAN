@@ -1366,6 +1366,128 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
 
+    const DEFAULT_TRAIL_STYLES = {
+        rainbow: { id: 'rainbow', type: 'dynamic' },
+        aurora: {
+            id: 'aurora',
+            type: 'palette',
+            colors: ['#38bdf8', '#8b5cf6', '#f472b6', '#22d3ee']
+        },
+        ember: {
+            id: 'ember',
+            type: 'palette',
+            colors: ['#fb923c', '#f97316', '#ea580c', '#facc15']
+        },
+        ion: {
+            id: 'ion',
+            type: 'palette',
+            colors: ['#22d3ee', '#38bdf8', '#818cf8', '#c4b5fd']
+        },
+        solstice: {
+            id: 'solstice',
+            type: 'palette',
+            colors: ['#fbbf24', '#f472b6', '#c084fc', '#60a5fa']
+        },
+        quantum: {
+            id: 'quantum',
+            type: 'palette',
+            colors: ['#a855f7', '#22d3ee', '#0ea5e9', '#9333ea']
+        }
+    };
+
+    let activeTrailStyle = null;
+
+    function sanitizeTrailStyle(id, styleDefinition, fallback = DEFAULT_TRAIL_STYLES[id]) {
+        const base = fallback ? { ...fallback } : { id, type: 'dynamic' };
+        const result = { ...base, id };
+
+        const applyPaletteColors = (colors) => {
+            const palette = Array.isArray(colors)
+                ? colors
+                      .map((color) => (typeof color === 'string' ? color.trim() : ''))
+                      .filter(Boolean)
+                : [];
+            if (palette.length) {
+                result.type = 'palette';
+                result.colors = palette;
+            }
+        };
+
+        if (Array.isArray(styleDefinition)) {
+            applyPaletteColors(styleDefinition);
+        } else if (isPlainObject(styleDefinition)) {
+            if (typeof styleDefinition.type === 'string') {
+                const normalizedType = styleDefinition.type.trim().toLowerCase();
+                if (normalizedType === 'palette') {
+                    result.type = 'palette';
+                } else {
+                    result.type = 'dynamic';
+                }
+            }
+            if (Array.isArray(styleDefinition.colors)) {
+                applyPaletteColors(styleDefinition.colors);
+            }
+        }
+
+        if (result.type === 'palette' && (!Array.isArray(result.colors) || result.colors.length === 0)) {
+            if (Array.isArray(base.colors) && base.colors.length) {
+                result.colors = [...base.colors];
+            } else {
+                result.type = 'dynamic';
+                delete result.colors;
+            }
+        }
+
+        return result;
+    }
+
+    const trailStyles = (() => {
+        const overrides = isPlainObject(cosmeticOverrides?.trails) ? cosmeticOverrides.trails : {};
+        const styles = {};
+        const assignStyle = (styleId) => {
+            styles[styleId] = sanitizeTrailStyle(styleId, overrides?.[styleId]);
+        };
+        for (const styleId of Object.keys(DEFAULT_TRAIL_STYLES)) {
+            assignStyle(styleId);
+        }
+        if (overrides) {
+            for (const [styleId, definition] of Object.entries(overrides)) {
+                if (!styles[styleId]) {
+                    styles[styleId] = sanitizeTrailStyle(styleId, definition);
+                }
+            }
+        }
+        return styles;
+    })();
+
+    function resolveTrailStyle(styleId) {
+        const key = typeof styleId === 'string' && styleId ? styleId : 'rainbow';
+        if (!trailStyles[key]) {
+            trailStyles[key] = sanitizeTrailStyle(key, null, DEFAULT_TRAIL_STYLES.rainbow);
+        }
+        return trailStyles[key];
+    }
+
+    function setActiveTrailStyleById(styleId) {
+        activeTrailStyle = resolveTrailStyle(styleId);
+        return activeTrailStyle;
+    }
+
+    function getActiveTrailStyle() {
+        const equippedId =
+            (state?.cosmetics?.equipped?.trail && String(state.cosmetics.equipped.trail)) ||
+            null;
+        if (equippedId && (!activeTrailStyle || activeTrailStyle.id !== equippedId)) {
+            return setActiveTrailStyleById(equippedId);
+        }
+        if (!activeTrailStyle) {
+            return setActiveTrailStyleById('rainbow');
+        }
+        return activeTrailStyle;
+    }
+
+    setActiveTrailStyleById('rainbow');
+
     function cloneConfig(value) {
         if (Array.isArray(value)) {
             return value.map((item) => cloneConfig(item));
@@ -4441,7 +4563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function createDefaultChallengeState() {
-        return {
+        const defaultState = {
             version: CHALLENGE_STATE_VERSION,
             slots: {},
             history: [],
@@ -4450,6 +4572,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 streak: { achieved: [] }
             }
         };
+        setActiveTrailStyleById(defaultState.cosmetics.equipped.trail);
+        return defaultState;
     }
 
     function sanitizeChallengeGoal(goal) {
@@ -4576,6 +4700,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     : defaultCosmetics.equipped.weapon
             };
         }
+        setActiveTrailStyleById(state.cosmetics.equipped.trail);
         if (!isPlainObject(state.milestones)) {
             state.milestones = { streak: { achieved: [] } };
         }
@@ -4969,6 +5094,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (state.cosmetics.equipped.trail === 'rainbow') {
                     state.cosmetics.equipped.trail = reward.id;
+                    setActiveTrailStyleById(reward.id);
                     changed = true;
                 }
                 return changed;
@@ -5189,6 +5315,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return false;
                 }
                 state.cosmetics.equipped.trail = id;
+                setActiveTrailStyleById(id);
                 mutated = true;
             } else if (category === 'weapon') {
                 if (!state.cosmetics.ownedWeapons.includes(id) || state.cosmetics.equipped.weapon === id) {
@@ -13106,7 +13233,7 @@ document.addEventListener('DOMContentLoaded', () => {
             drawPumpTail();
             return;
         }
-        const style = activeTrailStyle ?? trailStyles.rainbow;
+        const style = getActiveTrailStyle() ?? trailStyles.rainbow;
         const now = performance.now();
         drawTrailSegments(trail, style, now, { width: 72, height: 12, alphaScale: 1 });
         if (doubleTeamState.trail.length >= 2) {
