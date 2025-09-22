@@ -1502,13 +1502,17 @@ body.touch-enabled #preflightPrompt .desktop-only {
     border: 1px solid rgba(148, 210, 255, 0.18);
     background: rgba(15, 23, 42, 0.45);
     color: rgba(226, 232, 240, 0.9);
-    padding: 6px 12px;
+    padding: 6px 14px;
     border-radius: 999px;
     font-size: 0.74rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.2;
 }
 
 .cosmetic-option:hover:not(:disabled) {
@@ -1519,6 +1523,7 @@ body.touch-enabled #preflightPrompt .desktop-only {
 .cosmetic-option.equipped {
     border-color: rgba(56, 189, 248, 0.75);
     box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.45), 0 12px 24px rgba(37, 99, 235, 0.25);
+    background: rgba(56, 189, 248, 0.12);
 }
 
 .cosmetic-option:disabled {
@@ -1528,6 +1533,439 @@ body.touch-enabled #preflightPrompt .desktop-only {
 
 .cosmetic-option.locked {
     border-style: dashed;
+}
+
+.cosmetic-option-label {
+    font-weight: 600;
+}
+
+.cosmetic-option-rarity {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.rarity-common {
+    background: rgba(148, 163, 184, 0.2);
+    color: rgba(226, 232, 240, 0.88);
+}
+
+.rarity-rare {
+    background: rgba(59, 130, 246, 0.22);
+    color: rgba(191, 219, 254, 0.96);
+}
+
+.rarity-epic {
+    background: rgba(147, 51, 234, 0.24);
+    color: rgba(233, 213, 255, 0.96);
+}
+
+.rarity-legendary {
+    background: rgba(245, 158, 11, 0.28);
+    color: rgba(253, 230, 138, 0.96);
+}
+
+.rarity-mythic {
+    background: rgba(236, 72, 153, 0.28);
+    color: rgba(251, 207, 232, 0.96);
+}
+
+.meta-progress-grid {
+    display: grid;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+@media (min-width: 960px) {
+    .meta-progress-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.meta-card {
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(148, 210, 255, 0.18);
+    border-radius: 18px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+}
+
+.meta-card h3 {
+    margin: 0;
+    font-size: 1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(226, 232, 240, 0.94);
+}
+
+.meta-card-summary {
+    margin: 0;
+    color: rgba(226, 232, 240, 0.78);
+    font-size: 0.85rem;
+}
+
+.reward-catalogue {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.reward-card {
+    border: 1px solid rgba(148, 210, 255, 0.14);
+    border-radius: 16px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(15, 23, 42, 0.62);
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.reward-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(148, 210, 255, 0.32);
+    box-shadow: 0 12px 24px rgba(30, 64, 175, 0.22);
+}
+
+.reward-card.owned {
+    border-color: rgba(56, 189, 248, 0.55);
+    box-shadow: 0 12px 28px rgba(56, 189, 248, 0.22);
+}
+
+.reward-card.limited {
+    border-style: dashed;
+}
+
+.reward-card.rarity-rare {
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.18);
+}
+
+.reward-card.rarity-epic {
+    box-shadow: inset 0 0 0 1px rgba(147, 51, 234, 0.18);
+}
+
+.reward-card.rarity-legendary {
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.22);
+}
+
+.reward-card.rarity-mythic {
+    box-shadow: inset 0 0 0 1px rgba(236, 72, 153, 0.25);
+}
+
+.reward-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.reward-card-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: rgba(226, 232, 240, 0.94);
+}
+
+.reward-card-rarity {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.reward-card-preview {
+    border-radius: 12px;
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.78);
+    overflow: hidden;
+}
+
+.reward-card-preview img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.reward-card-preview.preview-weapon span {
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(226, 232, 240, 0.78);
+}
+
+.reward-card-description {
+    margin: 0;
+    font-size: 0.84rem;
+    color: rgba(226, 232, 240, 0.78);
+}
+
+.reward-card-traits {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.reward-card-traits li {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: rgba(59, 130, 246, 0.22);
+    color: rgba(226, 232, 240, 0.85);
+}
+
+.reward-card-sources {
+    margin: 0;
+    font-size: 0.74rem;
+    color: rgba(125, 211, 252, 0.92);
+}
+
+.reward-card-status {
+    margin: 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.95);
+}
+
+.season-pass-progress {
+    position: relative;
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(30, 58, 138, 0.45);
+    overflow: hidden;
+}
+
+#seasonPassProgressFill {
+    position: absolute;
+    inset: 0;
+    width: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #f472b6, #fbbf24);
+    transition: width 200ms ease;
+}
+
+.season-pass-tier-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.season-pass-tier {
+    border: 1px solid rgba(148, 210, 255, 0.14);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(15, 23, 42, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.season-pass-tier.unlocked {
+    border-color: rgba(250, 204, 21, 0.5);
+}
+
+.season-pass-tier.claimed {
+    opacity: 0.85;
+}
+
+.season-pass-tier-label {
+    font-weight: 600;
+    color: rgba(226, 232, 240, 0.92);
+}
+
+.season-pass-tier-threshold {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.95);
+}
+
+.season-pass-tier-reward {
+    font-size: 0.78rem;
+    color: rgba(253, 224, 71, 0.92);
+}
+
+.community-goal-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.community-goal-item {
+    border: 1px solid rgba(148, 210, 255, 0.14);
+    border-radius: 14px;
+    padding: 12px;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.community-goal-item.completed {
+    border-color: rgba(74, 222, 128, 0.42);
+    box-shadow: 0 12px 26px rgba(34, 197, 94, 0.22);
+}
+
+.community-goal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.community-goal-name {
+    font-weight: 600;
+    color: rgba(226, 232, 240, 0.92);
+}
+
+.community-goal-completed {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(134, 239, 172, 0.96);
+}
+
+.community-goal-description {
+    margin: 0;
+    font-size: 0.82rem;
+    color: rgba(226, 232, 240, 0.78);
+}
+
+.community-goal-progress-track {
+    position: relative;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(30, 58, 138, 0.5);
+    overflow: hidden;
+}
+
+.community-goal-progress-fill {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #38bdf8, #818cf8);
+}
+
+.community-goal-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: rgba(226, 232, 240, 0.74);
+}
+
+.community-goal-time {
+    color: rgba(165, 243, 252, 0.9);
+}
+
+.achievement-badge-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.achievement-badge-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(148, 210, 255, 0.14);
+    border-radius: 14px;
+    padding: 12px;
+    background: rgba(15, 23, 42, 0.55);
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+    opacity: 0.75;
+}
+
+.achievement-badge-item.unlocked {
+    opacity: 1;
+    border-color: rgba(249, 115, 22, 0.48);
+    box-shadow: 0 12px 30px rgba(249, 115, 22, 0.22);
+}
+
+.achievement-badge-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 30% 30%, rgba(251, 191, 36, 0.9), rgba(217, 70, 239, 0.6));
+    color: #0f172a;
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.35);
+}
+
+.achievement-badge-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.achievement-badge-title {
+    font-weight: 600;
+    color: rgba(226, 232, 240, 0.92);
+}
+
+.achievement-badge-description {
+    margin: 0;
+    font-size: 0.8rem;
+    color: rgba(226, 232, 240, 0.74);
+}
+
+.achievement-badge-status {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.95);
+}
+
+.reward-card.empty,
+.community-goal-empty,
+.achievement-badge-empty {
+    border: 1px dashed rgba(148, 210, 255, 0.22);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    color: rgba(148, 163, 184, 0.95);
+    background: rgba(15, 23, 42, 0.45);
+    font-size: 0.85rem;
 }
 
 .intel-log {

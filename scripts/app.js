@@ -8,6 +8,8 @@ let baseProjectileSettings = null;
 let activeDifficultyPreset = 'medium';
 let spawnTimers = { obstacle: 0, collectible: 0, powerUp: 0 };
 let shellScale = 1;
+let metaProgressManager = null;
+let latestMetaSnapshot = null;
 const DOUBLE_TEAM_POWER = 'doubleTeam';
 const HYPER_BEAM_POWER = 'hyperBeam';
 const SHIELD_POWER = 'radiantShield';
@@ -1521,6 +1523,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const shareButton = document.getElementById('shareButton');
     const shareStatusEl = document.getElementById('shareStatus');
     const socialFeedEl = document.getElementById('socialFeed');
+    const rewardCatalogueListEl = document.getElementById('rewardCatalogueList');
+    const seasonPassPanel = document.getElementById('seasonPassPanel');
+    const seasonPassSummaryEl = document.getElementById('seasonPassSummary');
+    const seasonPassProgressFill = document.getElementById('seasonPassProgressFill');
+    const seasonPassTierListEl = document.getElementById('seasonPassTierList');
+    const communityGoalListEl = document.getElementById('communityGoalList');
+    const achievementBadgeListEl = document.getElementById('achievementBadgeList');
     const intelLogEl = document.getElementById('intelLog');
     const storyCurrentTitle = document.getElementById('storyCurrentTitle');
     const storyCurrentBody = document.getElementById('storyCurrentBody');
@@ -2635,6 +2644,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 accent: '#fff7ed',
                 visor: 'rgba(88, 28, 28, 0.6)',
                 glow: 'rgba(252, 211, 77, 0.3)'
+            },
+            starlight: {
+                baseStart: '#38bdf8',
+                baseEnd: '#c084fc',
+                accent: '#fef9ff',
+                visor: 'rgba(30, 64, 175, 0.6)',
+                glow: 'rgba(192, 132, 252, 0.38)'
+            },
+            ionShroud: {
+                baseStart: '#1f2937',
+                baseEnd: '#22d3ee',
+                accent: '#cffafe',
+                visor: 'rgba(12, 74, 110, 0.75)',
+                glow: 'rgba(56, 189, 248, 0.4)'
+            },
+            embercore: {
+                baseStart: '#7c2d12',
+                baseEnd: '#f97316',
+                accent: '#fde68a',
+                visor: 'rgba(69, 10, 10, 0.78)',
+                glow: 'rgba(249, 115, 22, 0.45)'
             }
         };
         const palette = palettes[variant] ?? palettes.default;
@@ -2727,7 +2757,8 @@ document.addEventListener('DOMContentLoaded', () => {
         settings: 'nyanEscape.settings',
         challenges: 'nyanEscape.challenges',
         deviceId: 'nyanEscape.deviceId',
-        customLoadouts: 'nyanEscape.customLoadouts'
+        customLoadouts: 'nyanEscape.customLoadouts',
+        metaProgress: 'nyanEscape.metaProgress'
     };
 
     let storageAvailable = false;
@@ -3558,6 +3589,248 @@ document.addEventListener('DOMContentLoaded', () => {
         writeStorage(STORAGE_KEYS.settings, JSON.stringify(payload));
     }
 
+    const COSMETIC_RARITIES = {
+        common: {
+            id: 'common',
+            label: 'Common',
+            badge: 'Common',
+            className: 'rarity-common'
+        },
+        rare: {
+            id: 'rare',
+            label: 'Rare',
+            badge: 'Rare Drop',
+            className: 'rarity-rare'
+        },
+        epic: {
+            id: 'epic',
+            label: 'Epic',
+            badge: 'Epic',
+            className: 'rarity-epic'
+        },
+        legendary: {
+            id: 'legendary',
+            label: 'Legendary',
+            badge: 'Legendary',
+            className: 'rarity-legendary'
+        },
+        mythic: {
+            id: 'mythic',
+            label: 'Mythic',
+            badge: 'Mythic Relic',
+            className: 'rarity-mythic'
+        }
+    };
+
+    function getCosmeticRarityMeta(rarity) {
+        const key = typeof rarity === 'string' ? rarity.toLowerCase() : 'common';
+        return COSMETIC_RARITIES[key] ?? COSMETIC_RARITIES.common;
+    }
+
+    const STREAK_MILESTONES = [
+        {
+            id: 'streak-8',
+            threshold: 8,
+            title: 'Combo Initiate',
+            narrative: 'Stabilise a x8 streak to light up the ion wake.',
+            reward: {
+                type: 'cosmetic',
+                category: 'trail',
+                id: 'ion',
+                label: 'Ion Surge Trail',
+                rarity: 'rare'
+            },
+            bonus: { type: 'nyan', amount: 500 }
+        },
+        {
+            id: 'streak-14',
+            threshold: 14,
+            title: 'Starlight Navigator',
+            narrative: 'Hold a x14 combo to earn Aurora’s starlight hull plating.',
+            reward: {
+                type: 'cosmetic',
+                category: 'skin',
+                id: 'starlight',
+                label: 'Starlight Reverie Hull',
+                rarity: 'epic'
+            },
+            bonus: { type: 'nyan', amount: 800 }
+        },
+        {
+            id: 'streak-20',
+            threshold: 20,
+            title: 'Quantum Vanguard',
+            narrative: 'Channel a x20 streak to unlock experimental quantum trim.',
+            reward: {
+                type: 'bundle',
+                label: 'Quantum Vanguard Bundle',
+                rarity: 'legendary',
+                items: [
+                    {
+                        type: 'cosmetic',
+                        category: 'skin',
+                        id: 'ionShroud',
+                        label: 'Ion Shroud Prototype'
+                    },
+                    {
+                        type: 'cosmetic',
+                        category: 'trail',
+                        id: 'quantum',
+                        label: 'Quantum Drift Trail'
+                    }
+                ]
+            },
+            bonus: { type: 'nyan', amount: 1200 }
+        }
+    ];
+
+    const COMMUNITY_GOALS = [
+        {
+            id: 'fleetScore',
+            label: 'Fuel the Fleet',
+            description: 'Bank shared score to keep the evacuation armada moving.',
+            target: 600000,
+            unit: 'pts',
+            type: 'score',
+            rarity: 'epic'
+        },
+        {
+            id: 'streakRelay',
+            label: 'Streak Relay',
+            description: 'Chain streak contributions from every pilot in the sector.',
+            target: 160,
+            unit: 'combo',
+            type: 'streak',
+            rarity: 'rare'
+        }
+    ];
+
+    const SEASON_PASS_TRACK = {
+        seasonId: '2024-quantum',
+        label: 'Season 3 · Quantum Drift',
+        tiers: [
+            { id: 'tier-1', threshold: 40, label: 'Tier 1 — Recon Cache' },
+            {
+                id: 'tier-2',
+                threshold: 100,
+                label: 'Tier 2 — Quantum Wake',
+                reward: {
+                    type: 'cosmetic',
+                    category: 'trail',
+                    id: 'quantum',
+                    label: 'Quantum Drift Trail',
+                    rarity: 'legendary'
+                }
+            },
+            { id: 'tier-3', threshold: 180, label: 'Tier 3 — Vanguard Cache' },
+            {
+                id: 'tier-4',
+                threshold: 260,
+                label: 'Tier 4 — Embercore Monarch',
+                reward: {
+                    type: 'cosmetic',
+                    category: 'skin',
+                    id: 'embercore',
+                    label: 'Embercore Monarch Hull',
+                    rarity: 'mythic'
+                }
+            }
+        ]
+    };
+
+    function registerCosmeticRewardSource(map, reward, source) {
+        if (!reward || typeof reward !== 'object') {
+            return;
+        }
+        if (reward.type === 'bundle') {
+            if (Array.isArray(reward.items)) {
+                for (const item of reward.items) {
+                    registerCosmeticRewardSource(map, item, {
+                        ...source,
+                        bundle: reward.label ?? source?.title ?? 'Bundle'
+                    });
+                }
+            }
+            return;
+        }
+        if (reward.type === 'cosmetic' && reward.id) {
+            const list = map.get(reward.id) ?? [];
+            list.push({
+                ...source,
+                reward
+            });
+            map.set(reward.id, list);
+        }
+    }
+
+    const COSMETIC_REWARD_SOURCES = (() => {
+        const map = new Map();
+        for (const [slotKey, list] of Object.entries(CHALLENGE_DEFINITIONS)) {
+            if (!Array.isArray(list)) {
+                continue;
+            }
+            for (const definition of list) {
+                if (!definition || !definition.reward) {
+                    continue;
+                }
+                registerCosmeticRewardSource(map, definition.reward, {
+                    type: 'challenge',
+                    slot: slotKey,
+                    title: definition.title ?? definition.id
+                });
+            }
+        }
+        for (const milestone of STREAK_MILESTONES) {
+            registerCosmeticRewardSource(map, milestone.reward, {
+                type: 'milestone',
+                title: milestone.title ?? milestone.id
+            });
+        }
+        if (SEASON_PASS_TRACK?.tiers) {
+            for (const tier of SEASON_PASS_TRACK.tiers) {
+                if (!tier || !tier.reward) {
+                    continue;
+                }
+                registerCosmeticRewardSource(map, tier.reward, {
+                    type: 'season',
+                    title: tier.label ?? tier.id
+                });
+            }
+        }
+        return map;
+    })();
+
+    const ACHIEVEMENT_DEFINITIONS = [
+        {
+            id: 'achv-first-flight',
+            title: 'Launch Cadet',
+            description: 'Finish a logged run and transmit your first flight log.',
+            rarity: 'common',
+            icon: '🚀'
+        },
+        {
+            id: 'achv-combo-ace',
+            title: 'Combo Ace',
+            description: 'Stabilise a streak of x12 or higher.',
+            rarity: 'epic',
+            icon: '✨'
+        },
+        {
+            id: 'achv-score-scribe',
+            title: 'Score Scribe',
+            description: 'Log a single run worth 120,000 points or more.',
+            rarity: 'legendary',
+            icon: '📜'
+        },
+        {
+            id: 'achv-community-signal',
+            title: 'Community Signal',
+            description: 'Help complete a community goal broadcast.',
+            rarity: 'rare',
+            icon: '🌐'
+        }
+    ];
+
     const CHALLENGE_STATE_VERSION = 1;
 
     function createDefaultCosmeticsState() {
@@ -3574,7 +3847,10 @@ document.addEventListener('DOMContentLoaded', () => {
             version: CHALLENGE_STATE_VERSION,
             slots: {},
             history: [],
-            cosmetics: createDefaultCosmeticsState()
+            cosmetics: createDefaultCosmeticsState(),
+            milestones: {
+                streak: { achieved: [] }
+            }
         };
     }
 
@@ -3586,7 +3862,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const rawTarget = Number(goal.target);
         const target = Number.isFinite(rawTarget) && rawTarget > 0 ? rawTarget : 0;
         let mode = goal.mode === 'max' ? 'max' : 'sum';
-        if (metric === 'time' || metric === 'score') {
+        if (metric === 'time' || metric === 'score' || metric === 'streak') {
             mode = 'max';
         }
         const normalized = { metric, target, mode };
@@ -3634,7 +3910,8 @@ document.addEventListener('DOMContentLoaded', () => {
                       .slice(-24)
                       .map((entry) => ({ ...entry }))
                 : [],
-            cosmetics: isPlainObject(raw.cosmetics) ? { ...raw.cosmetics } : createDefaultCosmeticsState()
+            cosmetics: isPlainObject(raw.cosmetics) ? { ...raw.cosmetics } : createDefaultCosmeticsState(),
+            milestones: isPlainObject(raw.milestones) ? { ...raw.milestones } : { streak: { achieved: [] } }
         };
         const slots = isPlainObject(raw.slots) ? raw.slots : {};
         for (const [slotKey, entry] of Object.entries(slots)) {
@@ -3701,6 +3978,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     : defaultCosmetics.equipped.weapon
             };
         }
+        if (!isPlainObject(state.milestones)) {
+            state.milestones = { streak: { achieved: [] } };
+        }
+        if (!isPlainObject(state.milestones.streak)) {
+            state.milestones.streak = { achieved: [] };
+        }
+        if (!Array.isArray(state.milestones.streak.achieved)) {
+            state.milestones.streak.achieved = [];
+        } else {
+            state.milestones.streak.achieved = Array.from(
+                new Set(state.milestones.streak.achieved.map((value) => String(value)))
+            );
+        }
         state.version = Math.max(state.version, 1);
         if (state.version !== CHALLENGE_STATE_VERSION) {
             state.version = CHALLENGE_STATE_VERSION;
@@ -3752,10 +4042,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.max(0, Math.floor(diff / (86400000 * 7)));
     }
 
+    function getMonthIndex(date) {
+        return date.getFullYear() * 12 + date.getMonth();
+    }
+
     function computeRotationId(slot, date) {
         if (slot === 'weekly') {
             const week = getWeekIndex(date);
             return `${date.getFullYear()}-W${week}`;
+        }
+        if (slot === 'event') {
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            return `${date.getFullYear()}-M${month}`;
         }
         const day = getDayIndex(date);
         return `${date.getFullYear()}-${day}`;
@@ -3773,6 +4071,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const day = reference.getDay();
                     const offset = day === 0 ? 1 : day <= 1 ? 0 : 7 - day + 1;
                     reference.setDate(reference.getDate() + offset + week * 7);
+                    return reference;
+                }
+            }
+        } else if (slot === 'event') {
+            const match = /^([0-9]{4})-M([0-9]{2})$/.exec(rotationId ?? '');
+            if (match) {
+                const year = Number(match[1]);
+                const month = Number(match[2]);
+                if (Number.isFinite(year) && Number.isFinite(month)) {
+                    const reference = new Date(year, month - 1, 1);
+                    reference.setHours(0, 0, 0, 0);
                     return reference;
                 }
             }
@@ -3805,6 +4114,12 @@ document.addEventListener('DOMContentLoaded', () => {
             end.setHours(0, 0, 0, 0);
             return end.getTime();
         }
+        if (slot === 'event') {
+            const end = new Date(base.getTime());
+            end.setMonth(end.getMonth() + 1, 1);
+            end.setHours(0, 0, 0, 0);
+            return end.getTime();
+        }
         const end = new Date(base.getTime());
         end.setHours(24, 0, 0, 0);
         return end.getTime();
@@ -3824,19 +4139,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!reward || typeof reward !== 'object') {
             return '—';
         }
+        const rarityMeta = reward.rarity ? getCosmeticRarityMeta(reward.rarity) : null;
         if (typeof reward.label === 'string' && reward.label) {
-            return reward.label;
+            return rarityMeta ? `${reward.label} (${rarityMeta.label})` : reward.label;
+        }
+        if (reward.type === 'bundle') {
+            const items = Array.isArray(reward.items) ? reward.items.length : 0;
+            const label = reward.label || `${items || 'Multi'} cosmetic bundle`;
+            return rarityMeta ? `${label} (${rarityMeta.label})` : label;
         }
         if (reward.type === 'cosmetic') {
+            let baseLabel = 'Reward ready';
             if (reward.category === 'skin') {
-                return 'Hull skin unlock';
+                baseLabel = 'Hull skin unlock';
+            } else if (reward.category === 'trail') {
+                baseLabel = 'Trail effect unlock';
+            } else if (reward.category === 'weapon') {
+                baseLabel = 'Weapon system unlock';
             }
-            if (reward.category === 'trail') {
-                return 'Trail effect unlock';
-            }
-            if (reward.category === 'weapon') {
-                return 'Weapon system unlock';
-            }
+            return rarityMeta ? `${baseLabel} (${rarityMeta.label})` : baseLabel;
         }
         return 'Reward ready';
     }
@@ -3849,7 +4170,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: 'Hold the Lane',
                 description: 'Survive 90 seconds in a single run.',
                 goal: { metric: 'time', target: 90000, mode: 'max' },
-                reward: { type: 'cosmetic', category: 'trail', id: 'aurora', label: 'Aurora Wake Trail' }
+                reward: {
+                    type: 'cosmetic',
+                    category: 'trail',
+                    id: 'aurora',
+                    label: 'Aurora Wake Trail',
+                    rarity: 'rare'
+                }
             },
             {
                 id: 'daily-core-collector',
@@ -3857,7 +4184,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: 'Core Collector',
                 description: 'Secure 5 power-ups in a day.',
                 goal: { metric: 'powerUp', target: 5, mode: 'sum' },
-                reward: { type: 'cosmetic', category: 'trail', id: 'ember', label: 'Ember Wake Trail' }
+                reward: {
+                    type: 'cosmetic',
+                    category: 'trail',
+                    id: 'ember',
+                    label: 'Ember Wake Trail',
+                    rarity: 'rare'
+                }
             }
         ],
         weekly: [
@@ -3867,7 +4200,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: 'Villain Hunter',
                 description: 'Neutralize 30 villains this week.',
                 goal: { metric: 'villain', target: 30, mode: 'sum' },
-                reward: { type: 'cosmetic', category: 'skin', id: 'midnight', label: 'Midnight Mirage Hull' }
+                reward: {
+                    type: 'cosmetic',
+                    category: 'skin',
+                    id: 'midnight',
+                    label: 'Midnight Mirage Hull',
+                    rarity: 'rare'
+                }
             },
             {
                 id: 'weekly-score-champion',
@@ -3875,7 +4214,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: 'Score Champion',
                 description: 'Reach 75,000 score in a single run.',
                 goal: { metric: 'score', target: 75000, mode: 'max' },
-                reward: { type: 'cosmetic', category: 'skin', id: 'sunrise', label: 'Sunrise Shimmer Hull' }
+                reward: {
+                    type: 'cosmetic',
+                    category: 'skin',
+                    id: 'sunrise',
+                    label: 'Sunrise Shimmer Hull',
+                    rarity: 'rare'
+                }
+            }
+        ],
+        event: [
+            {
+                id: 'event-solstice-surge',
+                slot: 'event',
+                title: 'Solstice Surge',
+                description: 'Bank 90,000 points in a single run during the Solstice rotation.',
+                goal: { metric: 'score', target: 90000, mode: 'max' },
+                reward: {
+                    type: 'bundle',
+                    label: 'Solstice Celebration Bundle',
+                    rarity: 'legendary',
+                    items: [
+                        {
+                            type: 'cosmetic',
+                            category: 'trail',
+                            id: 'solstice',
+                            label: 'Solstice Bloom Trail'
+                        },
+                        {
+                            type: 'cosmetic',
+                            category: 'trail',
+                            id: 'aurora',
+                            label: 'Aurora Wake Trail'
+                        }
+                    ]
+                }
             }
         ]
     };
@@ -3912,7 +4285,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!list.length) {
                 return null;
             }
-            const index = slot === 'weekly' ? getWeekIndex(date) : getDayIndex(date);
+            let index = 0;
+            if (slot === 'weekly') {
+                index = getWeekIndex(date);
+            } else if (slot === 'event') {
+                index = getMonthIndex(date);
+            } else {
+                index = getDayIndex(date);
+            }
             return list[index % list.length];
         }
 
@@ -3926,7 +4306,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (goal.metric === 'score') {
                 return `${value.toLocaleString()} / ${target.toLocaleString()}`;
             }
+            if (goal.metric === 'streak') {
+                return `x${value} / x${target}`;
+            }
             return `${value} / ${target}`;
+        }
+
+        function ensureMilestoneBucket(kind) {
+            if (!state.milestones || typeof state.milestones !== 'object') {
+                state.milestones = { streak: { achieved: [] } };
+            }
+            if (!state.milestones[kind] || typeof state.milestones[kind] !== 'object') {
+                state.milestones[kind] = { achieved: [] };
+            }
+            if (!Array.isArray(state.milestones[kind].achieved)) {
+                state.milestones[kind].achieved = [];
+            }
+            return state.milestones[kind];
         }
 
         function formatCountdown(slot, rotationId, now) {
@@ -3962,11 +4358,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const completed = Boolean(entry.completedAt) || (target > 0 && value >= target);
                 const claimed = Boolean(entry.claimedAt);
                 const readyToClaim = completed && !claimed && Boolean(reward);
-                list.push({
-                    id: definition.id ?? entry.challengeId,
-                    slot: slotKey,
-                    slotLabel: slotKey === 'daily' ? 'Daily' : slotKey === 'weekly' ? 'Weekly' : slotKey,
-                    title: definition.title ?? entry.challengeId,
+                    list.push({
+                        id: definition.id ?? entry.challengeId,
+                        slot: slotKey,
+                    slotLabel:
+                        slotKey === 'daily'
+                            ? 'Daily'
+                            : slotKey === 'weekly'
+                                ? 'Weekly'
+                                : slotKey === 'event'
+                                    ? 'Event'
+                                    : slotKey,
+                        title: definition.title ?? entry.challengeId,
                     description: definition.description ?? '',
                     reward,
                     rewardLabel: describeReward(reward),
@@ -4007,12 +4410,30 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const [slotKey, entry] of Object.entries(state.slots)) {
                 snapshot.slots[slotKey] = { ...entry, goal: { ...entry.goal }, slot: slotKey };
             }
+            snapshot.milestones = {
+                streak: Array.isArray(state.milestones?.streak?.achieved)
+                    ? [...state.milestones.streak.achieved]
+                    : []
+            };
             snapshot.activeChallenges = computeActiveChallenges(snapshot);
             return snapshot;
         }
 
         function unlockReward(reward) {
-            if (!reward || reward.type !== 'cosmetic') {
+            if (!reward || typeof reward !== 'object') {
+                return false;
+            }
+            if (reward.type === 'bundle') {
+                const items = Array.isArray(reward.items) ? reward.items : [];
+                let unlockedAny = false;
+                for (const item of items) {
+                    if (unlockReward(item)) {
+                        unlockedAny = true;
+                    }
+                }
+                return unlockedAny;
+            }
+            if (reward.type !== 'cosmetic') {
                 return false;
             }
             if (reward.category === 'skin') {
@@ -4184,6 +4605,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!allowedTypes || allowedTypes.includes(payload.type)) {
                         after = before + 1;
                     }
+                } else if (goal.metric === 'streak' && event === 'streak') {
+                    const best = Number(payload.bestStreak ?? 0);
+                    if (Number.isFinite(best) && best > 0) {
+                        if (goal.mode === 'sum') {
+                            after = before + best;
+                        } else if (best > after) {
+                            after = best;
+                        }
+                    }
                 }
                 if (after !== before) {
                     entry.progressValue = after;
@@ -4271,6 +4701,46 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
 
+        function markMilestoneAchieved(kind, milestone) {
+            if (!milestone || typeof milestone !== 'object' || !milestone.id) {
+                return false;
+            }
+            const bucket = ensureMilestoneBucket(kind);
+            if (bucket.achieved.includes(milestone.id)) {
+                return false;
+            }
+            bucket.achieved.push(milestone.id);
+            bucket.achieved = Array.from(new Set(bucket.achieved)).slice(-32);
+            if (!Array.isArray(state.history)) {
+                state.history = [];
+            }
+            state.history.push({
+                type: 'milestone',
+                milestoneId: milestone.id,
+                slot: kind,
+                achievedAt: Date.now(),
+                reward: milestone.reward ?? null
+            });
+            state.history = state.history.slice(-24);
+            const rewardUnlocked = milestone.reward ? unlockReward(milestone.reward) : false;
+            const definition = { id: milestone.id, title: milestone.title ?? 'Milestone', slot: kind };
+            commitState({
+                notify: true,
+                rewardClaim: rewardUnlocked ? { definition, reward: milestone.reward } : null
+            });
+            return true;
+        }
+
+        function grantCosmeticReward(reward, { reason = 'system', notify = true } = {}) {
+            if (!reward || typeof reward !== 'object') {
+                return false;
+            }
+            const unlocked = unlockReward(reward);
+            const definition = { id: reason, title: reward.label ?? 'Reward', slot: reason };
+            commitState({ notify, rewardClaim: unlocked ? { definition, reward } : null });
+            return unlocked;
+        }
+
         function subscribe(listener) {
             if (typeof listener !== 'function') {
                 return () => {};
@@ -4294,6 +4764,466 @@ document.addEventListener('DOMContentLoaded', () => {
             recordEvent,
             claimReward,
             equipCosmetic,
+            markMilestoneAchieved,
+            grantCosmeticReward,
+            subscribe,
+            getSnapshot: () => cachedSnapshot
+        };
+    }
+
+    function createMetaProgressManager({ challengeManager, broadcast } = {}) {
+        const META_PROGRESS_VERSION = 1;
+
+        const defaultState = () => ({
+            version: META_PROGRESS_VERSION,
+            achievements: {},
+            seasonPass: {
+                seasonId: SEASON_PASS_TRACK.seasonId,
+                points: 0,
+                claimedTiers: []
+            },
+            communityGoals: COMMUNITY_GOALS.map((goal) => ({
+                id: goal.id,
+                progress: 0,
+                contributions: 0,
+                completedAt: null,
+                lastBroadcastPercent: 0
+            })),
+            streak: { milestonesEarned: [] }
+        });
+
+        function ensureSeasonState(state) {
+            if (!state.seasonPass || state.seasonPass.seasonId !== SEASON_PASS_TRACK.seasonId) {
+                state.seasonPass = {
+                    seasonId: SEASON_PASS_TRACK.seasonId,
+                    points: 0,
+                    claimedTiers: []
+                };
+            } else {
+                state.seasonPass.points = Number.isFinite(state.seasonPass.points)
+                    ? Math.max(0, state.seasonPass.points)
+                    : 0;
+                state.seasonPass.claimedTiers = Array.isArray(state.seasonPass.claimedTiers)
+                    ? Array.from(new Set(state.seasonPass.claimedTiers.map((value) => String(value))))
+                    : [];
+            }
+            return state.seasonPass;
+        }
+
+        function ensureCommunityEntry(state, goalId) {
+            let entry = Array.isArray(state.communityGoals)
+                ? state.communityGoals.find((item) => item.id === goalId)
+                : null;
+            if (!entry) {
+                if (!Array.isArray(state.communityGoals)) {
+                    state.communityGoals = [];
+                }
+                entry = {
+                    id: goalId,
+                    progress: 0,
+                    contributions: 0,
+                    completedAt: null,
+                    lastBroadcastPercent: 0
+                };
+                state.communityGoals.push(entry);
+            }
+            entry.progress = Number.isFinite(entry.progress) ? Math.max(0, entry.progress) : 0;
+            entry.contributions = Number.isFinite(entry.contributions) ? Math.max(0, entry.contributions) : 0;
+            entry.lastBroadcastPercent = Number.isFinite(entry.lastBroadcastPercent)
+                ? Math.max(0, entry.lastBroadcastPercent)
+                : 0;
+            return entry;
+        }
+
+        function migrateMetaState(raw) {
+            if (!raw || typeof raw !== 'object') {
+                return defaultState();
+            }
+            const state = defaultState();
+            if (raw.achievements && typeof raw.achievements === 'object') {
+                for (const [id, entry] of Object.entries(raw.achievements)) {
+                    const definition = ACHIEVEMENT_DEFINITIONS.find((candidate) => candidate.id === id);
+                    if (!definition || !entry || typeof entry !== 'object') {
+                        continue;
+                    }
+                    const unlockedAt = Number(entry.unlockedAt);
+                    if (Number.isFinite(unlockedAt)) {
+                        state.achievements[id] = {
+                            unlockedAt,
+                            context: entry.context ?? null
+                        };
+                    }
+                }
+            }
+            if (raw.seasonPass && typeof raw.seasonPass === 'object') {
+                state.seasonPass = {
+                    seasonId: raw.seasonPass.seasonId === SEASON_PASS_TRACK.seasonId
+                        ? SEASON_PASS_TRACK.seasonId
+                        : SEASON_PASS_TRACK.seasonId,
+                    points:
+                        raw.seasonPass.seasonId === SEASON_PASS_TRACK.seasonId &&
+                        Number.isFinite(raw.seasonPass.points)
+                            ? Math.max(0, raw.seasonPass.points)
+                            : 0,
+                    claimedTiers:
+                        raw.seasonPass.seasonId === SEASON_PASS_TRACK.seasonId &&
+                        Array.isArray(raw.seasonPass.claimedTiers)
+                            ? Array.from(new Set(raw.seasonPass.claimedTiers.map((value) => String(value))))
+                            : []
+                };
+            }
+            if (Array.isArray(raw.communityGoals)) {
+                state.communityGoals = raw.communityGoals
+                    .map((entry) => ({
+                        id: entry?.id,
+                        progress: Number.isFinite(entry?.progress) ? Math.max(0, entry.progress) : 0,
+                        contributions: Number.isFinite(entry?.contributions) ? Math.max(0, entry.contributions) : 0,
+                        completedAt: Number.isFinite(entry?.completedAt) ? entry.completedAt : null,
+                        lastBroadcastPercent: Number.isFinite(entry?.lastBroadcastPercent)
+                            ? Math.max(0, entry.lastBroadcastPercent)
+                            : 0
+                    }))
+                    .filter((entry) => entry.id);
+            }
+            if (raw.streak && Array.isArray(raw.streak.milestonesEarned)) {
+                state.streak.milestonesEarned = Array.from(
+                    new Set(raw.streak.milestonesEarned.map((value) => String(value)))
+                );
+            }
+            return state;
+        }
+
+        function loadMetaState() {
+            if (!storageAvailable) {
+                return defaultState();
+            }
+            try {
+                const raw = readStorage(STORAGE_KEYS.metaProgress);
+                if (!raw) {
+                    return defaultState();
+                }
+                const parsed = JSON.parse(raw);
+                return migrateMetaState(parsed);
+            } catch (error) {
+                return defaultState();
+            }
+        }
+
+        let state = loadMetaState();
+        state.version = META_PROGRESS_VERSION;
+        ensureSeasonState(state);
+        for (const goal of COMMUNITY_GOALS) {
+            ensureCommunityEntry(state, goal.id);
+        }
+        state.streak.milestonesEarned = Array.isArray(state.streak?.milestonesEarned)
+            ? Array.from(new Set(state.streak.milestonesEarned.map((value) => String(value))))
+            : [];
+
+        const listeners = new Set();
+
+        function buildSnapshot() {
+            const season = ensureSeasonState(state);
+            const tiers = (SEASON_PASS_TRACK.tiers ?? []).map((tier, index, array) => {
+                const previousThreshold = index > 0 ? array[index - 1].threshold : 0;
+                const unlocked = season.points >= tier.threshold;
+                return {
+                    ...tier,
+                    unlocked,
+                    claimed: season.claimedTiers.includes(tier.id),
+                    previousThreshold
+                };
+            });
+            const nextTier = tiers.find((tier) => !tier.claimed && season.points < tier.threshold) ?? null;
+            const currentTier = nextTier
+                ? tiers[Math.max(0, tiers.indexOf(nextTier) - 1)]
+                : tiers[tiers.length - 1] ?? null;
+
+            const community = COMMUNITY_GOALS.map((goal) => {
+                const entry = ensureCommunityEntry(state, goal.id);
+                const percent = goal.target > 0 ? Math.min(100, Math.round((entry.progress / goal.target) * 100)) : 0;
+                return {
+                    ...goal,
+                    progress: entry.progress,
+                    contributions: entry.contributions,
+                    completedAt: entry.completedAt,
+                    percent
+                };
+            });
+
+            return {
+                achievements: ACHIEVEMENT_DEFINITIONS.map((definition) => ({
+                    ...definition,
+                    unlockedAt: state.achievements[definition.id]?.unlockedAt ?? null
+                })),
+                seasonPass: {
+                    seasonId: season.seasonId,
+                    label: SEASON_PASS_TRACK.label,
+                    points: season.points,
+                    tiers,
+                    currentTier,
+                    nextTier
+                },
+                communityGoals: community,
+                streak: {
+                    milestones: STREAK_MILESTONES.map((milestone) => ({
+                        ...milestone,
+                        earned: state.streak.milestonesEarned.includes(milestone.id)
+                    }))
+                }
+            };
+        }
+
+        let cachedSnapshot = buildSnapshot();
+
+        function persistState() {
+            if (!storageAvailable) {
+                return;
+            }
+            try {
+                writeStorage(STORAGE_KEYS.metaProgress, JSON.stringify(state));
+            } catch (error) {
+                // Ignore persistence failures
+            }
+        }
+
+        function notifyListeners() {
+            for (const listener of listeners) {
+                try {
+                    listener(cachedSnapshot);
+                } catch (error) {
+                    console.error('meta progress listener error', error);
+                }
+            }
+        }
+
+        function commit({ messages = [] } = {}) {
+            persistState();
+            cachedSnapshot = buildSnapshot();
+            notifyListeners();
+            if (Array.isArray(messages) && messages.length && typeof broadcast === 'function') {
+                for (const message of messages) {
+                    if (!message || typeof message.text !== 'string' || !message.text.length) {
+                        continue;
+                    }
+                    const meta = message.meta && typeof message.meta === 'object' ? message.meta : {};
+                    broadcast(message.text, meta);
+                }
+            }
+        }
+
+        function unlockAchievement(id, context) {
+            const definition = ACHIEVEMENT_DEFINITIONS.find((entry) => entry.id === id);
+            if (!definition) {
+                return { changed: false, message: null };
+            }
+            if (state.achievements[id]) {
+                return { changed: false, message: null };
+            }
+            state.achievements[id] = {
+                unlockedAt: Date.now(),
+                context: context ?? null
+            };
+            return {
+                changed: true,
+                message: {
+                    text: `Achievement unlocked: ${definition.title}`,
+                    meta: { type: 'achievement' }
+                }
+            };
+        }
+
+        function addSeasonPassPoints(points) {
+            if (!Number.isFinite(points) || points <= 0) {
+                return { changed: false, messages: [] };
+            }
+            const season = ensureSeasonState(state);
+            season.points += Math.max(0, Math.round(points));
+            let changed = true;
+            const messages = [];
+            for (const tier of SEASON_PASS_TRACK.tiers ?? []) {
+                if (season.points >= tier.threshold && !season.claimedTiers.includes(tier.id)) {
+                    season.claimedTiers.push(tier.id);
+                    messages.push({
+                        text: `Season pass tier unlocked: ${tier.label ?? tier.id}`,
+                        meta: { type: 'season' }
+                    });
+                    if (tier.reward && challengeManager?.grantCosmeticReward) {
+                        try {
+                            challengeManager.grantCosmeticReward(tier.reward, { reason: `season-${tier.id}` });
+                        } catch (error) {
+                            console.error('season reward grant failed', error);
+                        }
+                    }
+                }
+            }
+            season.claimedTiers = Array.from(new Set(season.claimedTiers));
+            return { changed, messages };
+        }
+
+        function addCommunityContribution(goalId, amount) {
+            if (!Number.isFinite(amount) || amount <= 0) {
+                return { changed: false, messages: [] };
+            }
+            const goal = COMMUNITY_GOALS.find((entry) => entry.id === goalId);
+            if (!goal) {
+                return { changed: false, messages: [] };
+            }
+            const entry = ensureCommunityEntry(state, goalId);
+            const previous = entry.progress;
+            entry.progress = Math.min(goal.target, entry.progress + Math.round(amount));
+            entry.contributions += Math.round(amount);
+            const messages = [];
+            let changed = entry.progress !== previous;
+            if (entry.progress >= goal.target && !entry.completedAt) {
+                entry.completedAt = Date.now();
+                entry.lastBroadcastPercent = 100;
+                messages.push({ text: `${goal.label} completed!`, meta: { type: 'community' } });
+                const achievement = unlockAchievement('achv-community-signal', { goalId: goal.id, label: goal.label });
+                if (achievement.changed && achievement.message) {
+                    messages.push(achievement.message);
+                }
+            } else if (entry.progress !== previous) {
+                const percent = goal.target > 0 ? Math.min(100, Math.round((entry.progress / goal.target) * 100)) : 0;
+                if (percent - entry.lastBroadcastPercent >= 10) {
+                    entry.lastBroadcastPercent = percent;
+                    messages.push({ text: `${goal.label} ${percent}%`, meta: { type: 'community' } });
+                }
+            }
+            return { changed, messages };
+        }
+
+        function recordScore(deltaScore = 0, { totalScore = 0 } = {}) {
+            const messages = [];
+            let changed = false;
+            const contribution = addCommunityContribution('fleetScore', Math.max(0, Math.round(deltaScore)));
+            if (contribution.changed) {
+                changed = true;
+            }
+            messages.push(...contribution.messages);
+            if (totalScore >= 120000) {
+                const achievement = unlockAchievement('achv-score-scribe', { totalScore });
+                if (achievement.changed) {
+                    changed = true;
+                    if (achievement.message) {
+                        messages.push(achievement.message);
+                    }
+                }
+            }
+            if (changed || messages.length) {
+                commit({ messages });
+            }
+        }
+
+        function recordStreak({ bestStreak = 0, delta = 0 } = {}) {
+            const messages = [];
+            let changed = false;
+            if (delta > 0) {
+                const contribution = addCommunityContribution('streakRelay', delta);
+                if (contribution.changed) {
+                    changed = true;
+                }
+                messages.push(...contribution.messages);
+            }
+            for (const milestone of STREAK_MILESTONES) {
+                if (bestStreak >= milestone.threshold && !state.streak.milestonesEarned.includes(milestone.id)) {
+                    state.streak.milestonesEarned.push(milestone.id);
+                    if (challengeManager?.markMilestoneAchieved) {
+                        try {
+                            challengeManager.markMilestoneAchieved('streak', milestone);
+                        } catch (error) {
+                            console.error('streak milestone grant failed', error);
+                        }
+                    }
+                    messages.push({ text: `${milestone.title} milestone achieved!`, meta: { type: 'milestone' } });
+                    changed = true;
+                }
+            }
+            if (changed || messages.length) {
+                commit({ messages });
+            }
+        }
+
+        function calculateSeasonPoints(summary = {}) {
+            const score = Number(summary.score) || 0;
+            const placement = Number(summary.placement);
+            const recordedBonus = summary.recorded ? 12 : 6;
+            const scoreBonus = Math.floor(score / 40000) * 8;
+            const placementBonus = Number.isFinite(placement) && placement > 0 ? Math.max(0, 40 - Math.min(placement, 40)) : 0;
+            return Math.max(0, recordedBonus + scoreBonus + placementBonus);
+        }
+
+        function recordRun(summary = {}) {
+            const messages = [];
+            let changed = false;
+            const firstFlight = unlockAchievement('achv-first-flight', {
+                recorded: summary.recorded,
+                score: summary.score
+            });
+            if (firstFlight.changed) {
+                changed = true;
+                if (firstFlight.message) {
+                    messages.push(firstFlight.message);
+                }
+            }
+            if ((summary.bestStreak ?? 0) >= 12) {
+                const comboAce = unlockAchievement('achv-combo-ace', { bestStreak: summary.bestStreak });
+                if (comboAce.changed) {
+                    changed = true;
+                    if (comboAce.message) {
+                        messages.push(comboAce.message);
+                    }
+                }
+            }
+            const seasonResult = addSeasonPassPoints(calculateSeasonPoints(summary));
+            if (seasonResult.changed) {
+                changed = true;
+            }
+            messages.push(...seasonResult.messages);
+            if (changed || messages.length) {
+                commit({ messages });
+            }
+        }
+
+        function registerChallengeCompletion(definition) {
+            const seasonResult = addSeasonPassPoints(20);
+            if (seasonResult.changed || seasonResult.messages.length) {
+                commit({ messages: seasonResult.messages });
+            }
+        }
+
+        function registerRewardClaim(definition, reward) {
+            if (!reward) {
+                return;
+            }
+            const rewardLabel = describeReward(reward);
+            commit({
+                messages: rewardLabel
+                    ? [{ text: `Reward claimed: ${rewardLabel}`, meta: { type: 'reward' } }]
+                    : []
+            });
+        }
+
+        function subscribe(listener) {
+            if (typeof listener !== 'function') {
+                return () => {};
+            }
+            listeners.add(listener);
+            try {
+                listener(cachedSnapshot);
+            } catch (error) {
+                console.error('meta progress subscriber error', error);
+            }
+            return () => {
+                listeners.delete(listener);
+            };
+        }
+
+        return {
+            recordScore,
+            recordStreak,
+            recordRun,
+            registerChallengeCompletion,
+            registerRewardClaim,
             subscribe,
             getSnapshot: () => cachedSnapshot
         };
@@ -6500,6 +7430,407 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCustomLoadouts(latestCosmeticSnapshot);
     }
 
+    const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic'];
+
+    function getRarityWeight(rarity) {
+        const index = RARITY_ORDER.indexOf(String(rarity ?? 'common').toLowerCase());
+        return index === -1 ? 0 : index;
+    }
+
+    function formatCosmeticSourceLabels(cosmeticId) {
+        if (!cosmeticId) {
+            return [];
+        }
+        const entries = COSMETIC_REWARD_SOURCES.get(cosmeticId) ?? [];
+        const labels = [];
+        for (const entry of entries) {
+            if (!entry) {
+                continue;
+            }
+            if (entry.bundle) {
+                labels.push(entry.bundle);
+                continue;
+            }
+            if (entry.type === 'challenge') {
+                const slot = entry.slot === 'weekly'
+                    ? 'Weekly challenge'
+                    : entry.slot === 'daily'
+                        ? 'Daily challenge'
+                        : entry.slot === 'event'
+                            ? 'Event challenge'
+                            : 'Challenge';
+                labels.push(`${slot}: ${entry.title ?? 'Objective'}`);
+                continue;
+            }
+            if (entry.type === 'milestone') {
+                labels.push(`Milestone: ${entry.title ?? ''}`.trim());
+                continue;
+            }
+            if (entry.type === 'season') {
+                labels.push(`Season pass: ${entry.title ?? ''}`.trim());
+                continue;
+            }
+            if (entry.title) {
+                labels.push(entry.title);
+            }
+        }
+        return labels;
+    }
+
+    function renderRewardCatalogue(cosmeticSnapshot = {}, metaSnapshot = {}) {
+        if (!rewardCatalogueListEl) {
+            return;
+        }
+        const cosmetics = cosmeticSnapshot?.cosmetics ?? {};
+        const ownedSkins = new Set(Array.isArray(cosmetics.ownedSkins) ? cosmetics.ownedSkins : []);
+        const ownedTrails = new Set(Array.isArray(cosmetics.ownedTrails) ? cosmetics.ownedTrails : []);
+        const ownedWeapons = new Set(Array.isArray(cosmetics.ownedWeapons) ? cosmetics.ownedWeapons : []);
+
+        const catalogueItems = [];
+        for (const skin of Object.values(playerSkins)) {
+            if (!skin) continue;
+            catalogueItems.push({
+                id: skin.id,
+                category: 'skin',
+                label: skin.label ?? skin.id,
+                rarity: skin.rarity ?? 'common',
+                description: skin.description ?? '',
+                availability: skin.availability ?? '',
+                traits: Array.isArray(skin.traits) ? skin.traits : [],
+                owned: ownedSkins.has(skin.id),
+                previewType: 'image',
+                previewSrc: skin.image?.src ?? null
+            });
+        }
+        for (const trail of Object.values(trailStyles)) {
+            if (!trail) continue;
+            catalogueItems.push({
+                id: trail.id,
+                category: 'trail',
+                label: trail.label ?? trail.id,
+                rarity: trail.rarity ?? 'common',
+                description: trail.description ?? '',
+                availability: trail.availability ?? '',
+                traits: Array.isArray(trail.traits) ? trail.traits : [],
+                owned: ownedTrails.has(trail.id),
+                previewType: 'trail',
+                colors: Array.isArray(trail.colors) ? trail.colors : null
+            });
+        }
+        for (const weapon of Object.values(weaponLoadouts)) {
+            if (!weapon) continue;
+            catalogueItems.push({
+                id: weapon.id,
+                category: 'weapon',
+                label: weapon.label ?? weapon.id,
+                rarity: weapon.rarity ?? 'common',
+                description: weapon.description ?? '',
+                availability: weapon.availability ?? '',
+                traits: Array.isArray(weapon.traits) ? weapon.traits : [],
+                owned: ownedWeapons.has(weapon.id),
+                previewType: 'weapon',
+                cooldownMultiplier: weapon.cooldownMultiplier ?? 1,
+                speedMultiplier: weapon.speedMultiplier ?? 1
+            });
+        }
+
+        catalogueItems.sort((a, b) => {
+            if (a.owned !== b.owned) {
+                return a.owned ? 1 : -1;
+            }
+            const rarityDiff = getRarityWeight(b.rarity) - getRarityWeight(a.rarity);
+            if (rarityDiff !== 0) {
+                return rarityDiff;
+            }
+            return (a.label ?? '').localeCompare(b.label ?? '');
+        });
+
+        rewardCatalogueListEl.innerHTML = '';
+        if (!catalogueItems.length) {
+            const empty = document.createElement('li');
+            empty.className = 'reward-card empty';
+            empty.textContent = 'Catalogue calibrating. Fly missions to reveal unlocks.';
+            rewardCatalogueListEl.appendChild(empty);
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        for (const item of catalogueItems) {
+            const rarityMeta = getCosmeticRarityMeta(item.rarity);
+            const li = document.createElement('li');
+            li.className = `reward-card rarity-${rarityMeta.id}`;
+            li.dataset.category = item.category;
+            if (item.owned) {
+                li.classList.add('owned');
+            }
+            if (item.availability && /limited/i.test(item.availability)) {
+                li.classList.add('limited');
+            }
+
+            const header = document.createElement('div');
+            header.className = 'reward-card-header';
+            const nameEl = document.createElement('span');
+            nameEl.className = 'reward-card-name';
+            nameEl.textContent = item.label;
+            const rarityEl = document.createElement('span');
+            rarityEl.className = `reward-card-rarity ${rarityMeta.className}`;
+            rarityEl.textContent = rarityMeta.badge;
+            header.appendChild(nameEl);
+            header.appendChild(rarityEl);
+            li.appendChild(header);
+
+            const preview = document.createElement('div');
+            preview.className = `reward-card-preview preview-${item.previewType}`;
+            if (item.previewType === 'image' && item.previewSrc) {
+                const img = document.createElement('img');
+                img.src = item.previewSrc;
+                img.alt = `${item.label} preview`;
+                preview.appendChild(img);
+            } else if (item.previewType === 'trail' && Array.isArray(item.colors) && item.colors.length) {
+                const gradient = `linear-gradient(90deg, ${item.colors.join(', ')})`;
+                preview.style.background = gradient;
+            } else if (item.previewType === 'weapon') {
+                const stats = document.createElement('span');
+                const cooldown = item.cooldownMultiplier ? `CD ×${item.cooldownMultiplier.toFixed(2)}` : '';
+                const speed = item.speedMultiplier ? `SPD ×${item.speedMultiplier.toFixed(2)}` : '';
+                stats.textContent = [cooldown, speed].filter(Boolean).join(' · ');
+                preview.appendChild(stats);
+            }
+            li.appendChild(preview);
+
+            if (item.description) {
+                const description = document.createElement('p');
+                description.className = 'reward-card-description';
+                description.textContent = item.description;
+                li.appendChild(description);
+            }
+
+            if (Array.isArray(item.traits) && item.traits.length) {
+                const traitList = document.createElement('ul');
+                traitList.className = 'reward-card-traits';
+                for (const trait of item.traits) {
+                    const traitItem = document.createElement('li');
+                    traitItem.textContent = trait;
+                    traitList.appendChild(traitItem);
+                }
+                li.appendChild(traitList);
+            }
+
+            const sources = formatCosmeticSourceLabels(item.id);
+            if (sources.length) {
+                const sourcesEl = document.createElement('p');
+                sourcesEl.className = 'reward-card-sources';
+                sourcesEl.textContent = `Sources: ${sources.join(' • ')}`;
+                li.appendChild(sourcesEl);
+            }
+
+            const status = document.createElement('p');
+            status.className = 'reward-card-status';
+            status.textContent = item.owned
+                ? 'Owned'
+                : item.availability
+                    ? item.availability
+                    : 'Unlock via missions';
+            li.appendChild(status);
+
+            fragment.appendChild(li);
+        }
+
+        rewardCatalogueListEl.appendChild(fragment);
+    }
+
+    function renderSeasonPassPanel(metaSnapshot = {}) {
+        if (!seasonPassPanel) {
+            return;
+        }
+        const seasonPass = metaSnapshot?.seasonPass;
+        if (!seasonPass) {
+            seasonPassPanel.hidden = true;
+            return;
+        }
+        seasonPassPanel.hidden = false;
+        const points = Number.isFinite(seasonPass.points) ? seasonPass.points : 0;
+        if (seasonPassSummaryEl) {
+            const nextThreshold = seasonPass.nextTier?.threshold ?? seasonPass.currentTier?.threshold ?? 0;
+            if (seasonPass.nextTier) {
+                seasonPassSummaryEl.textContent = `${points} season points — next tier at ${seasonPass.nextTier.threshold}`;
+            } else {
+                seasonPassSummaryEl.textContent = `${points} season points — track complete`;
+            }
+        }
+        if (seasonPassProgressFill) {
+            const currentThreshold = seasonPass.currentTier?.threshold ?? 0;
+            const nextThreshold = seasonPass.nextTier?.threshold ?? currentThreshold;
+            const denominator = Math.max(1, nextThreshold - currentThreshold);
+            const progress = seasonPass.nextTier
+                ? Math.max(0, Math.min(1, (points - currentThreshold) / denominator))
+                : 1;
+            const percent = Math.round(progress * 100);
+            seasonPassProgressFill.style.width = `${percent}%`;
+            seasonPassProgressFill.setAttribute('aria-valuenow', String(percent));
+        }
+        if (seasonPassTierListEl) {
+            seasonPassTierListEl.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            for (const tier of seasonPass.tiers ?? []) {
+                const tierItem = document.createElement('li');
+                tierItem.className = 'season-pass-tier';
+                if (tier.unlocked) {
+                    tierItem.classList.add('unlocked');
+                }
+                if (tier.claimed) {
+                    tierItem.classList.add('claimed');
+                }
+                if (tier.reward) {
+                    tierItem.classList.add('has-reward');
+                }
+                const label = document.createElement('div');
+                label.className = 'season-pass-tier-label';
+                label.textContent = tier.label ?? tier.id;
+                const threshold = document.createElement('div');
+                threshold.className = 'season-pass-tier-threshold';
+                threshold.textContent = `${tier.threshold} pts`;
+                tierItem.appendChild(label);
+                tierItem.appendChild(threshold);
+                if (tier.reward) {
+                    const rewardLabel = document.createElement('div');
+                    rewardLabel.className = 'season-pass-tier-reward';
+                    rewardLabel.textContent = describeReward(tier.reward);
+                    tierItem.appendChild(rewardLabel);
+                }
+                fragment.appendChild(tierItem);
+            }
+            seasonPassTierListEl.appendChild(fragment);
+        }
+    }
+
+    function renderCommunityGoals(metaSnapshot = {}) {
+        if (!communityGoalListEl) {
+            return;
+        }
+        const goals = Array.isArray(metaSnapshot?.communityGoals) ? metaSnapshot.communityGoals : [];
+        communityGoalListEl.innerHTML = '';
+        if (!goals.length) {
+            const empty = document.createElement('li');
+            empty.className = 'community-goal-empty';
+            empty.textContent = 'Community calibrating objectives. Fly again soon!';
+            communityGoalListEl.appendChild(empty);
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        for (const goal of goals) {
+            const item = document.createElement('li');
+            item.className = 'community-goal-item';
+            if (goal.completedAt) {
+                item.classList.add('completed');
+            }
+            const header = document.createElement('div');
+            header.className = 'community-goal-header';
+            const name = document.createElement('span');
+            name.className = 'community-goal-name';
+            name.textContent = goal.label ?? goal.id;
+            header.appendChild(name);
+            if (goal.completedAt) {
+                const completed = document.createElement('span');
+                completed.className = 'community-goal-completed';
+                completed.textContent = 'Completed';
+                header.appendChild(completed);
+            }
+            item.appendChild(header);
+
+            if (goal.description) {
+                const description = document.createElement('p');
+                description.className = 'community-goal-description';
+                description.textContent = goal.description;
+                item.appendChild(description);
+            }
+
+            const progressTrack = document.createElement('div');
+            progressTrack.className = 'community-goal-progress-track';
+            const progressFill = document.createElement('div');
+            progressFill.className = 'community-goal-progress-fill';
+            const percent = Number.isFinite(goal.percent) ? goal.percent : 0;
+            progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+            progressTrack.appendChild(progressFill);
+            item.appendChild(progressTrack);
+
+            const status = document.createElement('div');
+            status.className = 'community-goal-status';
+            const progressText = document.createElement('span');
+            const progressValue = Number.isFinite(goal.progress) ? Math.floor(goal.progress) : 0;
+            const targetValue = Number.isFinite(goal.target) ? Math.floor(goal.target) : 0;
+            progressText.textContent = `${progressValue.toLocaleString()} / ${targetValue.toLocaleString()} ${goal.unit ?? ''}`.trim();
+            status.appendChild(progressText);
+            if (goal.completedAt) {
+                const when = document.createElement('span');
+                when.className = 'community-goal-time';
+                when.textContent = `Finished ${formatRelativeTime(goal.completedAt)}`;
+                status.appendChild(when);
+            }
+            item.appendChild(status);
+
+            fragment.appendChild(item);
+        }
+        communityGoalListEl.appendChild(fragment);
+    }
+
+    function renderAchievementBadges(metaSnapshot = {}) {
+        if (!achievementBadgeListEl) {
+            return;
+        }
+        const achievements = Array.isArray(metaSnapshot?.achievements) ? metaSnapshot.achievements : [];
+        achievementBadgeListEl.innerHTML = '';
+        if (!achievements.length) {
+            const empty = document.createElement('li');
+            empty.className = 'achievement-badge-empty';
+            empty.textContent = 'Launch flights to reveal achievement badges.';
+            achievementBadgeListEl.appendChild(empty);
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        for (const achievement of achievements) {
+            const item = document.createElement('li');
+            item.className = 'achievement-badge-item';
+            const unlocked = Boolean(achievement.unlockedAt);
+            if (unlocked) {
+                item.classList.add('unlocked');
+            }
+            const icon = document.createElement('span');
+            icon.className = 'achievement-badge-icon';
+            icon.textContent = achievement.icon ?? '★';
+            item.appendChild(icon);
+            const body = document.createElement('div');
+            body.className = 'achievement-badge-body';
+            const title = document.createElement('span');
+            title.className = 'achievement-badge-title';
+            title.textContent = achievement.title ?? achievement.id;
+            body.appendChild(title);
+            if (achievement.description) {
+                const description = document.createElement('p');
+                description.className = 'achievement-badge-description';
+                description.textContent = achievement.description;
+                body.appendChild(description);
+            }
+            const status = document.createElement('span');
+            status.className = 'achievement-badge-status';
+            status.textContent = unlocked
+                ? `Unlocked ${formatRelativeTime(achievement.unlockedAt)}`
+                : 'Locked';
+            body.appendChild(status);
+            item.appendChild(body);
+            fragment.appendChild(item);
+        }
+        achievementBadgeListEl.appendChild(fragment);
+    }
+
+    function renderMetaProgress(metaSnapshot = {}, cosmeticSnapshot = latestCosmeticSnapshot) {
+        latestMetaSnapshot = metaSnapshot;
+        renderSeasonPassPanel(metaSnapshot);
+        renderCommunityGoals(metaSnapshot);
+        renderAchievementBadges(metaSnapshot);
+        renderRewardCatalogue(cosmeticSnapshot, metaSnapshot);
+    }
+
     function renderChallengeList(snapshot = {}) {
         if (!challengeListEl) {
             return;
@@ -6645,19 +7976,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.type = 'button';
                 button.className = 'cosmetic-option';
                 button.dataset[datasetKey] = item.id;
-                button.textContent = item.label ?? item.id;
+                if (item.rarity) {
+                    const rarityMeta = getCosmeticRarityMeta(item.rarity);
+                    button.dataset.rarity = rarityMeta.id;
+                    button.classList.add(`rarity-${rarityMeta.id}`);
+                    button.setAttribute(
+                        'aria-label',
+                        `${item.label ?? item.id} — ${rarityMeta.label}`
+                    );
+                } else {
+                    button.dataset.rarity = 'common';
+                    button.classList.add('rarity-common');
+                    button.setAttribute('aria-label', item.label ?? item.id);
+                }
+                if (item.availability) {
+                    button.dataset.availability = item.availability;
+                }
                 button.setAttribute('role', 'radio');
 
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'cosmetic-option-label';
+                labelSpan.textContent = item.label ?? item.id;
+                button.appendChild(labelSpan);
+
+                if (item.rarity) {
+                    const rarityMeta = getCosmeticRarityMeta(item.rarity);
+                    const raritySpan = document.createElement('span');
+                    raritySpan.className = `cosmetic-option-rarity ${rarityMeta.className}`;
+                    raritySpan.textContent = rarityMeta.badge;
+                    button.appendChild(raritySpan);
+                }
+
                 const owned = ownedSet.has(item.id);
+                const availabilitySummary = [item.availability, item.description]
+                    .filter(Boolean)
+                    .join(' — ');
                 if (!owned) {
                     button.disabled = true;
                     button.classList.add('locked');
                     const lockedTitle =
                         typeof getLockedTitle === 'function'
                             ? getLockedTitle(item)
-                            : item.description
-                                ? `${item.description} — Unlock by completing challenges`
-                                : 'Unlock by completing challenges';
+                            : availabilitySummary || 'Unlock by completing challenges';
                     if (lockedTitle) {
                         button.setAttribute('title', lockedTitle);
                     } else {
@@ -6667,7 +8027,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const unlockedTitle =
                         typeof getUnlockedTitle === 'function'
                             ? getUnlockedTitle(item)
-                            : item.description ?? '';
+                            : availabilitySummary || '';
                     if (unlockedTitle) {
                         button.setAttribute('title', unlockedTitle);
                     } else {
@@ -6703,7 +8063,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         if (skinOptionsEl) {
-            const skinOrder = ['default', 'midnight', 'sunrise'];
+            const skinOrder = ['default', 'midnight', 'sunrise', 'starlight', 'ionShroud', 'embercore'];
             const items = skinOrder
                 .map((skinId) => playerSkins[skinId])
                 .filter((skin) => Boolean(skin));
@@ -6717,7 +8077,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (trailOptionsEl) {
-            const trailOrder = ['rainbow', 'aurora', 'ember'];
+            const trailOrder = ['rainbow', 'aurora', 'ember', 'ion', 'solstice', 'quantum'];
             const items = trailOrder
                 .map((trailId) => trailStyles[trailId])
                 .filter((trail) => Boolean(trail));
@@ -7231,11 +8591,18 @@ document.addEventListener('DOMContentLoaded', () => {
         default: {
             id: 'default',
             label: 'Standard Hull',
+            rarity: 'common',
+            description: 'Baseline convoy livery calibrated for all pilots.',
+            traits: ['Balanced thruster bloom', 'Default hitbox silhouette'],
             image: playerBaseImage
         },
         midnight: {
             id: 'midnight',
             label: 'Midnight Mirage',
+            rarity: 'rare',
+            description: 'Stealth trim inspired by Syndicate interceptor scans.',
+            availability: 'Weekly challenge rotation',
+            traits: ['Darker silhouette for night sorties', 'Ion-suppressed engine trails'],
             image: loadImageWithFallback(resolveAssetConfig(skinOverrides.midnight, null), () =>
                 createPlayerVariantDataUrl('midnight')
             )
@@ -7243,8 +8610,45 @@ document.addEventListener('DOMContentLoaded', () => {
         sunrise: {
             id: 'sunrise',
             label: 'Sunrise Shimmer',
+            rarity: 'rare',
+            description: 'Celebration hull commissioned after the first convoy escape.',
+            availability: 'Weekly challenge rotation',
+            traits: ['Reflective hull plating', 'Reactive dawn plume'],
             image: loadImageWithFallback(resolveAssetConfig(skinOverrides.sunrise, null), () =>
                 createPlayerVariantDataUrl('sunrise')
+            )
+        },
+        starlight: {
+            id: 'starlight',
+            label: 'Starlight Reverie',
+            rarity: 'epic',
+            description: 'Aurora weaves comet dust into a shimmering command hull.',
+            availability: 'Streak milestone reward',
+            traits: ['Particle-rich exhaust bloom', 'Ambient cockpit glow'],
+            image: loadImageWithFallback(resolveAssetConfig(skinOverrides.starlight, null), () =>
+                createPlayerVariantDataUrl('starlight')
+            )
+        },
+        ionShroud: {
+            id: 'ionShroud',
+            label: 'Ion Shroud Prototype',
+            rarity: 'legendary',
+            description: 'Experimental plating wrapped in stabilised plasma curtains.',
+            availability: 'Quantum Vanguard milestone bundle',
+            traits: ['Ion shielding animations', 'Refracted canopy highlights'],
+            image: loadImageWithFallback(resolveAssetConfig(skinOverrides.ionShroud, null), () =>
+                createPlayerVariantDataUrl('ionShroud')
+            )
+        },
+        embercore: {
+            id: 'embercore',
+            label: 'Embercore Monarch',
+            rarity: 'mythic',
+            description: 'Season pass exclusive hull forged from convoy flagship alloys.',
+            availability: 'Season pass tier reward',
+            traits: ['Superheated exhaust shimmer', 'Adaptive magma striping'],
+            image: loadImageWithFallback(resolveAssetConfig(skinOverrides.embercore, null), () =>
+                createPlayerVariantDataUrl('embercore')
             )
         }
     };
@@ -7894,18 +9298,55 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingWeaponId = 'pulse';
     let weaponSelectReturnFocus = null;
     const trailStyles = {
-        rainbow: { id: 'rainbow', label: 'Prismatic Stream', type: 'spectrum' },
+        rainbow: {
+            id: 'rainbow',
+            label: 'Prismatic Stream',
+            type: 'spectrum',
+            rarity: 'common',
+            description: 'Default lane effect cycling through the visible spectrum.'
+        },
         aurora: {
             id: 'aurora',
             label: 'Aurora Wake',
             type: 'palette',
-            colors: ['#38bdf8', '#8b5cf6', '#ec4899', '#22d3ee']
+            colors: ['#38bdf8', '#8b5cf6', '#ec4899', '#22d3ee'],
+            rarity: 'rare',
+            description: 'Daily briefing reward infused with polar light gradients.'
         },
         ember: {
             id: 'ember',
             label: 'Ember Wake',
             type: 'palette',
-            colors: ['#f97316', '#fb7185', '#fde047']
+            colors: ['#f97316', '#fb7185', '#fde047'],
+            rarity: 'rare',
+            description: 'Daily reactor calibration streaking molten exhaust.'
+        },
+        ion: {
+            id: 'ion',
+            label: 'Ion Surge',
+            type: 'palette',
+            colors: ['#22d3ee', '#38bdf8', '#facc15'],
+            rarity: 'rare',
+            description: 'Combo milestone wake sparking with charged ions.',
+            availability: 'Streak milestone reward'
+        },
+        solstice: {
+            id: 'solstice',
+            label: 'Solstice Bloom',
+            type: 'palette',
+            colors: ['#fef3c7', '#f97316', '#ef4444', '#facc15'],
+            rarity: 'legendary',
+            description: 'Limited-time event effect echoing solar flares.',
+            availability: 'Limited-time event drop'
+        },
+        quantum: {
+            id: 'quantum',
+            label: 'Quantum Drift',
+            type: 'palette',
+            colors: ['#a855f7', '#38bdf8', '#22d3ee', '#f472b6'],
+            rarity: 'legendary',
+            description: 'Phase-shifted contrail that ripples through spacetime.',
+            availability: 'Season pass tier reward'
         }
     };
     const createWeaponPatternState = () => ({
@@ -7931,6 +9372,9 @@ document.addEventListener('DOMContentLoaded', () => {
         pulse: {
             id: 'pulse',
             label: 'Pulse Blaster',
+            rarity: 'common',
+            availability: 'Default loadout',
+            traits: ['Steady cadence', 'Resonant finisher volley'],
             description: 'Resonant bolts braid into spiraling duets before collapsing into a finisher.',
             cooldownMultiplier: 1,
             speedMultiplier: 1,
@@ -8005,6 +9449,9 @@ document.addEventListener('DOMContentLoaded', () => {
         scatter: {
             id: 'scatter',
             label: 'Scatter Burst',
+            rarity: 'rare',
+            availability: 'Unlocked by default',
+            traits: ['Sweeping ember blooms', 'Chaotic lateral volleys'],
             description: 'Chaotic fans whip sideways cyclones and ember blooms across the lane.',
             cooldownMultiplier: 1.12,
             speedMultiplier: 0.95,
@@ -8082,6 +9529,9 @@ document.addEventListener('DOMContentLoaded', () => {
         lance: {
             id: 'lance',
             label: 'Star Lance',
+            rarity: 'epic',
+            availability: 'Unlocked by default',
+            traits: ['Piercing charge release', 'Arcing echo lances'],
             description: 'Builds charge through arcing jabs before releasing a radiant piercing nova.',
             cooldownMultiplier: 1.35,
             speedMultiplier: 1.1,
@@ -9477,11 +10927,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const cosmeticsCatalog = {
         skins: playerSkins,
-        trails: {
-            rainbow: trailStyles.rainbow,
-            aurora: trailStyles.aurora,
-            ember: trailStyles.ember
-        },
+        trails: trailStyles,
         weapons: weaponLoadouts
     };
     const defaultCollectScore = 80;
@@ -10078,22 +11524,74 @@ document.addEventListener('DOMContentLoaded', () => {
         onChallengeCompleted: (definition) => {
             const title = definition?.title ?? 'Challenge';
             addSocialMoment(`${title} complete!`, { type: 'challenge' });
+            if (metaProgressManager && typeof metaProgressManager.registerChallengeCompletion === 'function') {
+                try {
+                    metaProgressManager.registerChallengeCompletion(definition);
+                } catch (error) {
+                    console.error('meta progress challenge hook error', error);
+                }
+            }
         },
         onRewardClaimed: (definition, reward) => {
             const rewardLabel = describeReward(reward);
             const title = definition?.title ?? 'Challenge';
             addSocialMoment(`${title}: ${rewardLabel}`, { type: 'challenge' });
+            if (metaProgressManager && typeof metaProgressManager.registerRewardClaim === 'function') {
+                try {
+                    metaProgressManager.registerRewardClaim(definition, reward);
+                } catch (error) {
+                    console.error('meta progress reward hook error', error);
+                }
+            }
         }
     });
+
+    metaProgressManager = createMetaProgressManager({
+        challengeManager,
+        broadcast: (message, meta = {}) => {
+            if (!message) {
+                return;
+            }
+            const type = typeof meta?.type === 'string' ? meta.type : 'meta';
+            addSocialMoment(message, { type, timestamp: Date.now() });
+        }
+    });
+
+    if (metaProgressManager && typeof metaProgressManager.subscribe === 'function') {
+        metaProgressManager.subscribe((snapshot) => {
+            const challengeSnapshot =
+                typeof challengeManager?.getSnapshot === 'function'
+                    ? challengeManager.getSnapshot()
+                    : latestCosmeticSnapshot;
+            renderMetaProgress(snapshot, challengeSnapshot);
+        });
+    } else {
+        const challengeSnapshot =
+            typeof challengeManager?.getSnapshot === 'function'
+                ? challengeManager.getSnapshot()
+                : latestCosmeticSnapshot;
+        renderMetaProgress({}, challengeSnapshot);
+    }
+
     if (challengeManager && typeof challengeManager.subscribe === 'function') {
         challengeManager.subscribe((snapshot) => {
             renderChallengeList(snapshot);
             renderCosmeticOptions(snapshot);
             applyEquippedCosmetics(snapshot?.cosmetics?.equipped);
+            const metaSnapshot =
+                metaProgressManager && typeof metaProgressManager.getSnapshot === 'function'
+                    ? metaProgressManager.getSnapshot()
+                    : latestMetaSnapshot ?? {};
+            renderMetaProgress(metaSnapshot, snapshot);
         });
     } else {
         applyEquippedCosmetics();
         renderCustomLoadouts(latestCosmeticSnapshot);
+        const metaSnapshot =
+            metaProgressManager && typeof metaProgressManager.getSnapshot === 'function'
+                ? metaProgressManager.getSnapshot()
+                : latestMetaSnapshot ?? {};
+        renderMetaProgress(metaSnapshot, latestCosmeticSnapshot);
     }
 
     const storyManager = createStoryManager({
@@ -15918,6 +17416,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             storyManager.recordEvent('streak', { bestStreak: state.bestStreak });
+            if (challengeManager) {
+                challengeManager.recordEvent('streak', { bestStreak: state.bestStreak });
+            }
+            if (metaProgressManager) {
+                metaProgressManager.recordStreak({
+                    bestStreak: state.bestStreak,
+                    delta: state.bestStreak - previousBest
+                });
+            }
         }
         state.tailTarget = config.baseTrailLength + state.streak * config.trailGrowthPerStreak;
         mascotAnnouncer.cheerForCombo(state.streak);
@@ -15929,6 +17436,9 @@ document.addEventListener('DOMContentLoaded', () => {
         storyManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
         if (challengeManager) {
             challengeManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
+        }
+        if (metaProgressManager) {
+            metaProgressManager.recordScore(finalPoints, { totalScore: state.score });
         }
         const originX = source.x ?? player.x + player.width * 0.5;
         const originY = source.y ?? player.y;
@@ -16012,6 +17522,16 @@ document.addEventListener('DOMContentLoaded', () => {
             addSocialMoment(`${summary.player}'s log hit turbulence. Retry shortly.`, {
                 type: 'limit',
                 timestamp
+            });
+        }
+        if (metaProgressManager) {
+            metaProgressManager.recordRun({
+                score: summary.score,
+                bestStreak: summary.bestStreak,
+                placement,
+                timeMs: summary.timeMs,
+                recorded,
+                runsToday
             });
         }
         pendingSubmission = null;
