@@ -7745,8 +7745,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const slotId = loadoutEditorActiveSlotId;
         updateCustomLoadout(slotId, { characterId, weaponId }, { persist: true });
-        setLoadoutStatus(slotId, 'Loadout updated.', 'success');
-        renderCustomLoadouts(latestCosmeticSnapshot);
+        applyCustomLoadout(slotId, { statusMessage: 'Preset saved and equipped.' });
         if (customLoadoutGrid) {
             loadoutEditorReturnFocus = customLoadoutGrid.querySelector(
                 `[data-loadout-id="${slotId}"] [data-loadout-action="edit"]`
@@ -8109,7 +8108,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCustomLoadouts(latestCosmeticSnapshot);
     }
 
-    function applyCustomLoadout(slotId) {
+    function applyCustomLoadout(slotId, { statusMessage = null } = {}) {
         const loadout = getCustomLoadout(slotId);
         if (!loadout) {
             return;
@@ -8162,7 +8161,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setActiveLoadoutId(slotId);
         syncActiveLoadoutState();
         const label = getCustomLoadout(slotId)?.name ?? 'Loadout';
-        setLoadoutStatus(slotId, `${label} equipped.`, 'success');
+        const equippedMessage = statusMessage ?? `${label} equipped.`;
+        setLoadoutStatus(slotId, equippedMessage, 'success');
         renderCustomLoadouts(latestCosmeticSnapshot);
     }
 
