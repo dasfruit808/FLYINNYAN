@@ -5650,11 +5650,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return DEFAULT_PLAYER_NAME;
     }
 
+    const MAX_STORED_HIGH_SCORES = 10;
+    const DISPLAY_HIGH_SCORE_COUNT = 3;
     let highScoreData = loadHighScores();
     let playerName = loadStoredPlayerName();
     if (!highScoreData[playerName]) {
         highScoreData[playerName] = [];
     }
+    updateHighScorePanel();
     ensureSubmissionLogEntry(playerName);
     writeStorage(STORAGE_KEYS.playerName, playerName);
     const cachedLeaderboards = loadLeaderboard();
@@ -5878,6 +5881,146 @@ document.addEventListener('DOMContentLoaded', () => {
         const seconds = totalSeconds % 60;
         const tenths = Math.floor((milliseconds % 1000) / 100);
         return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${tenths}`;
+    }
+
+    function normalizeHighScoreEntry(entry = {}) {
+        const normalized = {
+            timeMs: Number.isFinite(entry.timeMs) ? Math.max(0, Math.floor(entry.timeMs)) : 0,
+            score: Number.isFinite(entry.score) ? Math.max(0, Math.floor(entry.score)) : 0,
+            bestStreak: Number.isFinite(entry.bestStreak)
+                ? Math.max(0, Math.floor(entry.bestStreak))
+                : 0,
+            nyan: Number.isFinite(entry.nyan) ? Math.max(0, Math.floor(entry.nyan)) : 0,
+            recordedAt: Number.isFinite(entry.recordedAt)
+                ? Math.max(0, Math.floor(entry.recordedAt))
+                : Date.now()
+        };
+        return normalized;
+    }
+
+    function getPlayerHighScores(name) {
+        const key = sanitizePlayerName(name) || DEFAULT_PLAYER_NAME;
+        if (!highScoreData[key]) {
+            highScoreData[key] = [];
+        }
+        const entries = Array.isArray(highScoreData[key]) ? highScoreData[key] : [];
+        return entries.slice();
+    }
+
+    function sortHighScores(a, b) {
+        if ((b?.timeMs ?? 0) !== (a?.timeMs ?? 0)) {
+            return (b?.timeMs ?? 0) - (a?.timeMs ?? 0);
+        }
+        if ((b?.score ?? 0) !== (a?.score ?? 0)) {
+            return (b?.score ?? 0) - (a?.score ?? 0);
+        }
+        if ((b?.bestStreak ?? 0) !== (a?.bestStreak ?? 0)) {
+            return (b?.bestStreak ?? 0) - (a?.bestStreak ?? 0);
+        }
+        return (a?.recordedAt ?? 0) - (b?.recordedAt ?? 0);
+    }
+
+    function describeHighScoreEntry(entry) {
+        const parts = [];
+        parts.push(`Flight time: ${formatTime(entry.timeMs)}`);
+        parts.push(`Score: ${entry.score.toLocaleString()} pts`);
+        if (entry.bestStreak) {
+            parts.push(`Best tail: x${entry.bestStreak}`);
+        }
+        if (entry.nyan) {
+            parts.push(`Pickups: ${entry.nyan.toLocaleString()}`);
+        }
+        if (entry.recordedAt) {
+            try {
+                const recordedDate = new Date(entry.recordedAt);
+                if (!Number.isNaN(recordedDate.getTime())) {
+                    parts.push(`Logged: ${recordedDate.toLocaleString()}`);
+                }
+            } catch {
+                // Ignore invalid dates
+            }
+        }
+        return parts.join('\n');
+    }
+
+    function renderHighScoreListForPlayer(name, { preview = false } = {}) {
+        if (!highScoreListEl || !highScoreTitleEl) {
+            return;
+        }
+        const targetName = sanitizePlayerName(name) || DEFAULT_PLAYER_NAME;
+        const entries = getPlayerHighScores(targetName).sort(sortHighScores);
+        highScoreListEl.textContent = '';
+        if (!entries.length) {
+            const emptyItem = document.createElement('li');
+            emptyItem.className = 'empty';
+            emptyItem.textContent = preview
+                ? 'No ranked flights logged for this callsign yet.'
+                : 'Log a ranked flight to track your best runs here.';
+            highScoreListEl.append(emptyItem);
+        } else {
+            entries
+                .slice(0, DISPLAY_HIGH_SCORE_COUNT)
+                .forEach((entry) => {
+                    const item = document.createElement('li');
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'time';
+                    timeSpan.textContent = formatTime(entry.timeMs);
+                    const separator = document.createTextNode(' — ');
+                    const scoreSpan = document.createElement('span');
+                    scoreSpan.className = 'score';
+                    scoreSpan.textContent = `${entry.score.toLocaleString()} pts`;
+                    item.append(timeSpan, separator, scoreSpan);
+                    const tooltip = describeHighScoreEntry(entry);
+                    if (tooltip) {
+                        item.title = tooltip;
+                    }
+                    highScoreListEl.append(item);
+                });
+        }
+        const previewLabel = preview && targetName !== playerName ? ' (preview)' : '';
+        const heading = `Top Flight Times — ${targetName}${previewLabel}`;
+        if (highScoreTitleEl.textContent !== heading) {
+            highScoreTitleEl.textContent = heading;
+        }
+        highScoreTitleEl.dataset.playerName = targetName;
+        highScoreTitleEl.dataset.preview = preview ? 'true' : 'false';
+    }
+
+    function updateHighScorePanel() {
+        renderHighScoreListForPlayer(playerName, { preview: false });
+    }
+
+    function isOverlayVisible() {
+        if (!overlay) {
+            return false;
+        }
+        if (overlay.classList.contains('hidden')) {
+            return false;
+        }
+        return overlay.getAttribute('aria-hidden') !== 'true';
+    }
+
+    function refreshHighScorePreview() {
+        const overlayActive = isOverlayVisible();
+        const pendingName = overlayActive ? getPendingPlayerName() : playerName;
+        const previewMode = overlayActive && pendingName !== playerName;
+        renderHighScoreListForPlayer(pendingName, { preview: previewMode });
+    }
+
+    function recordLocalHighScore(entry) {
+        const targetName = sanitizePlayerName(entry?.player) || DEFAULT_PLAYER_NAME;
+        const normalized = normalizeHighScoreEntry(entry);
+        const scores = getPlayerHighScores(targetName);
+        scores.push(normalized);
+        scores.sort(sortHighScores);
+        highScoreData[targetName] = scores.slice(0, MAX_STORED_HIGH_SCORES);
+        persistHighScores(highScoreData);
+        if (targetName === playerName) {
+            updateHighScorePanel();
+        }
+        if (isOverlayVisible()) {
+            refreshHighScorePreview();
+        }
     }
 
     function buildRunSummaryMessage(baseMessage, summary, {
@@ -11828,6 +11971,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ? ` (${Math.min(runsToday, SUBMISSION_LIMIT)}/${SUBMISSION_LIMIT} today)`
             : '';
         if (recorded) {
+            recordLocalHighScore({
+                player: summary.player,
+                timeMs: summary.timeMs,
+                score: summary.score,
+                bestStreak: summary.bestStreak,
+                nyan: summary.nyan,
+                recordedAt: summary.recordedAt
+            });
             if (placement && placement <= 7) {
                 addSocialMoment(`${summary.player} entered the galaxy standings at #${placement}!${runDescriptor}`, {
                     type: 'leaderboard',
