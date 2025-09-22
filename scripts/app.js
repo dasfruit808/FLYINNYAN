@@ -2118,6 +2118,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const runSummaryStreakEl = document.getElementById('runSummaryStreak');
     const runSummaryNyanEl = document.getElementById('runSummaryNyan');
     const runSummaryPlacementEl = document.getElementById('runSummaryPlacement');
+
+    let lastPauseReason = 'manual';
     const runSummaryRunsEl = document.getElementById('runSummaryRuns');
     const weaponSummaryName = document.getElementById('weaponSummaryName');
     const weaponSummaryDescription = document.getElementById('weaponSummaryDescription');
@@ -2206,6 +2208,97 @@ document.addEventListener('DOMContentLoaded', () => {
             ? window.matchMedia('(pointer: coarse)')
             : null;
     let isTouchInterface = coarsePointerQuery?.matches ?? ('ontouchstart' in window);
+
+    function getPauseOverlayContent(reason = lastPauseReason) {
+        const touchResume = isTouchInterface ? 'Tap Resume' : 'Press Resume or P';
+        const controllerResume = isTouchInterface
+            ? 'Tap Resume or press Start on your controller'
+            : 'Press Resume or the Start/Options button on your controller';
+
+        switch (reason) {
+            case 'gamepad':
+                return {
+                    message: 'Flight paused by your controller.',
+                    hint: `${controllerResume} to continue your run.`
+                };
+            case 'hidden':
+                return {
+                    message: 'Flight paused while the game was in the background.',
+                    hint: `${touchResume} when you are ready to rejoin the action.`
+                };
+            case 'blur':
+                return {
+                    message: 'Flight paused when the window lost focus.',
+                    hint: `${touchResume} to continue your run.`
+                };
+            case 'tutorial':
+                return {
+                    message: 'Training flight paused.',
+                    hint: `${touchResume} after reviewing your mission briefing.`
+                };
+            default:
+                return {
+                    message: 'Flight paused.',
+                    hint: `${touchResume} to continue your run.`
+                };
+        }
+    }
+
+    function updatePauseOverlayContent(reason = lastPauseReason) {
+        if (!pauseOverlay) {
+            return;
+        }
+        const { message, hint } = getPauseOverlayContent(reason);
+        if (pauseMessageEl) {
+            pauseMessageEl.textContent = message;
+        }
+        if (pauseHintEl) {
+            if (hint) {
+                pauseHintEl.textContent = hint;
+                pauseHintEl.hidden = false;
+                pauseHintEl.setAttribute('aria-hidden', 'false');
+            } else {
+                pauseHintEl.textContent = '';
+                pauseHintEl.hidden = true;
+                pauseHintEl.setAttribute('aria-hidden', 'true');
+            }
+        }
+    }
+
+    function showPauseOverlay(reason = lastPauseReason) {
+        if (!pauseOverlay) {
+            return;
+        }
+        updatePauseOverlayContent(reason);
+        pauseOverlay.hidden = false;
+        pauseOverlay.setAttribute('aria-hidden', 'false');
+        window.requestAnimationFrame(() => {
+            if (!resumeButton) {
+                return;
+            }
+            try {
+                resumeButton.focus({ preventScroll: true });
+            } catch {
+                resumeButton.focus();
+            }
+        });
+    }
+
+    function hidePauseOverlay() {
+        if (!pauseOverlay) {
+            return;
+        }
+        pauseOverlay.hidden = true;
+        pauseOverlay.setAttribute('aria-hidden', 'true');
+        if (pauseHintEl) {
+            pauseHintEl.textContent = '';
+            pauseHintEl.hidden = true;
+            pauseHintEl.setAttribute('aria-hidden', 'true');
+        }
+        if (resumeButton && document.activeElement === resumeButton) {
+            resumeButton.blur();
+        }
+    }
     const TOUCH_SMOOTHING_RATE = 26;
     const MOTION_SMOOTHING_RATE = 18;
     const MOTION_MAX_TILT = 45;
@@ -6498,7 +6591,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let tutorialFlightActive = false;
     let tutorialCallsign = null;
     let activeSummaryTab = summarySections.has('run') ? 'run' : summarySections.keys().next().value ?? null;
-    let lastPauseReason = 'manual';
     let resumeAfterSettingsClose = false;
 
     function setActiveSummaryTab(tabId, { focusTab = false } = {}) {
