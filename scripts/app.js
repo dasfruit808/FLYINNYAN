@@ -6340,12 +6340,17 @@ document.addEventListener('DOMContentLoaded', () => {
             setPendingCharacter(initialCharacterProfile.id, { updateSummary: false });
         }
     }
+    const defaultCollectScore = 84;
     const baseCollectScoreRaw = config?.score?.collect;
     const baseCollectScore = Number.isFinite(Number(baseCollectScoreRaw))
         ? Math.max(1, Number(baseCollectScoreRaw))
         : defaultCollectScore;
+    const fallbackScoreConfig =
+        typeof baseGameConfig !== 'undefined' && baseGameConfig && isPlainObject(baseGameConfig.score)
+            ? baseGameConfig.score
+            : {};
     if (!config.score || !isPlainObject(config.score)) {
-        config.score = { ...baseGameConfig.score };
+        config.score = { ...fallbackScoreConfig };
     }
     config.score.collect = baseCollectScore;
 
