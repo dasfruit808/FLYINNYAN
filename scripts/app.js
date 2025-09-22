@@ -1522,6 +1522,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const shareStatusEl = document.getElementById('shareStatus');
     const socialFeedEl = document.getElementById('socialFeed');
     const intelLogEl = document.getElementById('intelLog');
+    const storyCurrentTitle = document.getElementById('storyCurrentTitle');
+    const storyCurrentBody = document.getElementById('storyCurrentBody');
+    const storyCurrentMeta = document.getElementById('storyCurrentMeta');
+    const storyObjectivesEl = document.getElementById('storyCurrentObjectives');
+    const storyTimelineEl = document.getElementById('storyTimeline');
+    const storyUpcomingEl = document.getElementById('storyUpcoming');
+    const storyboardPreviewEl = document.getElementById('storyboardPreview');
+    const storyboardImageEl = document.getElementById('storyboardImage');
+    const storyboardCaptionEl = document.getElementById('storyboardCaption');
     const challengeListEl = document.getElementById('challengeList');
     const skinOptionsEl = document.getElementById('skinOptions');
     const trailOptionsEl = document.getElementById('trailOptions');
@@ -4915,6 +4924,823 @@ document.addEventListener('DOMContentLoaded', () => {
         const days = Math.floor(hours / 24);
         return `${days}d ago`;
     }
+
+    function createStoryManager({
+        beats = [],
+        elements = {},
+        storageKey = 'nyanEscape.storyProgress',
+        formatTimeLabel = (value) => {
+            const totalSeconds = Math.max(0, Math.round((Number(value) || 0) / 1000));
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        },
+        formatRelative = (timestamp) => formatRelativeTime(timestamp),
+        broadcast = null
+    } = {}) {
+        const toElement = (node) => (node instanceof HTMLElement ? node : null);
+        const toImage = (node) => (node instanceof HTMLImageElement ? node : null);
+        const storyElements = {
+            currentTitle: toElement(elements.currentTitle),
+            currentBody: toElement(elements.currentBody),
+            currentMeta: toElement(elements.currentMeta),
+            objectives: toElement(elements.objectiveList),
+            timeline: toElement(elements.timelineList),
+            upcoming: toElement(elements.upcomingList),
+            storyboardFrame: toElement(elements.storyboardFrame),
+            storyboardImage: toImage(elements.storyboardImage),
+            storyboardCaption: toElement(elements.storyboardCaption)
+        };
+
+        if (storyElements.storyboardImage && storyElements.storyboardFrame) {
+            storyElements.storyboardImage.addEventListener('error', () => {
+                storyElements.storyboardFrame.setAttribute('hidden', '');
+            });
+        }
+
+        const getConditionEvent = (condition) => {
+            if (!condition || typeof condition === 'function') {
+                return null;
+            }
+            const raw = condition.event ?? condition.type ?? null;
+            return typeof raw === 'string' ? raw : null;
+        };
+
+        const resolvedBeats = [];
+        const beatsByEvent = new Map();
+
+        if (Array.isArray(beats)) {
+            beats.forEach((beat) => {
+                if (!beat || typeof beat.id !== 'string' || !beat.id.trim()) {
+                    return;
+                }
+                const normalized = { ...beat, id: beat.id.trim(), order: resolvedBeats.length };
+                resolvedBeats.push(normalized);
+                const eventKey = getConditionEvent(normalized.condition);
+                const bucketKey = eventKey ?? (typeof normalized.condition === 'function' ? '*' : null);
+                if (bucketKey) {
+                    if (!beatsByEvent.has(bucketKey)) {
+                        beatsByEvent.set(bucketKey, []);
+                    }
+                    beatsByEvent.get(bucketKey).push(normalized);
+                }
+            });
+        }
+
+        if (!resolvedBeats.length) {
+            return {
+                prepareForRun() {},
+                beginRun() {},
+                completeRun() {},
+                recordEvent() {}
+            };
+        }
+
+        const storageAvailable = (() => {
+            try {
+                return typeof window !== 'undefined' && window.localStorage != null;
+            } catch {
+                return false;
+            }
+        })();
+
+        const state = {
+            unlocked: new Set(),
+            timeline: [],
+            activeId: null,
+            stats: {
+                runs: 0,
+                time: 0,
+                score: 0,
+                collectibles: 0,
+                powerUps: 0,
+                bestStreak: 0,
+                bossesCleared: 0,
+                lastPowerUpType: null,
+                lastBossKey: null,
+                lastBossName: null,
+                lastBossStatus: null
+            },
+            runActive: false,
+            lastRunMetadata: null
+        };
+
+        const findBeatById = (id) => resolvedBeats.find((beat) => beat.id === id) ?? null;
+
+        if (storageAvailable) {
+            try {
+                const raw = window.localStorage.getItem(storageKey);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed?.unlocked)) {
+                        for (const id of parsed.unlocked) {
+                            if (findBeatById(id)) {
+                                state.unlocked.add(id);
+                            }
+                        }
+                    }
+                    if (Array.isArray(parsed?.timeline)) {
+                        for (const entry of parsed.timeline) {
+                            if (!entry || !state.unlocked.has(entry.id)) {
+                                continue;
+                            }
+                            state.timeline.push({
+                                id: entry.id,
+                                unlockedAt: typeof entry.unlockedAt === 'number' ? entry.unlockedAt : Date.now(),
+                                context: typeof entry.context === 'string' ? entry.context : ''
+                            });
+                        }
+                    }
+                    if (typeof parsed?.activeId === 'string' && state.unlocked.has(parsed.activeId)) {
+                        state.activeId = parsed.activeId;
+                    } else if (state.timeline.length) {
+                        state.activeId = state.timeline[0].id;
+                    }
+                }
+            } catch (error) {
+                console.warn('Unable to load story progress', error);
+            }
+        }
+
+        const persist = () => {
+            if (!storageAvailable) {
+                return;
+            }
+            try {
+                const payload = {
+                    unlocked: Array.from(state.unlocked),
+                    timeline: state.timeline.map((entry) => ({
+                        id: entry.id,
+                        unlockedAt: entry.unlockedAt,
+                        context: entry.context
+                    })),
+                    activeId: state.activeId
+                };
+                window.localStorage.setItem(storageKey, JSON.stringify(payload));
+            } catch (error) {
+                console.warn('Unable to persist story progress', error);
+            }
+        };
+
+        const formatPowerUpName = (type) => {
+            if (!type) {
+                return 'power-up';
+            }
+            if (powerUpLabels[type]) {
+                return powerUpLabels[type];
+            }
+            return type;
+        };
+
+        const describeCondition = (condition, beat = null) => {
+            if (beat && typeof beat.hint === 'string' && beat.hint.trim().length) {
+                return beat.hint;
+            }
+            if (!condition || typeof condition !== 'object') {
+                return 'Keep flying to discover this signal.';
+            }
+            const target = condition.event ?? condition.type ?? null;
+            const threshold = condition.threshold ?? condition.value ?? null;
+            switch (target) {
+                case 'runStart':
+                    return 'Launch a flight to receive this transmission.';
+                case 'time':
+                    if (typeof threshold === 'number' && threshold > 0) {
+                        return `Survive ${formatTimeLabel(threshold)} to decode this signal.`;
+                    }
+                    return 'Survive longer to decode this signal.';
+                case 'score':
+                    if (typeof threshold === 'number' && threshold > 0) {
+                        return `Earn ${threshold.toLocaleString()} points to broadcast this update.`;
+                    }
+                    return 'Boost your score to broadcast this update.';
+                case 'collectible':
+                    if (typeof threshold === 'number' && threshold > 0) {
+                        return `Collect ${threshold} cores to unlock this briefing.`;
+                    }
+                    return 'Collect more cores to unlock this briefing.';
+                case 'powerUp':
+                    if (condition.type && powerUpLabels[condition.type]) {
+                        return `Secure the ${powerUpLabels[condition.type]} core to trigger this briefing.`;
+                    }
+                    return 'Secure a power-up to trigger this briefing.';
+                case 'streak':
+                    if (typeof threshold === 'number' && threshold > 0) {
+                        return `Reach a x${threshold} streak to amplify this signal.`;
+                    }
+                    return 'Build your streak to amplify this signal.';
+                case 'boss':
+                    if (condition.status === 'defeated') {
+                        return 'Defeat a boss to broadcast this victory.';
+                    }
+                    if (condition.status === 'engaged') {
+                        return 'Survive until a boss intercept engages.';
+                    }
+                    return 'Engage the next boss to receive this briefing.';
+                case 'runEnd':
+                    return 'Complete a run to log this chapter.';
+                default:
+                    return 'Keep flying to discover this signal.';
+            }
+        };
+
+        const getBeatHint = (beat) => (beat ? describeCondition(beat.condition, beat) : '');
+
+        const renderObjectives = (items) => {
+            if (!storyElements.objectives) {
+                return;
+            }
+            storyElements.objectives.innerHTML = '';
+            if (!Array.isArray(items) || !items.length) {
+                storyElements.objectives.setAttribute('hidden', '');
+                storyElements.objectives.setAttribute('aria-hidden', 'true');
+                return;
+            }
+            storyElements.objectives.removeAttribute('hidden');
+            storyElements.objectives.setAttribute('aria-hidden', 'false');
+            for (const text of items) {
+                if (typeof text !== 'string' || !text.length) {
+                    continue;
+                }
+                const item = document.createElement('li');
+                item.textContent = text;
+                storyElements.objectives.appendChild(item);
+            }
+        };
+
+        const updateStoryboard = (beat) => {
+            if (!storyElements.storyboardFrame || !storyElements.storyboardImage) {
+                return;
+            }
+            if (!beat || !beat.storyboard) {
+                storyElements.storyboardFrame.setAttribute('hidden', '');
+                storyElements.storyboardImage.removeAttribute('src');
+                if (storyElements.storyboardCaption) {
+                    storyElements.storyboardCaption.textContent = '';
+                }
+                return;
+            }
+            storyElements.storyboardFrame.removeAttribute('hidden');
+            storyElements.storyboardImage.src = beat.storyboard;
+            storyElements.storyboardImage.alt = beat.storyboardAlt ?? `${beat.title ?? 'Storyboard'} concept art`;
+            if (storyElements.storyboardCaption) {
+                storyElements.storyboardCaption.textContent = beat.storyboardCaption ?? 'Storyboard preview';
+            }
+        };
+
+        const describeContext = (eventType, payload, beat) => {
+            switch (eventType) {
+                case 'runStart': {
+                    const callSign = payload?.metadata?.callSign ?? state.lastRunMetadata?.callSign ?? null;
+                    return callSign
+                        ? `${callSign} launched — transmissions online.`
+                        : 'Flight launched — transmissions online.';
+                }
+                case 'time':
+                    if (typeof payload?.totalMs === 'number') {
+                        return `Survived ${formatTimeLabel(payload.totalMs)}.`;
+                    }
+                    return '';
+                case 'score':
+                    if (typeof payload?.totalScore === 'number') {
+                        return `Score ${payload.totalScore.toLocaleString()} pts.`;
+                    }
+                    return '';
+                case 'collectible':
+                    return `Collected ${state.stats.collectibles} cores.`;
+                case 'powerUp':
+                    return `Secured ${formatPowerUpName(payload?.type)} core.`;
+                case 'streak':
+                    if (typeof payload?.bestStreak === 'number') {
+                        return `Streak peaked at x${payload.bestStreak}.`;
+                    }
+                    return '';
+                case 'boss':
+                    if (payload?.status === 'defeated') {
+                        return `${payload?.name ?? 'Boss'} neutralized.`;
+                    }
+                    if (payload?.status === 'engaged') {
+                        return `${payload?.name ?? 'Boss'} intercept detected.`;
+                    }
+                    return '';
+                case 'runEnd':
+                    if (typeof payload?.timeMs === 'number' && typeof payload?.score === 'number') {
+                        return `Run ended at ${formatTimeLabel(payload.timeMs)} for ${payload.score.toLocaleString()} pts.`;
+                    }
+                    return '';
+                default:
+                    return beat?.description ?? '';
+            }
+        };
+
+        const renderTimeline = () => {
+            if (!storyElements.timeline) {
+                return;
+            }
+            storyElements.timeline.innerHTML = '';
+            if (!state.timeline.length) {
+                const empty = document.createElement('li');
+                empty.className = 'storyline-empty';
+                empty.textContent = state.runActive
+                    ? 'No transmissions logged yet. Stay sharp.'
+                    : 'Complete a flight objective to log your first transmission.';
+                storyElements.timeline.appendChild(empty);
+                return;
+            }
+            const limit = 6;
+            for (const entry of state.timeline.slice(0, limit)) {
+                const beat = findBeatById(entry.id);
+                if (!beat) {
+                    continue;
+                }
+                const item = document.createElement('li');
+                item.className = 'storyline-entry';
+                const title = document.createElement('p');
+                title.className = 'storyline-entry-title';
+                title.textContent = beat.title;
+                if (entry.unlockedAt) {
+                    const meta = document.createElement('span');
+                    meta.className = 'storyline-entry-meta';
+                    meta.textContent = formatRelative(entry.unlockedAt);
+                    title.appendChild(meta);
+                }
+                const body = document.createElement('p');
+                body.className = 'storyline-entry-body';
+                body.textContent = entry.context || beat.description || '';
+                item.appendChild(title);
+                item.appendChild(body);
+                storyElements.timeline.appendChild(item);
+            }
+        };
+
+        const renderUpcoming = () => {
+            if (!storyElements.upcoming) {
+                return;
+            }
+            storyElements.upcoming.innerHTML = '';
+            const locked = resolvedBeats.filter((beat) => !state.unlocked.has(beat.id));
+            if (!locked.length) {
+                const item = document.createElement('li');
+                item.className = 'storyline-empty';
+                item.textContent = 'All current transmissions decoded. Awaiting new directives.';
+                storyElements.upcoming.appendChild(item);
+                return;
+            }
+            const limit = 4;
+            for (const beat of locked.slice(0, limit)) {
+                const item = document.createElement('li');
+                item.className = 'storyline-entry storyline-entry--upcoming';
+                const title = document.createElement('p');
+                title.className = 'storyline-entry-title';
+                title.textContent = beat.title;
+                const body = document.createElement('p');
+                body.className = 'storyline-entry-body';
+                body.textContent = getBeatHint(beat);
+                item.appendChild(title);
+                item.appendChild(body);
+                storyElements.upcoming.appendChild(item);
+            }
+        };
+
+        const renderCurrent = () => {
+            if (!storyElements.currentTitle || !storyElements.currentBody) {
+                return;
+            }
+            const activeEntry = state.timeline.find((entry) => entry.id === state.activeId) ?? state.timeline[0];
+            const activeBeat = activeEntry ? findBeatById(activeEntry.id) : null;
+            if (activeBeat && activeEntry) {
+                storyElements.currentTitle.textContent = activeBeat.title;
+                storyElements.currentBody.textContent = activeBeat.description ?? '';
+                if (storyElements.currentMeta) {
+                    storyElements.currentMeta.textContent = activeEntry.unlockedAt
+                        ? `Unlocked ${formatRelative(activeEntry.unlockedAt)}`
+                        : 'Unlocked';
+                }
+                renderObjectives(Array.isArray(activeBeat.objectives) ? activeBeat.objectives : []);
+                updateStoryboard(activeBeat);
+                return;
+            }
+            const upcoming = resolvedBeats.find((beat) => !state.unlocked.has(beat.id));
+            if (upcoming) {
+                storyElements.currentTitle.textContent = `Next Transmission: ${upcoming.title}`;
+                storyElements.currentBody.textContent = getBeatHint(upcoming);
+                if (storyElements.currentMeta) {
+                    storyElements.currentMeta.textContent = state.runActive
+                        ? 'Signal pending — stay in the fight.'
+                        : 'Awaiting launch window.';
+                }
+                renderObjectives([]);
+                updateStoryboard(null);
+                return;
+            }
+            storyElements.currentTitle.textContent = 'Campaign Complete';
+            storyElements.currentBody.textContent =
+                'Every transmission decoded. Awaiting the next chapter from mission control.';
+            if (storyElements.currentMeta) {
+                storyElements.currentMeta.textContent = 'Storyline synced';
+            }
+            renderObjectives([]);
+            updateStoryboard(null);
+        };
+
+        const refreshCurrent = () => {
+            renderCurrent();
+        };
+
+        const refreshUI = () => {
+            refreshCurrent();
+            renderTimeline();
+            renderUpcoming();
+        };
+
+        const broadcastUnlock = (beat, context, summary) => {
+            if (typeof broadcast !== 'function') {
+                return;
+            }
+            const callSign =
+                context?.payload?.metadata?.callSign ??
+                state.lastRunMetadata?.callSign ??
+                null;
+            let message = null;
+            if (typeof beat.broadcast === 'function') {
+                message = beat.broadcast({
+                    beat,
+                    context,
+                    stats: state.stats,
+                    callSign
+                });
+            } else if (typeof beat.broadcast === 'string' && beat.broadcast.trim().length) {
+                message = beat.broadcast;
+            } else {
+                message = `${beat.title} — ${summary || beat.description || ''}`.trim();
+            }
+            if (callSign && typeof message === 'string' && !message.includes(callSign)) {
+                message = `${callSign}: ${message}`;
+            }
+            if (message) {
+                broadcast(message, { beat, context, stats: state.stats });
+            }
+        };
+
+        const unlockBeat = (beat, context) => {
+            if (state.unlocked.has(beat.id)) {
+                return null;
+            }
+            state.unlocked.add(beat.id);
+            const entry = {
+                id: beat.id,
+                unlockedAt: Date.now(),
+                context: describeContext(context.eventType, context.payload, beat)
+            };
+            state.timeline.unshift(entry);
+            state.timeline = state.timeline.slice(0, 12);
+            state.activeId = beat.id;
+            broadcastUnlock(beat, context, entry.context);
+            return entry;
+        };
+
+        const updateStats = (eventType, payload) => {
+            switch (eventType) {
+                case 'runStart': {
+                    state.stats.time = 0;
+                    state.stats.score = 0;
+                    state.stats.collectibles = 0;
+                    state.stats.powerUps = 0;
+                    state.stats.bestStreak = 0;
+                    state.stats.lastPowerUpType = null;
+                    state.stats.lastBossKey = null;
+                    state.stats.lastBossName = null;
+                    state.stats.lastBossStatus = null;
+                    state.stats.runs += 1;
+                    state.lastRunMetadata = payload?.metadata ?? payload ?? null;
+                    break;
+                }
+                case 'time': {
+                    const total = Number(payload?.totalMs);
+                    if (Number.isFinite(total)) {
+                        state.stats.time = Math.max(state.stats.time, total);
+                    }
+                    break;
+                }
+                case 'score': {
+                    const total = Number(payload?.totalScore);
+                    if (Number.isFinite(total)) {
+                        state.stats.score = Math.max(state.stats.score, total);
+                    }
+                    break;
+                }
+                case 'collectible': {
+                    const count = Number(payload?.count ?? 1);
+                    if (Number.isFinite(count) && count > 0) {
+                        state.stats.collectibles += count;
+                    } else {
+                        state.stats.collectibles += 1;
+                    }
+                    break;
+                }
+                case 'powerUp': {
+                    state.stats.powerUps += 1;
+                    state.stats.lastPowerUpType = payload?.type ?? null;
+                    break;
+                }
+                case 'streak': {
+                    const best = Number(payload?.bestStreak ?? payload?.streak);
+                    if (Number.isFinite(best)) {
+                        state.stats.bestStreak = Math.max(state.stats.bestStreak, best);
+                    }
+                    break;
+                }
+                case 'boss': {
+                    if (payload?.status === 'defeated') {
+                        state.stats.bossesCleared = (state.stats.bossesCleared ?? 0) + 1;
+                    }
+                    state.stats.lastBossStatus = payload?.status ?? null;
+                    state.stats.lastBossKey = payload?.boss ?? null;
+                    state.stats.lastBossName = payload?.name ?? null;
+                    break;
+                }
+                case 'runEnd': {
+                    const time = Number(payload?.timeMs);
+                    const score = Number(payload?.score);
+                    const best = Number(payload?.bestStreak);
+                    if (Number.isFinite(time)) {
+                        state.stats.time = Math.max(state.stats.time, time);
+                    }
+                    if (Number.isFinite(score)) {
+                        state.stats.score = Math.max(state.stats.score, score);
+                    }
+                    if (Number.isFinite(best)) {
+                        state.stats.bestStreak = Math.max(state.stats.bestStreak, best);
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        };
+
+        const shouldUnlock = (beat, eventType, payload) => {
+            const condition = beat.condition;
+            if (typeof condition === 'function') {
+                try {
+                    return condition(eventType, payload, state.stats, beat);
+                } catch (error) {
+                    console.warn('Story condition threw an error', error);
+                    return false;
+                }
+            }
+            if (!condition || typeof condition !== 'object') {
+                return false;
+            }
+            const target = condition.event ?? condition.type ?? null;
+            const threshold = condition.threshold ?? condition.value ?? null;
+            switch (target) {
+                case 'runStart':
+                    return eventType === 'runStart';
+                case 'runEnd':
+                    return eventType === 'runEnd';
+                case 'time':
+                    return state.stats.time >= Number(threshold ?? 0);
+                case 'score':
+                    return state.stats.score >= Number(threshold ?? 0);
+                case 'collectible':
+                    return state.stats.collectibles >= Number(threshold ?? 0 || 0);
+                case 'powerUp':
+                    if (eventType !== 'powerUp') {
+                        return false;
+                    }
+                    if (condition.type && condition.type !== payload?.type) {
+                        return false;
+                    }
+                    return true;
+                case 'streak':
+                    return state.stats.bestStreak >= Number(threshold ?? 0);
+                case 'boss':
+                    if (eventType !== 'boss') {
+                        return false;
+                    }
+                    if (condition.status && condition.status !== payload?.status) {
+                        return false;
+                    }
+                    if (condition.key && condition.key !== payload?.boss) {
+                        return false;
+                    }
+                    return true;
+                default:
+                    return target ? eventType === target : false;
+            }
+        };
+
+        const recordEvent = (eventType, payload = {}) => {
+            if (!eventType) {
+                return;
+            }
+            updateStats(eventType, payload);
+            const candidates = [
+                ...(beatsByEvent.get(eventType) ?? []),
+                ...(beatsByEvent.get('*') ?? [])
+            ];
+            if (!candidates.length) {
+                if (eventType === 'runStart' || eventType === 'runEnd') {
+                    refreshUI();
+                }
+                return;
+            }
+            let unlockedAny = false;
+            for (const beat of candidates) {
+                if (state.unlocked.has(beat.id)) {
+                    continue;
+                }
+                if (shouldUnlock(beat, eventType, payload)) {
+                    unlockBeat(beat, { eventType, payload });
+                    unlockedAny = true;
+                }
+            }
+            if (unlockedAny) {
+                persist();
+                refreshUI();
+            } else if (eventType === 'runStart' || eventType === 'runEnd') {
+                refreshUI();
+            }
+        };
+
+        const prepareForRun = () => {
+            state.runActive = false;
+            state.lastRunMetadata = null;
+            state.stats.time = 0;
+            state.stats.score = 0;
+            state.stats.collectibles = 0;
+            state.stats.powerUps = 0;
+            state.stats.bestStreak = 0;
+            state.stats.lastPowerUpType = null;
+            state.stats.lastBossKey = null;
+            state.stats.lastBossName = null;
+            state.stats.lastBossStatus = null;
+            refreshCurrent();
+        };
+
+        const beginRun = (metadata = {}) => {
+            state.runActive = true;
+            state.lastRunMetadata = { ...metadata };
+            recordEvent('runStart', { metadata });
+            refreshCurrent();
+        };
+
+        const completeRun = (payload = {}) => {
+            state.runActive = false;
+            recordEvent('runEnd', payload);
+            refreshCurrent();
+        };
+
+        refreshUI();
+
+        return {
+            prepareForRun,
+            beginRun,
+            completeRun,
+            recordEvent
+        };
+    }
+
+    const STORY_BEATS = [
+        {
+            id: 'convoy-briefing',
+            title: 'Convoy Briefing Received',
+            description:
+                "Aurora patches into your cockpit, relaying the convoy's staggered launch windows and plotting safe corridors.",
+            objectives: [
+                'Thread the blockade while keeping your combo meter humming.',
+                'Collect Points to keep the convoy deflection field charged.',
+                'Dash through volleys before Syndicate scouts can lock on.'
+            ],
+            condition: { event: 'runStart' },
+            hint: 'Launch a ranked flight to receive Aurora’s convoy briefing.',
+            storyboard: 'assets/storyboards/convoy-briefing.png',
+            storyboardAlt: 'Mission control cat projecting a holo-map of evacuation routes.',
+            storyboardCaption: 'Storyboard placeholder — add convoy-briefing.png to assets/storyboards/.',
+            broadcast: ({ callSign }) =>
+                callSign ? `${callSign} uplinked Aurora’s convoy briefing.` : 'Convoy briefing uplinked.'
+        },
+        {
+            id: 'combo-wake',
+            title: 'Combo Wake Detected',
+            description:
+                'Energy plumes trail your craft when the combo core hums above threshold. Aurora flags the wake as a beacon for the convoy.',
+            objectives: [
+                'Hold at least a x6 streak to keep the wake stable.',
+                'Use gentle rolls to ride turbulence around debris.',
+                'Dump Hyper Beam charge as soon as lanes are saturated.'
+            ],
+            condition: { event: 'streak', threshold: 6 },
+            hint: 'Reach a x6 streak to let Aurora map the combo wake.',
+            storyboard: 'assets/storyboards/combo-wake.png',
+            storyboardAlt: 'Catship leaving a glowing wake through asteroids.',
+            storyboardCaption: 'Storyboard placeholder — add combo-wake.png to assets/storyboards/.',
+            broadcast: ({ callSign, stats }) => {
+                const prefix = callSign ? `${callSign}` : 'Flight lead';
+                const peak = Math.max(stats?.bestStreak ?? 0, 6);
+                return `${prefix} stabilized a combo wake at x${peak}.`;
+            }
+        },
+        {
+            id: 'radiant-shield',
+            title: 'Radiant Shield Online',
+            description:
+                'Mission control recalibrates the shield harmonics, letting you slam Syndicate scouts aside without draining momentum.',
+            objectives: [
+                'Bash through clustered asteroids while the shield sings.',
+                'Use the invulnerability window to grab distant power cores.',
+                'Turn shield hits into combo fuel with quick follow-up shots.'
+            ],
+            condition: { event: 'powerUp', type: SHIELD_POWER },
+            hint: 'Secure the Radiant Shield core to trigger this systems update.',
+            storyboard: 'assets/storyboards/radiant-shield.png',
+            storyboardAlt: 'Catship glowing with a protective barrier.',
+            storyboardCaption: 'Storyboard placeholder — add radiant-shield.png to assets/storyboards/.',
+            broadcast: ({ callSign }) =>
+                callSign ? `${callSign} brought the Radiant Shield online.` : 'Radiant Shield harmonics locked.'
+        },
+        {
+            id: 'convoy-momentum',
+            title: 'Convoy Momentum Rising',
+            description:
+                'Sensor chatter spikes as your score surges past the rally threshold—colonists fire engines and fall in behind your wake.',
+            objectives: [
+                'Chain high-value cores while Score Surge is active.',
+                'Clear escape lanes fast to keep the convoy accelerating.',
+                'Dive for double cores whenever the magnet drive pings.'
+            ],
+            condition: { event: 'score', threshold: 45000 },
+            hint: 'Bank 45,000 points in a single run to rally the convoy.',
+            storyboard: 'assets/storyboards/convoy-momentum.png',
+            storyboardAlt: 'Pilots cheering as the convoy engines ignite.',
+            storyboardCaption: 'Storyboard placeholder — add convoy-momentum.png to assets/storyboards/.',
+            broadcast: ({ callSign, stats }) => {
+                const prefix = callSign ? `${callSign}` : 'Convoy lead';
+                const score = Number(stats?.score ?? 0);
+                const formatted = Number.isFinite(score) && score > 0 ? score.toLocaleString() : '45,000';
+                return `${prefix} pushed convoy momentum past ${formatted} pts.`;
+            }
+        },
+        {
+            id: 'syndicate-intercept',
+            title: 'Syndicate Intercept',
+            description:
+                'Aurora flags a Syndicate capital wing warping in. Brace for boss-scale ordnance and shifting attack patterns.',
+            objectives: [
+                'Pre-charge Hyper Beam before the intercept arrives.',
+                'Dash through opening salvos to stay ahead of the barrage.',
+                'Tag escort drones so they drop emergency power cores.'
+            ],
+            condition: { event: 'boss', status: 'engaged' },
+            hint: 'Survive until the first boss intercept engages.',
+            storyboard: 'assets/storyboards/syndicate-intercept.png',
+            storyboardAlt: 'Massive Syndicate cruiser emerging from hyperspace.',
+            storyboardCaption: 'Storyboard placeholder — add syndicate-intercept.png to assets/storyboards/.',
+            broadcast: ({ callSign, context }) => {
+                const bossName = context?.payload?.name ?? 'a Syndicate flagship';
+                return `${callSign ?? 'Mission control'} reports ${bossName} intercepting the lane.`;
+            }
+        },
+        {
+            id: 'reclaimer-down',
+            title: 'Void Reclaimer Down',
+            description:
+                'With the flagship shattered, the evacuation path widens and scattered civilians transmit their thanks across the sector.',
+            objectives: [
+                'Sweep the debris field for bonus power cores.',
+                'Use the calm to restock shields before the next wave.',
+                'Log the victory to inspire the wider squadron.'
+            ],
+            condition: { event: 'boss', status: 'defeated' },
+            hint: 'Defeat a boss to broadcast the victory signal.',
+            storyboard: 'assets/storyboards/reclaimer-down.png',
+            storyboardAlt: 'Exploding boss ship with the convoy streaking past.',
+            storyboardCaption: 'Storyboard placeholder — add reclaimer-down.png to assets/storyboards/.',
+            broadcast: ({ callSign, context }) => {
+                const bossName = context?.payload?.name ?? 'Void Reclaimer';
+                return `${callSign ?? 'Flight lead'} neutralized ${bossName}.`;
+            }
+        },
+        {
+            id: 'long-haul-window',
+            title: 'Evacuation Corridor Stable',
+            description:
+                'Holding for two minutes lets the convoy align with deep-space beacons, easing strain on the escort wing and widening the exit lane.',
+            objectives: [
+                'Glide between hazards to conserve shield energy.',
+                'Use Time Dilation to smooth crowded sections.',
+                'Tag straggler asteroids so convoy auto-turrets finish them.'
+            ],
+            condition: { event: 'time', threshold: 120000 },
+            hint: 'Survive for 02:00 to stabilize the evacuation corridor.',
+            storyboard: 'assets/storyboards/long-haul.png',
+            storyboardAlt: 'Long line of ships escaping through a stabilized corridor.',
+            storyboardCaption: 'Storyboard placeholder — add long-haul.png to assets/storyboards/.',
+            broadcast: ({ callSign }) =>
+                `${callSign ?? 'Escort wing'} held the corridor stable past two minutes.`
+        }
+    ];
 
     function updateTimerDisplay() {
         if (!timerValueEl) return;
@@ -9270,6 +10096,28 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCustomLoadouts(latestCosmeticSnapshot);
     }
 
+    const storyManager = createStoryManager({
+        beats: STORY_BEATS,
+        elements: {
+            currentTitle: storyCurrentTitle,
+            currentBody: storyCurrentBody,
+            currentMeta: storyCurrentMeta,
+            objectiveList: storyObjectivesEl,
+            timelineList: storyTimelineEl,
+            upcomingList: storyUpcomingEl,
+            storyboardFrame: storyboardPreviewEl,
+            storyboardImage: storyboardImageEl,
+            storyboardCaption: storyboardCaptionEl
+        },
+        formatTimeLabel: formatLoreUnlock,
+        formatRelative: formatRelativeTime,
+        broadcast: (message) => {
+            if (typeof message === 'string' && message.trim().length) {
+                addSocialMoment(message.trim(), { type: 'story' });
+            }
+        }
+    });
+
     const asteroidImageSources =
         Array.isArray(assetOverrides.asteroids) && assetOverrides.asteroids.length
             ? assetOverrides.asteroids
@@ -10475,6 +11323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function resetGame() {
+        storyManager.prepareForRun();
         state.score = 0;
         state.nyan = 0;
         state.streak = 0;
@@ -11790,6 +12639,8 @@ document.addEventListener('DOMContentLoaded', () => {
             completeFirstRunExperience();
         }
         resetGame();
+        const currentCallsign = tutorial ? tutorialCallsign || playerName : playerName;
+        storyManager.beginRun({ callSign: currentCallsign, tutorial });
         mascotAnnouncer.reset({ immediate: true });
         bodyElement?.classList.remove('paused');
         survivalTimerEl?.classList.remove('paused');
@@ -13392,6 +14243,11 @@ document.addEventListener('DOMContentLoaded', () => {
         state.bossBattle.currentIndex = nextIndex;
         state.bossBattle.currentConfig = bossConfig;
         state.bossBattle.defeated = false;
+        storyManager.recordEvent('boss', {
+            status: 'engaged',
+            boss: bossConfig?.villain?.key ?? null,
+            name: bossConfig?.villain?.name ?? null
+        });
         enemyProjectiles.length = 0;
         obstacles.length = 0;
         collectibles.length = 0;
@@ -14047,6 +14903,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (challengeManager) {
                     challengeManager.recordEvent('powerUp', { type: powerUp.type });
                 }
+                storyManager.recordEvent('powerUp', { type: powerUp.type });
                 const color = powerUpColors[powerUp.type] ?? { r: 200, g: 200, b: 255 };
                 createParticles({
                     x: powerUp.x + powerUp.width * 0.5,
@@ -14962,6 +15819,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         triggerScreenShake(3, 160);
         audioManager.playCollect(collectible?.key ?? 'point');
+        storyManager.recordEvent('collectible', {
+            type: collectible?.key ?? 'point',
+            points
+        });
     }
 
     function awardDestroy(obstacle) {
@@ -14990,6 +15851,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 life: 1400,
                 variant: 'score',
                 multiplier: 1
+            });
+            storyManager.recordEvent('boss', {
+                status: 'defeated',
+                boss: obstacle?.villainType?.key ?? null,
+                name: obstacle?.villainType?.name ?? null
             });
         }
     }
@@ -15051,6 +15917,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     type: 'combo'
                 });
             }
+            storyManager.recordEvent('streak', { bestStreak: state.bestStreak });
         }
         state.tailTarget = config.baseTrailLength + state.streak * config.trailGrowthPerStreak;
         mascotAnnouncer.cheerForCombo(state.streak);
@@ -15059,6 +15926,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalMultiplier = comboMultiplier * surgeMultiplier;
         const finalPoints = Math.floor(basePoints * totalMultiplier);
         state.score += finalPoints;
+        storyManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
         if (challengeManager) {
             challengeManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
         }
@@ -15160,6 +16028,12 @@ document.addEventListener('DOMContentLoaded', () => {
         audioManager.stopGameplayMusic();
         audioManager.stopHyperBeam();
         const finalTimeMs = state.elapsedTime;
+        storyManager.completeRun({
+            timeMs: finalTimeMs,
+            score: state.score,
+            bestStreak: state.bestStreak,
+            nyan: state.nyan
+        });
         const runTimestamp = Date.now();
         if (tutorialFlightActive) {
             pendingSubmission = null;
@@ -16345,6 +17219,7 @@ document.addEventListener('DOMContentLoaded', () => {
             challengeManager.recordEvent('time', { totalMs: state.elapsedTime });
         }
         updateIntelLore(state.elapsedTime);
+        storyManager.recordEvent('time', { totalMs: state.elapsedTime });
         state.gameSpeed += config.speedGrowth * getSpeedRampMultiplier() * (getScaledDelta(delta) / 1000);
         if (state.bossBattle.alertTimer > 0) {
             state.bossBattle.alertTimer = Math.max(0, state.bossBattle.alertTimer - delta);
