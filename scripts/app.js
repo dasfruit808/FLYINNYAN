@@ -15,6 +15,51 @@ let preflightSwapPilotButton = null;
 let swapWeaponButton = null;
 let preflightSwapWeaponButton = null;
 let openWeaponSelectButton = null;
+
+const weaponPatternStates = new Map();
+
+function getActiveWeaponId(candidate) {
+    if (typeof candidate === 'string' && candidate) {
+        return candidate;
+    }
+    if (typeof activeWeaponId !== 'undefined' && typeof activeWeaponId === 'string' && activeWeaponId) {
+        return activeWeaponId;
+    }
+    const equippedWeapon = state?.cosmetics?.equipped?.weapon;
+    if (typeof equippedWeapon === 'string' && equippedWeapon) {
+        return equippedWeapon;
+    }
+    return 'pulse';
+}
+
+function getWeaponPatternState(weaponId = null, { createIfMissing = true } = {}) {
+    const resolvedId = getActiveWeaponId(weaponId);
+    if (!resolvedId) {
+        return null;
+    }
+    if (!weaponPatternStates.has(resolvedId)) {
+        if (!createIfMissing) {
+            return null;
+        }
+        weaponPatternStates.set(resolvedId, {});
+    }
+    const state = weaponPatternStates.get(resolvedId);
+    return state && typeof state === 'object' ? state : null;
+}
+
+function resetWeaponPatternState(weaponId = null) {
+    if (weaponId === null || weaponId === undefined) {
+        weaponPatternStates.clear();
+        return;
+    }
+    const resolvedId = getActiveWeaponId(weaponId);
+    if (!resolvedId) {
+        weaponPatternStates.clear();
+        return;
+    }
+    weaponPatternStates.delete(resolvedId);
+}
+
 const DOUBLE_TEAM_POWER = 'doubleTeam';
 const HYPER_BEAM_POWER = 'hyperBeam';
 const SHIELD_POWER = 'radiantShield';
@@ -10333,6 +10378,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const originX = entity.x + entity.width - 12;
         const originY = entity.y + entity.height * 0.5 - 6;
         const loadout = activeWeaponLoadout ?? weaponLoadouts.pulse;
+        const weaponId = getActiveWeaponId(loadout?.id ?? null);
+        const patternState = getWeaponPatternState(weaponId);
         const loadoutSpeedMultiplier = loadout?.speedMultiplier ?? 1;
         const createProjectile = (angle, type = 'standard', overrides = {}) => {
             const archetype = projectileArchetypes[type] ?? projectileArchetypes.standard;
@@ -10432,7 +10479,7 @@ document.addEventListener('DOMContentLoaded', () => {
             createProjectile(0, 'spread', { applyLoadoutSpeed: false });
             createProjectile(spread, 'spread', { applyLoadoutSpeed: false });
         } else if (typeof loadout?.pattern === 'function') {
-            loadout.pattern(createProjectile, { originX, originY });
+            loadout.pattern(createProjectile, { originX, originY, state: patternState, weaponId });
         } else {
             createProjectile(0, 'standard');
         }
