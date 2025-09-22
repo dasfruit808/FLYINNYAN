@@ -5504,7 +5504,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'score':
                     return state.stats.score >= Number(threshold ?? 0);
                 case 'collectible':
-                    return state.stats.collectibles >= Number(threshold ?? 0 || 0);
+                    return state.stats.collectibles >= Number((threshold ?? 0) || 0);
                 case 'powerUp':
                     if (eventType !== 'powerUp') {
                         return false;
