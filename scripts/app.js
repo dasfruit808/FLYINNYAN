@@ -3738,6 +3738,97 @@ document.addEventListener('DOMContentLoaded', () => {
         ]
     };
 
+    const CHALLENGE_DEFINITIONS = {
+        daily: [
+            {
+                id: 'daily-survive-90',
+                slot: 'daily',
+                title: 'Hold the Lane',
+                description: 'Survive 90 seconds in a single run.',
+                goal: { metric: 'time', target: 90000, mode: 'max' },
+                reward: {
+                    type: 'cosmetic',
+                    category: 'trail',
+                    id: 'aurora',
+                    label: 'Aurora Wake Trail',
+                    rarity: 'rare'
+                }
+            },
+            {
+                id: 'daily-core-collector',
+                slot: 'daily',
+                title: 'Core Collector',
+                description: 'Secure 5 power-ups in a day.',
+                goal: { metric: 'powerUp', target: 5, mode: 'sum' },
+                reward: {
+                    type: 'cosmetic',
+                    category: 'trail',
+                    id: 'ember',
+                    label: 'Ember Wake Trail',
+                    rarity: 'rare'
+                }
+            }
+        ],
+        weekly: [
+            {
+                id: 'weekly-villain-hunter',
+                slot: 'weekly',
+                title: 'Villain Hunter',
+                description: 'Neutralize 30 villains this week.',
+                goal: { metric: 'villain', target: 30, mode: 'sum' },
+                reward: {
+                    type: 'cosmetic',
+                    category: 'skin',
+                    id: 'midnight',
+                    label: 'Midnight Mirage Hull',
+                    rarity: 'rare'
+                }
+            },
+            {
+                id: 'weekly-score-champion',
+                slot: 'weekly',
+                title: 'Score Champion',
+                description: 'Reach 75,000 score in a single run.',
+                goal: { metric: 'score', target: 75000, mode: 'max' },
+                reward: {
+                    type: 'cosmetic',
+                    category: 'skin',
+                    id: 'sunrise',
+                    label: 'Sunrise Shimmer Hull',
+                    rarity: 'rare'
+                }
+            }
+        ],
+        event: [
+            {
+                id: 'event-solstice-surge',
+                slot: 'event',
+                title: 'Solstice Surge',
+                description: 'Bank 90,000 points in a single run during the Solstice rotation.',
+                goal: { metric: 'score', target: 90000, mode: 'max' },
+                reward: {
+                    type: 'bundle',
+                    label: 'Solstice Celebration Bundle',
+                    rarity: 'legendary',
+                    items: [
+                        {
+                            type: 'cosmetic',
+                            category: 'trail',
+                            id: 'solstice',
+                            label: 'Solstice Bloom Trail'
+                        },
+                        {
+                            type: 'cosmetic',
+                            category: 'trail',
+                            id: 'aurora',
+                            label: 'Aurora Wake Trail'
+                        }
+                    ]
+                }
+            }
+        ]
+    };
+
     function registerCosmeticRewardSource(map, reward, source) {
         if (!reward || typeof reward !== 'object') {
             return;
@@ -4161,97 +4252,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return 'Reward ready';
     }
-
-    const CHALLENGE_DEFINITIONS = {
-        daily: [
-            {
-                id: 'daily-survive-90',
-                slot: 'daily',
-                title: 'Hold the Lane',
-                description: 'Survive 90 seconds in a single run.',
-                goal: { metric: 'time', target: 90000, mode: 'max' },
-                reward: {
-                    type: 'cosmetic',
-                    category: 'trail',
-                    id: 'aurora',
-                    label: 'Aurora Wake Trail',
-                    rarity: 'rare'
-                }
-            },
-            {
-                id: 'daily-core-collector',
-                slot: 'daily',
-                title: 'Core Collector',
-                description: 'Secure 5 power-ups in a day.',
-                goal: { metric: 'powerUp', target: 5, mode: 'sum' },
-                reward: {
-                    type: 'cosmetic',
-                    category: 'trail',
-                    id: 'ember',
-                    label: 'Ember Wake Trail',
-                    rarity: 'rare'
-                }
-            }
-        ],
-        weekly: [
-            {
-                id: 'weekly-villain-hunter',
-                slot: 'weekly',
-                title: 'Villain Hunter',
-                description: 'Neutralize 30 villains this week.',
-                goal: { metric: 'villain', target: 30, mode: 'sum' },
-                reward: {
-                    type: 'cosmetic',
-                    category: 'skin',
-                    id: 'midnight',
-                    label: 'Midnight Mirage Hull',
-                    rarity: 'rare'
-                }
-            },
-            {
-                id: 'weekly-score-champion',
-                slot: 'weekly',
-                title: 'Score Champion',
-                description: 'Reach 75,000 score in a single run.',
-                goal: { metric: 'score', target: 75000, mode: 'max' },
-                reward: {
-                    type: 'cosmetic',
-                    category: 'skin',
-                    id: 'sunrise',
-                    label: 'Sunrise Shimmer Hull',
-                    rarity: 'rare'
-                }
-            }
-        ],
-        event: [
-            {
-                id: 'event-solstice-surge',
-                slot: 'event',
-                title: 'Solstice Surge',
-                description: 'Bank 90,000 points in a single run during the Solstice rotation.',
-                goal: { metric: 'score', target: 90000, mode: 'max' },
-                reward: {
-                    type: 'bundle',
-                    label: 'Solstice Celebration Bundle',
-                    rarity: 'legendary',
-                    items: [
-                        {
-                            type: 'cosmetic',
-                            category: 'trail',
-                            id: 'solstice',
-                            label: 'Solstice Bloom Trail'
-                        },
-                        {
-                            type: 'cosmetic',
-                            category: 'trail',
-                            id: 'aurora',
-                            label: 'Aurora Wake Trail'
-                        }
-                    ]
-                }
-            }
-        ]
-    };
 
     function createChallengeManager(config = {}) {
         const {
