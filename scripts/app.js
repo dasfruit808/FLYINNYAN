@@ -9395,7 +9395,10 @@ document.addEventListener('DOMContentLoaded', () => {
             bossSpawned: false,
             defeated: false,
             powerUpSpawned: false,
-            alertTimer: 0
+            alertTimer: 0,
+            nextEventIndex: 0,
+            currentIndex: null,
+            currentConfig: null
         }
     };
 
@@ -9599,6 +9602,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let firePointerId = null;
     let fireTouchId = null;
     const projectiles = [];
+    const enemyProjectiles = [];
     const obstacles = [];
     const collectibles = [];
     const powerUps = [];
@@ -10218,18 +10222,82 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const BOSS_EVENT_TIME_MS = 60000;
     const BOSS_ALERT_DURATION = 2000;
-    const bossVillainType = {
-        key: 'boss',
-        name: 'Celestial Behemoth',
-        imageSrc: 'assets/boss1.png',
-        width: 253,
-        height: 253,
-        health: 36,
-        rotation: { min: 0, max: 0 },
-        behavior: { type: 'hover', amplitude: 72, verticalSpeed: 70 }
-    };
+    const bossBattleDefinitions = [
+        {
+            timeMs: 60000,
+            villain: {
+                key: 'bossAlpha',
+                name: 'Celestial Behemoth',
+                imageSrc: 'assets/boss1.png',
+                width: 253,
+                height: 253,
+                health: 36,
+                speed: 110,
+                rotation: { min: 0, max: 0 },
+                behavior: { type: 'hover', amplitude: 72, verticalSpeed: 70 },
+                isBoss: true
+            },
+            attack: {
+                type: 'focused',
+                cooldown: 2400,
+                projectileSpeed: 360,
+                projectileSize: { width: 32, height: 14 },
+                color: '#f472b6',
+                onHitMessage: 'The boss vaporized your ship!'
+            }
+        },
+        {
+            timeMs: 180000,
+            villain: {
+                key: 'bossBeta',
+                name: 'Solar Basilisk',
+                imageSrc: 'assets/boss1.png',
+                width: 268,
+                height: 268,
+                health: 52,
+                speed: 125,
+                rotation: { min: 0, max: 0 },
+                behavior: { type: 'sweep', amplitude: 180, speed: 1.8, followSpeed: 2.1 },
+                isBoss: true
+            },
+            attack: {
+                type: 'spread',
+                cooldown: 2200,
+                projectileSpeed: 420,
+                projectileSize: { width: 28, height: 12 },
+                color: '#fb923c',
+                spreadAngle: Math.PI / 12,
+                count: 3,
+                onHitMessage: 'Solar Basilisk scorched your hull!'
+            }
+        },
+        {
+            timeMs: 300000,
+            villain: {
+                key: 'bossOmega',
+                name: 'Void Hydra',
+                imageSrc: 'assets/boss1.png',
+                width: 288,
+                height: 288,
+                health: 72,
+                speed: 140,
+                rotation: { min: 0, max: 0 },
+                behavior: { type: 'tracker', acceleration: 340, maxSpeed: 360 },
+                isBoss: true
+            },
+            attack: {
+                type: 'barrage',
+                cooldown: 4600,
+                projectileSpeed: 520,
+                projectileSize: { width: 30, height: 14 },
+                color: '#60a5fa',
+                burstCount: 5,
+                burstInterval: 200,
+                onHitMessage: 'Void Hydra speared your ship!'
+            }
+        }
+    ];
 
     const villainTypes = [
         {
@@ -10353,11 +10421,24 @@ document.addEventListener('DOMContentLoaded', () => {
         villain.image = image;
     }
 
-    const bossImage = loadImageWithFallback(
-        bossVillainType.imageSrc,
-        () => createVillainFallbackDataUrl(0) ?? bossVillainType.imageSrc
-    );
-    bossVillainType.image = bossImage;
+    for (const [index, bossDef] of bossBattleDefinitions.entries()) {
+        const villain = bossDef.villain;
+        villain.asset = resolveAssetConfig(villainOverrides[villain.key], villain.imageSrc);
+        if (typeof villain.asset === 'string') {
+            villain.imageSrc = villain.asset;
+        } else if (
+            villain.asset &&
+            typeof villain.asset === 'object' &&
+            typeof villain.asset.src === 'string'
+        ) {
+            villain.imageSrc = villain.asset.src;
+        }
+        const image = loadImageWithFallback(
+            villain.imageSrc,
+            () => createVillainFallbackDataUrl(villainTypes.length + index) ?? villain.imageSrc
+        );
+        villain.image = image;
+    }
 
     player = {
         x: viewport.width * 0.18,
@@ -10401,6 +10482,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.bossBattle.defeated = false;
         state.bossBattle.powerUpSpawned = false;
         state.bossBattle.alertTimer = 0;
+        state.bossBattle.nextEventIndex = 0;
+        state.bossBattle.currentIndex = null;
+        state.bossBattle.currentConfig = null;
         hyperBeamState.intensity = 0;
         hyperBeamState.wave = 0;
         hyperBeamState.sparkTimer = 0;
@@ -10411,6 +10495,7 @@ document.addEventListener('DOMContentLoaded', () => {
         player.vx = 0;
         player.vy = 0;
         projectiles.length = 0;
+        enemyProjectiles.length = 0;
         obstacles.length = 0;
         collectibles.length = 0;
         powerUps.length = 0;
@@ -12876,7 +12961,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function isBossObstacle(obstacle) {
-        return obstacle?.villainType?.key === bossVillainType.key;
+        return Boolean(obstacle?.villainType?.isBoss);
     }
 
     function completeBossBattle() {
@@ -12885,63 +12970,126 @@ document.addEventListener('DOMContentLoaded', () => {
         state.bossBattle.defeated = true;
         state.bossBattle.powerUpSpawned = false;
         state.bossBattle.alertTimer = 0;
+        state.bossBattle.triggered = false;
+        if (typeof state.bossBattle.currentIndex === 'number') {
+            state.bossBattle.nextEventIndex = Math.max(
+                state.bossBattle.nextEventIndex,
+                state.bossBattle.currentIndex + 1
+            );
+        }
+        state.bossBattle.currentIndex = null;
+        state.bossBattle.currentConfig = null;
+        enemyProjectiles.length = 0;
         spawnTimers.obstacle = 0;
         spawnTimers.collectible = 0;
         spawnTimers.powerUp = 0;
     }
 
+    function createBossBehaviorState(villainType, spawnY, bounds) {
+        const behavior = villainType?.behavior ?? { type: 'hover' };
+        const lowerBound = bounds?.lowerBound ?? 16;
+        const upperBound = bounds?.upperBound ?? Math.max(lowerBound, viewport.height - (villainType?.height ?? 0) - lowerBound);
+        const clampedSpawn = clamp(spawnY, lowerBound, upperBound);
+        switch (behavior.type) {
+            case 'hover': {
+                const amplitude = behavior.amplitude ?? 0;
+                let minY = clamp(clampedSpawn - amplitude, lowerBound, upperBound);
+                let maxY = clamp(clampedSpawn + amplitude, lowerBound, upperBound);
+                if (minY > maxY) {
+                    const mid = (minY + maxY) / 2;
+                    minY = mid;
+                    maxY = mid;
+                }
+                return {
+                    type: 'hover',
+                    speed: behavior.verticalSpeed ?? 60,
+                    minY,
+                    maxY,
+                    direction: 1
+                };
+            }
+            case 'sweep': {
+                return {
+                    type: 'sweep',
+                    phase: 0,
+                    speed: behavior.speed ?? 1.6,
+                    amplitude: behavior.amplitude ?? 160,
+                    centerY: clampedSpawn,
+                    followSpeed: behavior.followSpeed ?? 1.2
+                };
+            }
+            case 'tracker': {
+                return {
+                    type: 'tracker',
+                    vy: 0,
+                    acceleration: behavior.acceleration ?? 240,
+                    maxSpeed: behavior.maxSpeed ?? 280,
+                    initialY: clampedSpawn
+                };
+            }
+            default:
+                return { type: behavior.type ?? 'hover' };
+        }
+    }
+
     function spawnBoss() {
-        const width = bossVillainType.width;
-        const height = bossVillainType.height ?? width;
+        const bossConfig = state.bossBattle.currentConfig;
+        if (!bossConfig) {
+            return;
+        }
+        const villainType = bossConfig.villain;
+        const width = villainType.width;
+        const height = villainType.height ?? width;
         const spawnY = clamp(
             viewport.height * 0.5 - height * 0.5,
             32,
             viewport.height - height - 32
         );
-        const hoverAmplitude = bossVillainType.behavior?.amplitude ?? 0;
-        const hoverSpeed = bossVillainType.behavior?.verticalSpeed ?? 60;
         const lowerBound = 16;
         const upperBound = Math.max(lowerBound, viewport.height - height - lowerBound);
-        let minY = clamp(spawnY - hoverAmplitude, lowerBound, upperBound);
-        let maxY = clamp(spawnY + hoverAmplitude, lowerBound, upperBound);
-        if (minY > maxY) {
-            const mid = (minY + maxY) / 2;
-            minY = mid;
-            maxY = mid;
-        }
-        const behaviorState = {
-            type: 'hover',
-            speed: hoverSpeed,
-            minY,
-            maxY,
-            direction: 1
-        };
+        const behaviorState = createBossBehaviorState(villainType, spawnY, { lowerBound, upperBound });
+        const attackConfig = bossConfig.attack ?? null;
+        const cooldown = attackConfig?.cooldown ?? 2000;
+        const initialDelay = attackConfig
+            ? attackConfig.initialDelay ?? Math.max(400, cooldown * 0.5)
+            : 0;
 
         obstacles.push({
             x: viewport.width + width,
-            y: clamp(spawnY, minY, maxY),
+            y: clamp(spawnY, lowerBound, upperBound),
             width,
             height,
-            speed: Math.max(60, state.gameSpeed * 0.22),
+            speed: villainType.speed ?? Math.max(60, state.gameSpeed * 0.22),
             rotation: 0,
             rotationSpeed: 0,
-            health: bossVillainType.health,
-            maxHealth: bossVillainType.health,
+            health: villainType.health,
+            maxHealth: villainType.health,
             hitFlash: 0,
             vx: 0,
             vy: 0,
             bounceTimer: 0,
             shieldCooldown: 0,
-            villainType: bossVillainType,
+            villainType,
             behaviorState,
-            image: bossVillainType.image
+            image: villainType.image,
+            bossState: {
+                attackConfig,
+                attackTimer: initialDelay,
+                burstShotsRemaining: 0,
+                burstTimer: 0
+            }
         });
         state.bossBattle.bossSpawned = true;
-        state.lastVillainKey = bossVillainType.key;
+        state.lastVillainKey = villainType.key;
     }
 
     function startBossBattle() {
-        if (state.bossBattle.active || state.bossBattle.defeated) {
+        if (state.bossBattle.active) {
+            return;
+        }
+        const nextIndex = state.bossBattle.nextEventIndex;
+        const bossConfig = bossBattleDefinitions[nextIndex];
+        if (!bossConfig) {
             return;
         }
         state.bossBattle.triggered = true;
@@ -12949,6 +13097,10 @@ document.addEventListener('DOMContentLoaded', () => {
         state.bossBattle.bossSpawned = false;
         state.bossBattle.powerUpSpawned = false;
         state.bossBattle.alertTimer = BOSS_ALERT_DURATION;
+        state.bossBattle.currentIndex = nextIndex;
+        state.bossBattle.currentConfig = bossConfig;
+        state.bossBattle.defeated = false;
+        enemyProjectiles.length = 0;
         obstacles.length = 0;
         collectibles.length = 0;
         powerUps.length = 0;
@@ -13086,6 +13238,135 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function getBossProjectileOrigin(obstacle) {
+        if (!obstacle) {
+            return { x: 0, y: 0 };
+        }
+        const originX = obstacle.x + obstacle.width * 0.12;
+        const originY = obstacle.y + obstacle.height * 0.5;
+        return { x: originX, y: originY };
+    }
+
+    function spawnBossProjectile({
+        originX,
+        originY,
+        angle,
+        speed,
+        size,
+        color,
+        onHitMessage,
+        ownerKey
+    }) {
+        const width = size?.width ?? 24;
+        const height = size?.height ?? 12;
+        const velocity = speed ?? 360;
+        const vx = Math.cos(angle) * velocity;
+        const vy = Math.sin(angle) * velocity;
+        enemyProjectiles.push({
+            x: originX - width * 0.5,
+            y: originY - height * 0.5,
+            width,
+            height,
+            vx,
+            vy,
+            life: 8000,
+            color: color ?? '#f87171',
+            onHitMessage: onHitMessage ?? null,
+            ownerKey: ownerKey ?? null
+        });
+    }
+
+    function fireBossProjectiles(obstacle, attackConfig) {
+        if (!attackConfig || !player) {
+            return;
+        }
+        const origin = getBossProjectileOrigin(obstacle);
+        const target = {
+            x: player.x + player.width * 0.5,
+            y: player.y + player.height * 0.5
+        };
+        const baseAngle = Math.atan2(target.y - origin.y, target.x - origin.x);
+        const speed = attackConfig.projectileSpeed ?? 360;
+        const size = attackConfig.projectileSize ?? { width: 28, height: 12 };
+        const color = attackConfig.color ?? '#f87171';
+        const ownerKey = obstacle?.villainType?.key ?? null;
+        const message = attackConfig.onHitMessage;
+        const spawnShot = (angle) => {
+            spawnBossProjectile({
+                originX: origin.x,
+                originY: origin.y,
+                angle,
+                speed,
+                size,
+                color,
+                onHitMessage: message,
+                ownerKey
+            });
+        };
+
+        switch (attackConfig.type) {
+            case 'spread': {
+                const count = Math.max(1, attackConfig.count ?? 3);
+                const spreadAngle = attackConfig.spreadAngle ?? Math.PI / 10;
+                if (count === 1) {
+                    spawnShot(baseAngle);
+                    break;
+                }
+                const totalSpread = spreadAngle * (count - 1);
+                for (let i = 0; i < count; i++) {
+                    const offset = -totalSpread / 2 + spreadAngle * i;
+                    spawnShot(baseAngle + offset);
+                }
+                break;
+            }
+            default:
+                spawnShot(baseAngle);
+                break;
+        }
+    }
+
+    function handleBossAttack(obstacle, deltaMs) {
+        if (!isBossObstacle(obstacle) || !state.bossBattle.active) {
+            return;
+        }
+        const bossState = obstacle.bossState;
+        if (!bossState || !bossState.attackConfig) {
+            return;
+        }
+        const attackConfig = bossState.attackConfig;
+
+        if (bossState.burstShotsRemaining > 0) {
+            bossState.burstTimer -= deltaMs;
+            if (bossState.burstTimer <= 0) {
+                fireBossProjectiles(obstacle, attackConfig);
+                bossState.burstShotsRemaining -= 1;
+                bossState.burstTimer = attackConfig.burstInterval ?? 160;
+                if (bossState.burstShotsRemaining <= 0) {
+                    bossState.attackTimer = attackConfig.cooldown ?? 2000;
+                }
+            }
+            return;
+        }
+
+        bossState.attackTimer -= deltaMs;
+        if (bossState.attackTimer > 0) {
+            return;
+        }
+
+        if (attackConfig.type === 'barrage') {
+            bossState.burstShotsRemaining = Math.max(1, attackConfig.burstCount ?? 3);
+            bossState.burstTimer = 0;
+            fireBossProjectiles(obstacle, attackConfig);
+            bossState.burstShotsRemaining -= 1;
+            bossState.burstTimer = attackConfig.burstInterval ?? 160;
+            bossState.attackTimer = attackConfig.cooldown ?? 2000;
+            return;
+        }
+
+        fireBossProjectiles(obstacle, attackConfig);
+        bossState.attackTimer = attackConfig.cooldown ?? 2000;
+    }
+
     function applyVillainBehavior(obstacle, deltaSeconds) {
         const behaviorState = obstacle.behaviorState;
         const villainBehavior = obstacle.villainType?.behavior;
@@ -13124,6 +13405,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     behaviorState.direction = direction;
                 }
+                break;
+            }
+            case 'sweep': {
+                behaviorState.phase = (behaviorState.phase ?? 0) +
+                    deltaSeconds * (behaviorState.speed ?? villainBehavior.speed ?? 1.6);
+                const amplitude = behaviorState.amplitude ?? villainBehavior.amplitude ?? 140;
+                const halfHeight = obstacle.height * 0.5;
+                const minCenter = 16 + halfHeight;
+                const maxCenter = viewport.height - halfHeight - 16;
+                const baseCenter = clamp(behaviorState.centerY ?? obstacle.y + halfHeight, minCenter, maxCenter);
+                const playerCenterY = clamp(getPlayerCenter().y, minCenter, maxCenter);
+                const followRate = Math.min(3.5, behaviorState.followSpeed ?? villainBehavior.followSpeed ?? 1.2);
+                const updatedCenter = baseCenter + (playerCenterY - baseCenter) * Math.min(1, deltaSeconds * followRate);
+                behaviorState.centerY = clamp(updatedCenter, minCenter, maxCenter);
+                const offset = Math.sin(behaviorState.phase) * amplitude;
+                const targetY = behaviorState.centerY + offset - halfHeight;
+                obstacle.y = clamp(targetY, 16, viewport.height - obstacle.height - 16);
                 break;
             }
             case 'drift': {
@@ -13185,6 +13483,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             applyVillainBehavior(obstacle, deltaSeconds);
+
+            if (isBoss) {
+                handleBossAttack(obstacle, scaledDelta);
+            }
 
             if (obstacle.x + obstacle.width < 0) {
                 obstacles.splice(i, 1);
@@ -13903,6 +14205,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateEnemyProjectiles(delta) {
+        if (!enemyProjectiles.length) {
+            return;
+        }
+        const scaledDelta = getScaledDelta(delta);
+        const deltaSeconds = scaledDelta / 1000;
+        const playerHitbox = player
+            ? { x: player.x, y: player.y, width: player.width, height: player.height }
+            : null;
+
+        for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+            const projectile = enemyProjectiles[i];
+            projectile.x += projectile.vx * deltaSeconds;
+            projectile.y += projectile.vy * deltaSeconds;
+            projectile.life = (projectile.life ?? 0) - scaledDelta;
+
+            if (
+                projectile.life <= 0 ||
+                projectile.x + projectile.width < -120 ||
+                projectile.x > viewport.width + 120 ||
+                projectile.y + projectile.height < -120 ||
+                projectile.y > viewport.height + 120
+            ) {
+                enemyProjectiles.splice(i, 1);
+                continue;
+            }
+
+            if (!playerHitbox) {
+                continue;
+            }
+
+            if (rectOverlap(playerHitbox, projectile)) {
+                const magnitude = Math.max(Math.hypot(projectile.vx, projectile.vy), 1);
+                if (isShieldActive()) {
+                    triggerShieldImpact(
+                        projectile.x + projectile.width * 0.5,
+                        projectile.y + projectile.height * 0.5,
+                        projectile.vx / magnitude,
+                        projectile.vy / magnitude
+                    );
+                    enemyProjectiles.splice(i, 1);
+                    continue;
+                }
+                const message = projectile.onHitMessage ?? 'A boss laser pierced your ship!';
+                enemyProjectiles.splice(i, 1);
+                triggerGameOver(message);
+                return;
+            }
+        }
+    }
+
     function rectOverlap(a, b) {
         return a.x < b.x + b.width &&
             a.x + a.width > b.x &&
@@ -14043,6 +14396,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const centerX = viewport.width / 2;
         const centerY = viewport.height / 2;
         const fontSize = 64 + Math.sin(time * 0.008) * 4;
+        const bossName = state.bossBattle.currentConfig?.villain?.name ?? null;
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -14060,6 +14414,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.shadowBlur = 22;
         ctx.fillStyle = gradient;
         ctx.fillText('BOSS FIGHT!', centerX, centerY);
+        if (bossName) {
+            const labelFont = Math.max(32, fontSize * 0.42);
+            ctx.font = `700 ${labelFont}px ${primaryFontStack}`;
+            ctx.shadowBlur = 16;
+            ctx.fillText(bossName.toUpperCase(), centerX, centerY + fontSize * 0.7);
+        }
         ctx.restore();
     }
 
@@ -15628,6 +15988,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function drawEnemyProjectiles() {
+        if (!enemyProjectiles.length) {
+            return;
+        }
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const projectile of enemyProjectiles) {
+            const color = projectile.color ?? '#f87171';
+            const gradient = ctx.createLinearGradient(
+                projectile.x,
+                projectile.y,
+                projectile.x + projectile.width,
+                projectile.y + projectile.height
+            );
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+            gradient.addColorStop(1, color);
+            ctx.fillStyle = gradient;
+            const radius = Math.min(8, Math.min(projectile.width, projectile.height) * 0.5);
+            if (typeof ctx.roundRect === 'function') {
+                ctx.beginPath();
+                ctx.roundRect(projectile.x, projectile.y, projectile.width, projectile.height, radius);
+                ctx.fill();
+            } else {
+                ctx.fillRect(projectile.x, projectile.y, projectile.width, projectile.height);
+            }
+        }
+        ctx.restore();
+    }
+
     function drawParticles() {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
@@ -15669,7 +16058,8 @@ document.addEventListener('DOMContentLoaded', () => {
             state.bossBattle.alertTimer = Math.max(0, state.bossBattle.alertTimer - delta);
         }
 
-        if (!state.bossBattle.triggered && state.elapsedTime >= BOSS_EVENT_TIME_MS) {
+        const upcomingBoss = bossBattleDefinitions[state.bossBattle.nextEventIndex];
+        if (upcomingBoss && !state.bossBattle.active && state.elapsedTime >= upcomingBoss.timeMs) {
             startBossBattle();
         }
 
@@ -15681,6 +16071,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePowerUps(delta);
         updateHyperBeam(delta);
         updateProjectilesCollisions();
+        updateEnemyProjectiles(delta);
         updateStars(delta);
         updateAsteroids(delta);
         updateParticles(delta);
@@ -15709,6 +16100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         drawObstacles();
         drawHyperBeam(timestamp);
         drawProjectiles();
+        drawEnemyProjectiles();
         drawParticles();
         drawPlayer();
         drawFloatingTexts();
