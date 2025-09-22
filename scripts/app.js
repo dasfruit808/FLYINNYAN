@@ -43,6 +43,72 @@ function resetGamepadCursorState() {
     gamepadCursorState.buttonHeld = false;
 }
 
+const fontLoadCache = new Map();
+
+function loadCustomFont(fontFamily) {
+    if (typeof fontFamily !== 'string') {
+        return Promise.resolve();
+    }
+
+    const normalizedFont = fontFamily.trim();
+    if (!normalizedFont) {
+        return Promise.resolve();
+    }
+
+    if (fontLoadCache.has(normalizedFont)) {
+        return fontLoadCache.get(normalizedFont);
+    }
+
+    const supportsFontLoadingApi =
+        typeof document !== 'undefined' && document.fonts && typeof document.fonts.load === 'function';
+
+    if (supportsFontLoadingApi && document.fonts.check(`1rem "${normalizedFont}"`)) {
+        const alreadyLoaded = Promise.resolve();
+        fontLoadCache.set(normalizedFont, alreadyLoaded);
+        return alreadyLoaded;
+    }
+
+    const fontPromises = [];
+
+    if (supportsFontLoadingApi) {
+        const fontQueries = [`1rem "${normalizedFont}"`, `700 1rem "${normalizedFont}"`];
+        for (const query of fontQueries) {
+            fontPromises.push(
+                document.fonts
+                    .load(query)
+                    .catch(() => null)
+            );
+        }
+    }
+
+    const fontAssetSources = {
+        'Flight Time': 'assets/FlightTime.ttf'
+    };
+
+    const assetSource = fontAssetSources[normalizedFont];
+    if (assetSource && typeof window !== 'undefined' && typeof window.FontFace === 'function') {
+        const fontFace = new FontFace(normalizedFont, `url(${assetSource})`);
+        fontPromises.push(
+            fontFace
+                .load()
+                .then((loadedFace) => {
+                    document.fonts?.add?.(loadedFace);
+                })
+                .catch(() => null)
+        );
+    }
+
+    if (fontPromises.length === 0) {
+        const resolved = Promise.resolve();
+        fontLoadCache.set(normalizedFont, resolved);
+        return resolved;
+    }
+
+    const loadPromise = Promise.all(fontPromises).then(() => undefined);
+    fontLoadCache.set(normalizedFont, loadPromise);
+    return loadPromise;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const GAMEPAD_CURSOR_HALF_SIZE = 11;
     // Reset onboarding flags whenever the game reinitializes. This ensures that
@@ -62,72 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ? window.matchMedia('(prefers-reduced-motion: reduce)')
             : null;
     const systemPrefersReducedEffects = () => Boolean(reducedMotionQuery?.matches);
-
-    const fontLoadCache = new Map();
-
-    function loadCustomFont(fontFamily) {
-        if (typeof fontFamily !== 'string') {
-            return Promise.resolve();
-        }
-
-        const normalizedFont = fontFamily.trim();
-        if (!normalizedFont) {
-            return Promise.resolve();
-        }
-
-        if (fontLoadCache.has(normalizedFont)) {
-            return fontLoadCache.get(normalizedFont);
-        }
-
-        const supportsFontLoadingApi =
-            typeof document !== 'undefined' && document.fonts && typeof document.fonts.load === 'function';
-
-        if (supportsFontLoadingApi && document.fonts.check(`1rem "${normalizedFont}"`)) {
-            const alreadyLoaded = Promise.resolve();
-            fontLoadCache.set(normalizedFont, alreadyLoaded);
-            return alreadyLoaded;
-        }
-
-        const fontPromises = [];
-
-        if (supportsFontLoadingApi) {
-            const fontQueries = [`1rem "${normalizedFont}"`, `700 1rem "${normalizedFont}"`];
-            for (const query of fontQueries) {
-                fontPromises.push(
-                    document.fonts
-                        .load(query)
-                        .catch(() => null)
-                );
-            }
-        }
-
-        const fontAssetSources = {
-            'Flight Time': 'assets/FlightTime.ttf'
-        };
-
-        const assetSource = fontAssetSources[normalizedFont];
-        if (assetSource && typeof window !== 'undefined' && typeof window.FontFace === 'function') {
-            const fontFace = new FontFace(normalizedFont, `url(${assetSource})`);
-            fontPromises.push(
-                fontFace
-                    .load()
-                    .then((loadedFace) => {
-                        document.fonts?.add?.(loadedFace);
-                    })
-                    .catch(() => null)
-            );
-        }
-
-        if (fontPromises.length === 0) {
-            const resolved = Promise.resolve();
-            fontLoadCache.set(normalizedFont, resolved);
-            return resolved;
-        }
-
-        const loadPromise = Promise.all(fontPromises).then(() => undefined);
-        fontLoadCache.set(normalizedFont, loadPromise);
-        return loadPromise;
-    }
 
     function enableHighQualitySmoothing(context) {
         if (!context) {
