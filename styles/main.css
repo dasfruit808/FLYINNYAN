@@ -2408,12 +2408,10 @@ body.motion-controls-enabled #touchControls {
 }
 
 #overlay button:not(.summary-tab):not(.pilot-preview-card):hover {
-    transform: translateY(-2px);
     box-shadow: 0 22px 46px rgba(37, 99, 235, 0.52);
 }
 
 #overlay button:not(.summary-tab):not(.pilot-preview-card):active {
-    transform: translateY(1px);
     box-shadow: 0 14px 28px rgba(37, 99, 235, 0.48);
 }
 
@@ -2431,7 +2429,6 @@ body.motion-controls-enabled #touchControls {
 }
 
 #overlaySecondaryButton:hover {
-    transform: translateY(-1px);
     box-shadow: 0 16px 32px rgba(37, 99, 235, 0.3);
 }
 
@@ -2443,12 +2440,10 @@ body.motion-controls-enabled #touchControls {
 }
 
 #overlayActions .tertiary:hover {
-    transform: translateY(-1px);
     box-shadow: 0 14px 30px rgba(59, 130, 246, 0.35);
 }
 
 #overlayActions .tertiary:active {
-    transform: translateY(1px);
     box-shadow: 0 10px 20px rgba(59, 130, 246, 0.28);
 }
 
@@ -2578,7 +2573,6 @@ body.loadout-editor-open {
 
 .loadout-editor-close:hover,
 .loadout-editor-close:focus-visible {
-    transform: translateY(-1px);
     background: rgba(59, 130, 246, 0.2);
     box-shadow: 0 16px 32px rgba(59, 130, 246, 0.35);
     outline: none;
@@ -2672,7 +2666,6 @@ body.loadout-editor-open {
 }
 
 .loadout-editor-option:hover:not(:disabled) {
-    transform: translateY(-1px);
     box-shadow: 0 16px 28px rgba(15, 23, 42, 0.45);
 }
 
@@ -2757,7 +2750,6 @@ body.loadout-editor-open {
 
 #loadoutEditorSave:hover,
 #loadoutEditorSave:focus-visible {
-    transform: translateY(-1px);
     box-shadow: 0 24px 44px rgba(59, 130, 246, 0.45);
     outline: none;
 }
@@ -2777,7 +2769,6 @@ body.loadout-editor-open {
 
 .loadout-editor-actions .secondary:hover,
 .loadout-editor-actions .secondary:focus-visible {
-    transform: translateY(-1px);
     border-color: rgba(148, 210, 255, 0.75);
     box-shadow: 0 18px 32px rgba(14, 116, 144, 0.35);
     outline: none;
@@ -2954,13 +2945,11 @@ body.loadout-editor-open {
 
 #characterSelectConfirm:not([disabled]):hover,
 #weaponSelectConfirm:not([disabled]):hover {
-    transform: translateY(-2px);
     box-shadow: 0 22px 44px rgba(37, 99, 235, 0.55);
 }
 
 #characterSelectConfirm:not([disabled]):active,
 #weaponSelectConfirm:not([disabled]):active {
-    transform: translateY(1px);
     box-shadow: 0 14px 28px rgba(37, 99, 235, 0.48);
 }
 
@@ -2978,7 +2967,6 @@ body.loadout-editor-open {
 }
 
 #overlaySecondaryButton:active {
-    transform: translateY(1px);
     box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
 }
 
