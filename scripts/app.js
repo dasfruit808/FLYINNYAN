@@ -1973,6 +1973,104 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const SPRITE_SIZE_WEIGHTS = Object.freeze({
+        basePlayerWidth: 96,
+        player: 1,
+        powerUp: 0.78,
+        collectible: 0.62,
+        villain: {
+            small: { min: 1.18, max: 1.36 },
+            medium: { min: 1.48, max: 1.78 },
+            large: { min: 1.88, max: 2.18 }
+        },
+        boss: {
+            sequence: [2.3, 2.55, 2.8]
+        }
+    });
+
+    const BASE_COLLECTIBLE_PADDING_RATIO =
+        baseGameConfig.collectible.verticalPadding / baseGameConfig.collectible.size;
+    const BASE_POWER_UP_WOBBLE_RATIO = baseGameConfig.powerUp.wobbleAmplitude / baseGameConfig.powerUp.size;
+
+    function createBalancedSpriteSizing(baseConfig, weights, options = {}) {
+        const basePlayer = baseConfig.player ?? { width: 72, height: 54 };
+        const playerAspect =
+            basePlayer.width > 0 ? basePlayer.height / basePlayer.width : options.playerAspect ?? 0.75;
+        const referenceWidth = Math.round(weights.basePlayerWidth ?? basePlayer.width);
+        const playerWeight = weights.player ?? 1;
+        const playerWidth = Math.round(referenceWidth * playerWeight);
+        const playerHeight = Math.round(playerWidth * (options.playerAspect ?? playerAspect));
+
+        const collectibleWeight = weights.collectible ?? 0.68;
+        const collectibleSize = Math.round(referenceWidth * collectibleWeight);
+        const collectiblePaddingRatio = Number.isFinite(options.collectiblePaddingRatio)
+            ? options.collectiblePaddingRatio
+            : BASE_COLLECTIBLE_PADDING_RATIO;
+        const collectibleVerticalPadding = Math.round(collectibleSize * collectiblePaddingRatio);
+
+        const powerUpWeight = weights.powerUp ?? 0.82;
+        const powerUpSize = Math.round(referenceWidth * powerUpWeight);
+        const powerUpWobbleRatio = Number.isFinite(options.powerUpWobbleRatio)
+            ? options.powerUpWobbleRatio
+            : BASE_POWER_UP_WOBBLE_RATIO;
+        const powerUpWobbleAmplitude = Math.round(powerUpSize * powerUpWobbleRatio);
+
+        const villainDefaults = {
+            small: { min: 1.2, max: 1.4 },
+            medium: { min: 1.5, max: 1.8 },
+            large: { min: 1.9, max: 2.2 }
+        };
+
+        const scaleRange = (range, fallback) => {
+            const source = range ?? fallback;
+            const minWeight = source?.min ?? fallback.min;
+            const maxWeight = source?.max ?? fallback.max;
+            return {
+                min: Math.round(referenceWidth * minWeight),
+                max: Math.round(referenceWidth * maxWeight)
+            };
+        };
+
+        const villainWeights = weights.villain ?? {};
+        const villains = {
+            small: scaleRange(villainWeights.small, villainDefaults.small),
+            medium: scaleRange(villainWeights.medium, villainDefaults.medium),
+            large: scaleRange(villainWeights.large, villainDefaults.large)
+        };
+
+        const bossWeights = Array.isArray(weights.boss?.sequence)
+            ? weights.boss.sequence
+            : [2.3, 2.55, 2.8];
+        const bossAspect = weights.boss?.aspect ?? 1;
+        const bosses = bossWeights.map((weight) => {
+            const width = Math.round(referenceWidth * weight);
+            return {
+                width,
+                height: Math.round(width * bossAspect)
+            };
+        });
+
+        return {
+            player: { width: playerWidth, height: playerHeight },
+            collectible: { size: collectibleSize, verticalPadding: collectibleVerticalPadding },
+            powerUp: { size: powerUpSize, wobbleAmplitude: powerUpWobbleAmplitude },
+            villains,
+            bosses,
+            referenceWidth
+        };
+    }
+
+    const balancedSpriteSizing = createBalancedSpriteSizing(baseGameConfig, SPRITE_SIZE_WEIGHTS, {
+        collectiblePaddingRatio: BASE_COLLECTIBLE_PADDING_RATIO,
+        powerUpWobbleRatio: BASE_POWER_UP_WOBBLE_RATIO
+    });
+
+    Object.assign(baseGameConfig.player, balancedSpriteSizing.player);
+    baseGameConfig.collectible.size = balancedSpriteSizing.collectible.size;
+    baseGameConfig.collectible.verticalPadding = balancedSpriteSizing.collectible.verticalPadding;
+    baseGameConfig.powerUp.size = balancedSpriteSizing.powerUp.size;
+    baseGameConfig.powerUp.wobbleAmplitude = balancedSpriteSizing.powerUp.wobbleAmplitude;
+
     config = applyOverrides(cloneConfig(baseGameConfig), gameplayOverrides);
     basePlayerConfig = cloneConfig(baseGameConfig.player);
     baseDashConfig = cloneConfig(baseGameConfig.player.dash);
@@ -9298,6 +9396,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const BOSS_ALERT_DURATION = 2000;
+    const bossSizeProfiles = balancedSpriteSizing.bosses ?? [];
+    const villainSizeProfiles = balancedSpriteSizing.villains ?? {};
     const bossBattleDefinitions = [
         {
             timeMs: 60000,
@@ -9305,8 +9405,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 key: 'bossAlpha',
                 name: 'Celestial Behemoth',
                 imageSrc: 'assets/boss1.png',
-                width: 291,
-                height: 291,
+                width: bossSizeProfiles[0]?.width ?? Math.round((balancedSpriteSizing.referenceWidth ?? 96) * 2.3),
+                height: bossSizeProfiles[0]?.height ?? Math.round((balancedSpriteSizing.referenceWidth ?? 96) * 2.3),
                 health: 36,
                 speed: 110,
                 rotation: { min: 0, max: 0 },
@@ -9328,8 +9428,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 key: 'bossBeta',
                 name: 'Solar Basilisk',
                 imageSrc: 'assets/boss1.png',
-                width: 308,
-                height: 308,
+                width: bossSizeProfiles[1]?.width ?? Math.round((balancedSpriteSizing.referenceWidth ?? 96) * 2.55),
+                height: bossSizeProfiles[1]?.height ?? Math.round((balancedSpriteSizing.referenceWidth ?? 96) * 2.55),
                 health: 52,
                 speed: 125,
                 rotation: { min: 0, max: 0 },
@@ -9353,8 +9453,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 key: 'bossOmega',
                 name: 'Void Hydra',
                 imageSrc: 'assets/boss1.png',
-                width: 331,
-                height: 331,
+                width: bossSizeProfiles[2]?.width ?? Math.round((balancedSpriteSizing.referenceWidth ?? 96) * 2.8),
+                height: bossSizeProfiles[2]?.height ?? Math.round((balancedSpriteSizing.referenceWidth ?? 96) * 2.8),
                 health: 72,
                 speed: 140,
                 rotation: { min: 0, max: 0 },
@@ -9379,7 +9479,7 @@ document.addEventListener('DOMContentLoaded', () => {
             key: 'villain1',
             name: 'Void Raider',
             imageSrc: 'assets/villain1.png',
-            size: { min: 59, max: 77 },
+            size: { ...(villainSizeProfiles.small ?? { min: 59, max: 77 }) },
             speedOffset: { min: 14, max: 34 },
             rotation: { min: -1.8, max: 1.8 },
             baseHealth: 1,
@@ -9390,7 +9490,7 @@ document.addEventListener('DOMContentLoaded', () => {
             key: 'villain2',
             name: 'Nebula Marauder',
             imageSrc: 'assets/villain2.png',
-            size: { min: 93, max: 126 },
+            size: { ...(villainSizeProfiles.medium ?? { min: 93, max: 126 }) },
             speedOffset: { min: 8, max: 30 },
             rotation: { min: -1.4, max: 1.4 },
             baseHealth: 2.3,
@@ -9401,7 +9501,7 @@ document.addEventListener('DOMContentLoaded', () => {
             key: 'villain3',
             name: 'Abyss Overlord',
             imageSrc: 'assets/villain3.png',
-            size: { min: 135, max: 183 },
+            size: { ...(villainSizeProfiles.large ?? { min: 135, max: 183 }) },
             speedOffset: { min: -2, max: 32 },
             rotation: { min: -1, max: 1 },
             baseHealth: 3.4,
