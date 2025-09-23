@@ -2536,6 +2536,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    if (loadoutEditorSaveButton) {
+        loadoutEditorSaveButton.addEventListener('click', () => handleLoadoutEditorSave());
+    }
+    if (loadoutEditorCancelButton) {
+        loadoutEditorCancelButton.addEventListener('click', () => closeLoadoutEditor());
+    }
+    if (loadoutEditorCloseButton) {
+        loadoutEditorCloseButton.addEventListener('click', () => closeLoadoutEditor());
+    }
+    if (loadoutEditorBackdrop) {
+        loadoutEditorBackdrop.addEventListener('click', () => closeLoadoutEditor());
+    }
+    if (loadoutEditorModal) {
+        loadoutEditorModal.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeLoadoutEditor();
+            }
+        });
+    }
+
     function setButtonDisabledState(button, disabled) {
         if (!button) {
             return;
@@ -4433,6 +4454,21 @@ document.addEventListener('DOMContentLoaded', () => {
         nameField.appendChild(nameLabel);
         nameField.appendChild(nameValue);
         header.appendChild(nameField);
+
+        if (context === 'panel') {
+            const headerActions = document.createElement('div');
+            headerActions.className = 'custom-loadout-header-actions';
+            const editButton = document.createElement('button');
+            editButton.type = 'button';
+            editButton.className = 'custom-loadout-edit';
+            editButton.textContent = 'Edit';
+            editButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                openLoadoutEditor(slotId, { trigger: editButton });
+            });
+            headerActions.appendChild(editButton);
+            header.appendChild(headerActions);
+        }
         card.appendChild(header);
 
         const body = document.createElement('div');
@@ -4543,6 +4579,449 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCustomLoadoutCollections() {
         renderLoadoutGrid(customLoadoutGrid, { context: 'panel' });
         renderLoadoutGrid(pilotPreviewGrid, { context: 'overlay' });
+    }
+
+    function getAllSkinOptions() {
+        const cosmetics = ensureCosmeticsState();
+        const owned = Array.isArray(cosmetics.ownedSkins) ? cosmetics.ownedSkins : [];
+        const catalogue = Object.keys(SKIN_LABELS);
+        return Array.from(new Set([...owned, ...catalogue])).map((skinId) => ({
+            id: skinId,
+            label: getSkinLabel(skinId)
+        }));
+    }
+
+    function getAllTrailOptions() {
+        const cosmetics = ensureCosmeticsState();
+        const owned = Array.isArray(cosmetics.ownedTrails) ? cosmetics.ownedTrails : [];
+        const catalogue = Object.keys(TRAIL_LABELS);
+        return Array.from(new Set([...owned, ...catalogue])).map((trailId) => ({
+            id: trailId,
+            label: getTrailLabel(trailId)
+        }));
+    }
+
+    function updateLoadoutEditorSummary() {
+        const pilot = getPilotDefinition(loadoutEditorPendingCharacterId ?? activePilotId);
+        const weapon = getWeaponDefinition(loadoutEditorPendingWeaponId ?? activeWeaponId);
+        const skinLabel = getSkinLabel(loadoutEditorPendingSkinId ?? ensureCosmeticsState().equipped.skin);
+        const trailLabel = getTrailLabel(loadoutEditorPendingTrailId ?? ensureCosmeticsState().equipped.trail);
+
+        if (loadoutEditorSummaryValues.pilot) {
+            loadoutEditorSummaryValues.pilot.textContent = pilot?.name ?? 'Nova';
+        }
+        if (loadoutEditorSummaryValues.weapon) {
+            loadoutEditorSummaryValues.weapon.textContent = weapon?.name ?? 'Pulse Array';
+        }
+        if (loadoutEditorSummaryValues.skin) {
+            loadoutEditorSummaryValues.skin.textContent = skinLabel;
+        }
+        if (loadoutEditorSummaryValues.trail) {
+            loadoutEditorSummaryValues.trail.textContent = trailLabel;
+        }
+    }
+
+    function updateLoadoutEditorPilotSelection() {
+        for (const button of loadoutEditorPilotButtons) {
+            if (!(button instanceof HTMLElement)) {
+                continue;
+            }
+            const selected = button.dataset.characterId === loadoutEditorPendingCharacterId;
+            button.classList.toggle('selected', selected);
+            button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        }
+    }
+
+    function updateLoadoutEditorWeaponSelection() {
+        for (const button of loadoutEditorWeaponButtons) {
+            if (!(button instanceof HTMLElement)) {
+                continue;
+            }
+            const selected = button.dataset.weaponId === loadoutEditorPendingWeaponId;
+            button.classList.toggle('selected', selected);
+            button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        }
+    }
+
+    function updateLoadoutEditorSkinSelection() {
+        for (const button of loadoutEditorSkinButtons) {
+            if (!(button instanceof HTMLElement)) {
+                continue;
+            }
+            const selected = button.dataset.skinId === loadoutEditorPendingSkinId;
+            button.classList.toggle('selected', selected);
+            button.setAttribute('aria-checked', selected ? 'true' : 'false');
+        }
+    }
+
+    function updateLoadoutEditorTrailSelection() {
+        for (const button of loadoutEditorTrailButtons) {
+            if (!(button instanceof HTMLElement)) {
+                continue;
+            }
+            const selected = button.dataset.trailId === loadoutEditorPendingTrailId;
+            button.classList.toggle('selected', selected);
+            button.setAttribute('aria-checked', selected ? 'true' : 'false');
+        }
+    }
+
+    function refreshLoadoutEditorSelectionState() {
+        updateLoadoutEditorPilotSelection();
+        updateLoadoutEditorWeaponSelection();
+        updateLoadoutEditorSkinSelection();
+        updateLoadoutEditorTrailSelection();
+        updateLoadoutEditorSummary();
+    }
+
+    function renderLoadoutEditorPilotGrid() {
+        if (!(loadoutEditorPilotGrid instanceof HTMLElement)) {
+            return;
+        }
+        loadoutEditorPilotButtons = [];
+        loadoutEditorPilotGrid.innerHTML = '';
+        for (const pilot of pilotRoster) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'character-card';
+            button.dataset.characterId = pilot.id;
+
+            const img = document.createElement('img');
+            img.src = pilot.image;
+            img.alt = `${pilot.name} portrait`;
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            button.appendChild(img);
+
+            const name = document.createElement('span');
+            name.className = 'character-name';
+            name.textContent = pilot.name;
+            button.appendChild(name);
+
+            const role = document.createElement('span');
+            role.className = 'character-role';
+            role.textContent = pilot.role;
+            button.appendChild(role);
+
+            if (Array.isArray(pilot.highlights) && pilot.highlights.length) {
+                const details = document.createElement('div');
+                details.className = 'character-details';
+                const title = document.createElement('strong');
+                title.textContent = 'Flight notes';
+                const list = document.createElement('ul');
+                for (const entry of pilot.highlights) {
+                    const item = document.createElement('li');
+                    item.textContent = entry;
+                    list.appendChild(item);
+                }
+                details.appendChild(title);
+                details.appendChild(list);
+                button.appendChild(details);
+            }
+
+            button.addEventListener('click', () => {
+                loadoutEditorPendingCharacterId = pilot.id;
+                refreshLoadoutEditorSelectionState();
+            });
+            button.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    loadoutEditorPendingCharacterId = pilot.id;
+                    refreshLoadoutEditorSelectionState();
+                }
+            });
+
+            loadoutEditorPilotGrid.appendChild(button);
+            loadoutEditorPilotButtons.push(button);
+        }
+        refreshLoadoutEditorSelectionState();
+    }
+
+    function renderLoadoutEditorWeaponGrid() {
+        if (!(loadoutEditorWeaponGrid instanceof HTMLElement)) {
+            return;
+        }
+        loadoutEditorWeaponButtons = [];
+        loadoutEditorWeaponGrid.innerHTML = '';
+        for (const weapon of Object.values(weaponLoadouts)) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'character-card weapon-card';
+            button.dataset.weaponId = weapon.id;
+
+            if (weapon.icon) {
+                const img = document.createElement('img');
+                img.src = weapon.icon;
+                img.alt = `${weapon.name} icon`;
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                button.appendChild(img);
+            }
+
+            const name = document.createElement('span');
+            name.className = 'character-name';
+            name.textContent = weapon.name;
+            button.appendChild(name);
+
+            const role = document.createElement('span');
+            role.className = 'character-role';
+            role.textContent = weapon.summary ?? 'Weapon Loadout';
+            button.appendChild(role);
+
+            if (Array.isArray(weapon.highlights) && weapon.highlights.length) {
+                const details = document.createElement('div');
+                details.className = 'character-details';
+                const title = document.createElement('strong');
+                title.textContent = 'Highlights';
+                const list = document.createElement('ul');
+                for (const entry of weapon.highlights) {
+                    const item = document.createElement('li');
+                    item.textContent = entry;
+                    list.appendChild(item);
+                }
+                details.appendChild(title);
+                details.appendChild(list);
+                button.appendChild(details);
+            }
+
+            button.addEventListener('click', () => {
+                loadoutEditorPendingWeaponId = weapon.id;
+                refreshLoadoutEditorSelectionState();
+            });
+            button.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    loadoutEditorPendingWeaponId = weapon.id;
+                    refreshLoadoutEditorSelectionState();
+                }
+            });
+
+            loadoutEditorWeaponGrid.appendChild(button);
+            loadoutEditorWeaponButtons.push(button);
+        }
+        refreshLoadoutEditorSelectionState();
+    }
+
+    function buildLoadoutEditorOptionButton({
+        id,
+        label,
+        type
+    }) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'loadout-editor-option';
+        button.setAttribute('role', 'radio');
+
+        const thumb = document.createElement('span');
+        thumb.className = 'loadout-editor-option-thumb';
+
+        if (type === 'skin') {
+            const asset = resolvePlayerSkinAsset(id);
+            const src =
+                (typeof asset === 'string' && asset) ||
+                (asset && typeof asset === 'object' && asset.src) ||
+                playerSkinBaseSources[id] ||
+                playerSkinBaseSources.default;
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = `${label} preview`;
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            thumb.appendChild(img);
+        } else {
+            const preview = document.createElement('span');
+            preview.className = 'loadout-editor-trail-preview';
+            preview.style.background = getTrailGradientStyle(id);
+            thumb.appendChild(preview);
+        }
+
+        const meta = document.createElement('span');
+        meta.className = 'loadout-editor-option-meta';
+        const title = document.createElement('strong');
+        title.textContent = label;
+        const subtitle = document.createElement('span');
+        subtitle.textContent = type === 'skin' ? 'Suit' : 'Stream';
+        meta.appendChild(title);
+        meta.appendChild(subtitle);
+
+        button.appendChild(thumb);
+        button.appendChild(meta);
+        return button;
+    }
+
+    function renderLoadoutEditorSkinOptions() {
+        if (!(loadoutEditorSkinGrid instanceof HTMLElement)) {
+            return;
+        }
+        loadoutEditorSkinButtons = [];
+        loadoutEditorSkinGrid.innerHTML = '';
+        for (const option of getAllSkinOptions()) {
+            const button = buildLoadoutEditorOptionButton({ id: option.id, label: option.label, type: 'skin' });
+            button.dataset.skinId = option.id;
+            button.addEventListener('click', () => {
+                loadoutEditorPendingSkinId = option.id;
+                refreshLoadoutEditorSelectionState();
+            });
+            button.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    loadoutEditorPendingSkinId = option.id;
+                    refreshLoadoutEditorSelectionState();
+                }
+            });
+            loadoutEditorSkinGrid.appendChild(button);
+            loadoutEditorSkinButtons.push(button);
+        }
+        refreshLoadoutEditorSelectionState();
+    }
+
+    function renderLoadoutEditorTrailOptions() {
+        if (!(loadoutEditorTrailGrid instanceof HTMLElement)) {
+            return;
+        }
+        loadoutEditorTrailButtons = [];
+        loadoutEditorTrailGrid.innerHTML = '';
+        for (const option of getAllTrailOptions()) {
+            const button = buildLoadoutEditorOptionButton({ id: option.id, label: option.label, type: 'trail' });
+            button.dataset.trailId = option.id;
+            button.addEventListener('click', () => {
+                loadoutEditorPendingTrailId = option.id;
+                refreshLoadoutEditorSelectionState();
+            });
+            button.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    loadoutEditorPendingTrailId = option.id;
+                    refreshLoadoutEditorSelectionState();
+                }
+            });
+            loadoutEditorTrailGrid.appendChild(button);
+            loadoutEditorTrailButtons.push(button);
+        }
+        refreshLoadoutEditorSelectionState();
+    }
+
+    function ensureLoadoutEditorPendingValues() {
+        const cosmetics = ensureCosmeticsState();
+        if (!loadoutEditorPendingCharacterId) {
+            loadoutEditorPendingCharacterId = activePilotId;
+        }
+        if (!loadoutEditorPendingWeaponId) {
+            loadoutEditorPendingWeaponId = activeWeaponId;
+        }
+        if (!loadoutEditorPendingSkinId) {
+            loadoutEditorPendingSkinId = cosmetics.equipped.skin;
+        }
+        if (!loadoutEditorPendingTrailId) {
+            loadoutEditorPendingTrailId = cosmetics.equipped.trail;
+        }
+    }
+
+    function openLoadoutEditor(slotId, { trigger } = {}) {
+        if (!loadoutEditorModal) {
+            return;
+        }
+        const loadout = getCustomLoadout(slotId);
+        if (!loadout) {
+            return;
+        }
+        loadoutEditorActiveSlotId = slotId;
+        loadoutEditorReturnFocus = trigger instanceof HTMLElement ? trigger : null;
+        latestCosmeticSnapshot = {
+            characterId: loadout.characterId ?? activePilotId,
+            weaponId: loadout.weaponId ?? activeWeaponId,
+            skinId: loadout.skinId ?? ensureCosmeticsState().equipped.skin,
+            trailId: loadout.trailId ?? ensureCosmeticsState().equipped.trail
+        };
+        loadoutEditorPendingCharacterId = latestCosmeticSnapshot.characterId;
+        loadoutEditorPendingWeaponId = latestCosmeticSnapshot.weaponId;
+        loadoutEditorPendingSkinId = latestCosmeticSnapshot.skinId;
+        loadoutEditorPendingTrailId = latestCosmeticSnapshot.trailId;
+        ensureLoadoutEditorPendingValues();
+
+        const slotMeta = getLoadoutSlotMeta(slotId);
+        if (loadoutEditorTitle) {
+            const slotName = loadout?.name?.trim() || slotMeta?.defaultName || 'Custom Loadout';
+            loadoutEditorTitle.textContent = `Customize ${slotName}`;
+        }
+        if (loadoutEditorSubtitle) {
+            const slotName = slotMeta?.defaultName || slotId;
+            loadoutEditorSubtitle.textContent = `Adjust the selections saved to ${slotName}. Changes are stored instantly when you save.`;
+        }
+        if (loadoutEditorSaveButton) {
+            const saveLabel = slotMeta?.defaultName ? `Save ${slotMeta.defaultName}` : 'Save Loadout';
+            loadoutEditorSaveButton.textContent = saveLabel;
+        }
+
+        renderLoadoutEditorPilotGrid();
+        renderLoadoutEditorWeaponGrid();
+        renderLoadoutEditorSkinOptions();
+        renderLoadoutEditorTrailOptions();
+
+        openModal(loadoutEditorModal, {
+            bodyClass: 'loadout-editor-open',
+            initialFocus: () =>
+                loadoutEditorPilotButtons.find((button) => button.classList.contains('selected')) ??
+                loadoutEditorPilotButtons[0] ??
+                loadoutEditorSaveButton
+        });
+    }
+
+    function closeLoadoutEditor({ restoreFocus = true } = {}) {
+        if (!loadoutEditorModal) {
+            return;
+        }
+        closeModal(loadoutEditorModal, { bodyClass: 'loadout-editor-open', restoreFocus: false });
+        if (restoreFocus && loadoutEditorReturnFocus instanceof HTMLElement) {
+            focusElement(loadoutEditorReturnFocus);
+        }
+        loadoutEditorReturnFocus = null;
+        loadoutEditorActiveSlotId = null;
+        latestCosmeticSnapshot = null;
+    }
+
+    function handleLoadoutEditorSave() {
+        if (!loadoutEditorActiveSlotId) {
+            closeLoadoutEditor();
+            return;
+        }
+        ensureLoadoutEditorPendingValues();
+        const updates = {
+            characterId: loadoutEditorPendingCharacterId,
+            weaponId: loadoutEditorPendingWeaponId,
+            skinId: loadoutEditorPendingSkinId,
+            trailId: loadoutEditorPendingTrailId
+        };
+        const snapshot = latestCosmeticSnapshot;
+        const hasChanges =
+            !snapshot ||
+            snapshot.characterId !== updates.characterId ||
+            snapshot.weaponId !== updates.weaponId ||
+            snapshot.skinId !== updates.skinId ||
+            snapshot.trailId !== updates.trailId;
+
+        if (!hasChanges) {
+            showLoadoutStatus(loadoutEditorActiveSlotId, 'Preset already up to date', 'info');
+            closeLoadoutEditor();
+            return;
+        }
+
+        const result = updateCustomLoadout(loadoutEditorActiveSlotId, updates);
+        if (result) {
+            showLoadoutStatus(loadoutEditorActiveSlotId, 'Preset saved', 'success');
+            if (activeLoadoutId === loadoutEditorActiveSlotId) {
+                applyCustomLoadout(result, { silent: true });
+                pendingPilotId = activePilotId;
+                pendingWeaponId = activeWeaponId;
+                updatePilotSelectionState();
+                updateWeaponSelectionState();
+                refreshWeaponSummary();
+                updatePreflightSummary();
+            }
+            renderCustomLoadoutCollections();
+        } else {
+            showLoadoutStatus(loadoutEditorActiveSlotId, 'Unable to save preset', 'error');
+        }
+        closeLoadoutEditor();
     }
 
     function renderPilotSelectGrid() {
