@@ -18,6 +18,47 @@ let openWeaponSelectButton = null;
 
 const weaponPatternStates = new Map();
 
+function getGlobalScope() {
+    if (typeof globalThis !== 'undefined') {
+        return globalThis;
+    }
+    if (typeof window !== 'undefined') {
+        return window;
+    }
+    if (typeof self !== 'undefined') {
+        return self;
+    }
+    return null;
+}
+
+function getWeaponLoadoutCollection() {
+    const scope = getGlobalScope();
+    if (scope && scope.weaponLoadouts && typeof scope.weaponLoadouts === 'object') {
+        return scope.weaponLoadouts;
+    }
+    if (
+        typeof weaponLoadouts !== 'undefined' &&
+        weaponLoadouts &&
+        typeof weaponLoadouts === 'object'
+    ) {
+        return weaponLoadouts;
+    }
+    return null;
+}
+
+function synchronizeActiveWeaponLoadout(loadout) {
+    const scope = getGlobalScope();
+    if (!scope) {
+        return loadout && typeof loadout === 'object' ? loadout : null;
+    }
+    if (loadout && typeof loadout === 'object') {
+        scope.activeWeaponLoadout = loadout;
+        return loadout;
+    }
+    scope.activeWeaponLoadout = null;
+    return null;
+}
+
 function getActiveWeaponId(candidate) {
     if (typeof candidate === 'string' && candidate) {
         return candidate;
@@ -33,25 +74,22 @@ function getActiveWeaponId(candidate) {
 }
 
 function getActiveWeaponLoadout() {
-    const collection =
-        typeof weaponLoadouts !== 'undefined' && weaponLoadouts && typeof weaponLoadouts === 'object'
-            ? weaponLoadouts
-            : null;
+    const collection = getWeaponLoadoutCollection();
     if (!collection) {
-        return null;
+        return synchronizeActiveWeaponLoadout(null);
     }
 
     const activeId = getActiveWeaponId();
     if (activeId && typeof collection[activeId] === 'object') {
-        return collection[activeId];
+        return synchronizeActiveWeaponLoadout(collection[activeId]);
     }
 
     if (typeof collection.pulse === 'object') {
-        return collection.pulse;
+        return synchronizeActiveWeaponLoadout(collection.pulse);
     }
 
-    const fallback = Object.values(collection).find((entry) => entry && typeof entry === 'object');
-    return fallback ?? null;
+    const fallback = Object.values(collection).find((entry) => entry && typeof entry === 'object') ?? null;
+    return synchronizeActiveWeaponLoadout(fallback);
 }
 
 function getWeaponPatternState(weaponId = null, { createIfMissing = true } = {}) {
