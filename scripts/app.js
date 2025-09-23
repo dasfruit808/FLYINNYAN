@@ -1838,8 +1838,8 @@ document.addEventListener('DOMContentLoaded', () => {
             baseSpeed: 60
         },
         player: {
-            width: 48,
-            height: 36,
+            width: 72,
+            height: 54,
             acceleration: 3600,
             drag: 10.5,
             maxSpeed: 320,
