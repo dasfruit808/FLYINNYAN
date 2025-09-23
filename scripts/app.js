@@ -1706,7 +1706,7 @@ document.addEventListener('DOMContentLoaded', () => {
         player: {
             width: 48,
             height: 36,
-            acceleration: 18,
+            acceleration: 3600,
             drag: 10.5,
             maxSpeed: 320,
             verticalBleed: 0.18,
