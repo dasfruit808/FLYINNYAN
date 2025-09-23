@@ -3074,6 +3074,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return { width: availableWidth, height: Math.max(240, availableHeight) };
     }
 
+    function getVerticalBleedForHeight(height) {
+        const bleedRatio = config?.player?.verticalBleed ?? 0;
+        const referenceHeight = Number.isFinite(height) && height > 0 ? height : config?.player?.height ?? 0;
+        if (!Number.isFinite(referenceHeight) || referenceHeight <= 0 || bleedRatio <= 0) {
+            return 0;
+        }
+        return referenceHeight * bleedRatio;
+    }
+
     function rescaleWorld(previousWidth, previousHeight, nextWidth, nextHeight) {
         if (!previousWidth || !previousHeight || previousWidth === nextWidth || previousHeight === nextHeight) {
             return;
@@ -3085,7 +3094,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (player) {
                 player.x *= scaleX;
                 player.y *= scaleY;
-                const verticalBleed = nextHeight * (config?.player?.verticalBleed ?? 0);
+                const verticalBleed = getVerticalBleedForHeight(player.height);
                 player.x = clamp(player.x, 0, Math.max(0, nextWidth - player.width));
                 player.y = clamp(
                     player.y,
@@ -3102,7 +3111,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     0,
                     Math.max(0, nextWidth - doubleTeamState.clone.width)
                 );
-                const verticalBleed = nextHeight * (config?.player?.verticalBleed ?? 0);
+                const verticalBleed = getVerticalBleedForHeight(doubleTeamState.clone.height);
                 doubleTeamState.clone.y = clamp(
                     doubleTeamState.clone.y,
                     -verticalBleed,
@@ -12493,9 +12502,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const verticalBleed = viewport.height * config.player.verticalBleed;
+        const cloneVerticalBleed = getVerticalBleedForHeight(clone.height);
         clone.x = clamp(clone.x, 0, viewport.width - clone.width);
-        clone.y = clamp(clone.y, -verticalBleed, viewport.height - clone.height + verticalBleed);
+        clone.y = clamp(clone.y, -cloneVerticalBleed, viewport.height - clone.height + cloneVerticalBleed);
 
         const wobbleSpeed = powerConfig.wobbleSpeed ?? 3.2;
         doubleTeamState.wobble += deltaSeconds * wobbleSpeed;
@@ -12529,14 +12538,15 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.vy = player.vy;
         const powerConfig = config.doubleTeamPower ?? {};
         const separation = powerConfig.separation ?? Math.max(120, player.height * 0.9);
-        const verticalBleed = viewport.height * config.player.verticalBleed;
+        const verticalBleed = getVerticalBleedForHeight(player.height);
         player.x = clamp(player.x, 0, viewport.width - player.width);
         player.y = clamp(player.y, -verticalBleed, viewport.height - player.height + verticalBleed);
 
         clone.x = clamp(player.x, 0, viewport.width - clone.width);
         let targetCloneY = player.y - separation;
-        const minCloneY = -verticalBleed;
-        const maxCloneY = viewport.height - clone.height + verticalBleed;
+        const cloneVerticalBleed = getVerticalBleedForHeight(clone.height);
+        const minCloneY = -cloneVerticalBleed;
+        const maxCloneY = viewport.height - clone.height + cloneVerticalBleed;
         if (targetCloneY < minCloneY) {
             const diff = minCloneY - targetCloneY;
             targetCloneY = minCloneY;
@@ -12639,11 +12649,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const isDashing = state.dashTimer > 0;
         const effectiveDrag = isDashing ? drag * dashConfig.dragMultiplier : drag;
         const maxSpeed = isDashing ? dashConfig.boostSpeed : config.player.maxSpeed;
-        const verticalBleed = viewport.height * config.player.verticalBleed;
         const moveEntity = (entity) => {
             if (!entity) {
                 return;
             }
+            const verticalBleed = getVerticalBleedForHeight(entity.height);
             entity.vx += (inputX * accel - entity.vx * effectiveDrag) * deltaSeconds;
             entity.vy += (inputY * accel - entity.vy * effectiveDrag) * deltaSeconds;
             entity.vx = clamp(entity.vx, -maxSpeed, maxSpeed);
