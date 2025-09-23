@@ -2536,27 +2536,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    if (loadoutEditorSaveButton) {
-        loadoutEditorSaveButton.addEventListener('click', () => handleLoadoutEditorSave());
-    }
-    if (loadoutEditorCancelButton) {
-        loadoutEditorCancelButton.addEventListener('click', () => closeLoadoutEditor());
-    }
-    if (loadoutEditorCloseButton) {
-        loadoutEditorCloseButton.addEventListener('click', () => closeLoadoutEditor());
-    }
-    if (loadoutEditorBackdrop) {
-        loadoutEditorBackdrop.addEventListener('click', () => closeLoadoutEditor());
-    }
-    if (loadoutEditorModal) {
-        loadoutEditorModal.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                closeLoadoutEditor();
-            }
-        });
-    }
-
     function setButtonDisabledState(button, disabled) {
         if (!button) {
             return;
@@ -2680,6 +2659,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadoutEditorSaveButton = document.getElementById('loadoutEditorSave');
     const loadoutEditorCancelButton = document.getElementById('loadoutEditorCancel');
     const loadoutEditorCloseButton = document.getElementById('loadoutEditorClose');
+    if (loadoutEditorSaveButton) {
+        loadoutEditorSaveButton.addEventListener('click', () => handleLoadoutEditorSave());
+    }
+    if (loadoutEditorCancelButton) {
+        loadoutEditorCancelButton.addEventListener('click', () => closeLoadoutEditor());
+    }
+    if (loadoutEditorCloseButton) {
+        loadoutEditorCloseButton.addEventListener('click', () => closeLoadoutEditor());
+    }
+    if (loadoutEditorBackdrop) {
+        loadoutEditorBackdrop.addEventListener('click', () => closeLoadoutEditor());
+    }
+    if (loadoutEditorModal) {
+        loadoutEditorModal.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeLoadoutEditor();
+            }
+        });
+    }
     const instructionsEl = document.getElementById('instructions');
     const instructionPanelsEl = document.getElementById('instructionPanels');
     const instructionButtonBar = document.getElementById('instructionButtonBar');
