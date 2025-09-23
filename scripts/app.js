@@ -11102,7 +11102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isTouchInterface) {
             return false;
         }
-        if (state.gameState !== 'playing') {
+        if (state.gameState !== 'running') {
             return false;
         }
         if (pointerType && pointerType !== 'touch') {
