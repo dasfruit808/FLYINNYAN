@@ -20,6 +20,58 @@ const weaponPatternStates = new Map();
 
 const weaponLoadouts = {};
 
+const serviceWorkerSupported =
+    typeof window !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    typeof navigator.serviceWorker?.register === 'function';
+let serviceWorkerRegistrationPromise = null;
+
+function markOfflineCapabilityReady() {
+    if (typeof document !== 'undefined' && document.body) {
+        document.body.dataset.offlineReady = 'true';
+    }
+}
+
+function registerGameServiceWorker() {
+    if (!serviceWorkerSupported) {
+        return null;
+    }
+    if (serviceWorkerRegistrationPromise) {
+        return serviceWorkerRegistrationPromise;
+    }
+    const scriptUrl = new URL('../service-worker.js', import.meta.url);
+    serviceWorkerRegistrationPromise = navigator.serviceWorker
+        .register(scriptUrl.href, { updateViaCache: 'none' })
+        .then((registration) => {
+            console.info('[service-worker] Registered', registration.scope);
+            navigator.serviceWorker.ready
+                .then(() => {
+                    markOfflineCapabilityReady();
+                })
+                .catch(() => {
+                    // No-op: readiness is best-effort.
+                });
+            return registration;
+        })
+        .catch((error) => {
+            console.warn('[service-worker] Registration failed', error);
+            return null;
+        });
+    return serviceWorkerRegistrationPromise;
+}
+
+if (serviceWorkerSupported) {
+    if (navigator.serviceWorker.controller) {
+        markOfflineCapabilityReady();
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        markOfflineCapabilityReady();
+    });
+    window.addEventListener('load', () => {
+        registerGameServiceWorker();
+    });
+}
+
 const pilotRoster = [
     {
         id: 'nova',
@@ -8069,6 +8121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let leaderboardEntries = leaderboardState.scopes[activeLeaderboardScope] ?? [];
     const leaderboardStatusState = { message: '', type: 'info' };
     let leaderboardFetchPromise = null;
+    let offlineModeActive = false;
 
     function setLeaderboardStatus(message, type = 'info') {
         leaderboardStatusState.message = typeof message === 'string' ? message.trim() : '';
@@ -8211,6 +8264,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!API_CONFIG.baseUrl) {
             return Promise.resolve(null);
         }
+        if (!getIsOnline()) {
+            if (force) {
+                setLeaderboardStatus('Offline mode — showing cached standings.', 'warning');
+            }
+            offlineModeActive = true;
+            return Promise.resolve(null);
+        }
+        offlineModeActive = false;
         const now = Date.now();
         const cacheAge = now - (leaderboardState.fetchedAt || 0);
         if (!force && leaderboardState.fetchedAt && cacheAge < API_CONFIG.cacheTtlMs) {
@@ -8263,12 +8324,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Unable to sync leaderboards right now. Showing last known standings.',
                     'error'
                 );
+                if (!getIsOnline()) {
+                    offlineModeActive = true;
+                }
                 return null;
             } finally {
                 leaderboardFetchPromise = null;
             }
         })();
         return leaderboardFetchPromise;
+    }
+
+    function getIsOnline() {
+        if (typeof navigator === 'undefined') {
+            return true;
+        }
+        return navigator.onLine !== false;
+    }
+
+    function updateNetworkStatus({ announce = false } = {}) {
+        const online = getIsOnline();
+        if (announce) {
+            if (!online && !offlineModeActive) {
+                setLeaderboardStatus('Offline mode — showing cached standings.', 'warning');
+            } else if (online && offlineModeActive && API_CONFIG.baseUrl) {
+                setLeaderboardStatus('Back online — syncing standings…', 'info');
+            }
+        }
+        offlineModeActive = !online;
+        return online;
     }
     const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
     let lastRunSummary = null;
@@ -8441,8 +8525,12 @@ document.addEventListener('DOMContentLoaded', () => {
         persist: false
     });
 
+    const initialOnline = updateNetworkStatus({ announce: true });
+
     if (API_CONFIG.baseUrl) {
-        refreshLeaderboardsFromApi({ force: true });
+        if (initialOnline) {
+            refreshLeaderboardsFromApi({ force: true });
+        }
     } else {
         setLeaderboardStatus(
             'Leaderboard sync unavailable — set NYAN_ESCAPE_API_BASE_URL to enable syncing.',
@@ -8452,9 +8540,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof window !== 'undefined') {
         window.addEventListener('online', () => {
-            if (API_CONFIG.baseUrl) {
+            const online = updateNetworkStatus({ announce: true });
+            if (API_CONFIG.baseUrl && online) {
                 refreshLeaderboardsFromApi({ force: true });
             }
+        });
+        window.addEventListener('offline', () => {
+            updateNetworkStatus({ announce: true });
         });
     }
 
