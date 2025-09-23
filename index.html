@@ -71,6 +71,28 @@
                     >
                         Swap Weapon
                     </button>
+                    <div id="preflightLoadoutSummary" class="preflight-loadout-summary" aria-live="polite">
+                        <div class="preflight-loadout-card" data-summary="pilot">
+                            <div class="preflight-loadout-thumb">
+                                <img id="preflightPilotImage" alt="Active pilot portrait" loading="lazy" decoding="async" />
+                            </div>
+                            <div class="preflight-loadout-info">
+                                <span class="preflight-loadout-label">Pilot</span>
+                                <span class="preflight-loadout-value" id="preflightPilotName"></span>
+                                <span class="preflight-loadout-meta" id="preflightPilotRole"></span>
+                            </div>
+                        </div>
+                        <div class="preflight-loadout-card" data-summary="weapon">
+                            <div class="preflight-loadout-thumb">
+                                <img id="preflightWeaponImage" alt="Active weapon schematic" loading="lazy" decoding="async" />
+                            </div>
+                            <div class="preflight-loadout-info">
+                                <span class="preflight-loadout-label">Weapon</span>
+                                <span class="preflight-loadout-value" id="preflightWeaponName"></span>
+                                <span class="preflight-loadout-meta" id="preflightWeaponHighlight"></span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
