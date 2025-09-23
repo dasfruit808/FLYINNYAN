@@ -2342,9 +2342,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const runSummaryStreakEl = document.getElementById('runSummaryStreak');
     const runSummaryNyanEl = document.getElementById('runSummaryNyan');
     const runSummaryPlacementEl = document.getElementById('runSummaryPlacement');
+    const runSummaryStatusState = { message: '', type: 'info' };
 
     let lastPauseReason = 'manual';
     const runSummaryRunsEl = document.getElementById('runSummaryRuns');
+    let shareButtonClickHandler = null;
     const weaponSummaryName = document.getElementById('weaponSummaryName');
     const weaponSummaryDescription = document.getElementById('weaponSummaryDescription');
     const weaponSummaryImage = document.getElementById('weaponSummaryImage');
@@ -7055,6 +7057,263 @@ document.addEventListener('DOMContentLoaded', () => {
                 survivalTimerEl.setAttribute('aria-label', ariaLabel);
             }
         }
+    }
+
+    function setRunSummaryStatus(message, type = 'info') {
+        const allowedTypes = new Set(['info', 'success', 'warning', 'error']);
+        const normalizedMessage = typeof message === 'string' ? message.trim() : '';
+        const normalizedType = allowedTypes.has(type) ? type : 'info';
+        runSummaryStatusState.message = normalizedMessage;
+        runSummaryStatusState.type = normalizedType;
+        if (!runSummaryStatusEl) {
+            return runSummaryStatusState;
+        }
+        runSummaryStatusEl.classList.remove('success', 'warning', 'error');
+        if (!normalizedMessage) {
+            runSummaryStatusEl.textContent = '';
+            runSummaryStatusEl.hidden = true;
+            return runSummaryStatusState;
+        }
+        runSummaryStatusEl.hidden = false;
+        runSummaryStatusEl.textContent = normalizedMessage;
+        if (normalizedType !== 'info') {
+            runSummaryStatusEl.classList.add(normalizedType);
+        }
+        return runSummaryStatusState;
+    }
+
+    function describeRunSummaryStatus(summary) {
+        if (!summary) {
+            return {
+                message: 'Complete a ranked flight to log your stats.',
+                type: 'info'
+            };
+        }
+
+        const safeTime = Math.max(0, Math.floor(Number(summary.timeMs) || 0));
+        const safeScore = Math.max(0, Math.floor(Number(summary.score) || 0));
+        const baseDescriptor = `${formatTime(safeTime)} • ${safeScore.toLocaleString()} pts`;
+        if (summary.recorded) {
+            let suffix = '';
+            const timestamp = Number(summary.recordedAt);
+            if (Number.isFinite(timestamp)) {
+                const relative = formatRelativeTime(timestamp);
+                if (relative) {
+                    suffix = ` • Logged ${relative}`;
+                }
+            }
+            return {
+                message: `Flight log recorded — ${baseDescriptor}${suffix}`,
+                type: 'success'
+            };
+        }
+
+        switch (summary.reason) {
+            case 'tutorial':
+                return {
+                    message: 'Training flight complete. Confirm your callsign to prep for ranked runs.',
+                    type: 'info'
+                };
+            case 'pending':
+                return {
+                    message: 'Submit this flight log to record your score.',
+                    type: 'warning'
+                };
+            case 'limit':
+                return {
+                    message: 'Daily flight log limit reached. Run not submitted.',
+                    type: 'warning'
+                };
+            case 'skipped':
+                return {
+                    message: 'Submission skipped. Run not recorded.',
+                    type: 'info'
+                };
+            case 'conflict':
+                return {
+                    message: 'A stronger run is already on the board. Keep pushing for a higher score.',
+                    type: 'warning'
+                };
+            case 'error':
+                return {
+                    message: 'Submission failed. Try again shortly.',
+                    type: 'error'
+                };
+            default:
+                return {
+                    message: baseDescriptor,
+                    type: 'info'
+                };
+        }
+    }
+
+    function setShareButtonEnabled(enabled) {
+        if (!shareButton) {
+            return;
+        }
+        shareButton.disabled = !enabled;
+        shareButton.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    }
+
+    function detachShareButtonHandler() {
+        if (shareButton && typeof shareButtonClickHandler === 'function') {
+            shareButton.removeEventListener('click', shareButtonClickHandler);
+        }
+        shareButtonClickHandler = null;
+    }
+
+    function buildRunSharePayload(summary) {
+        const safePlayer = sanitizePlayerName(summary?.player) || playerName || DEFAULT_PLAYER_NAME;
+        const safeTime = Math.max(0, Math.floor(Number(summary?.timeMs) || 0));
+        const safeScore = Math.max(0, Math.floor(Number(summary?.score) || 0));
+        const safeNyan = Math.max(0, Math.floor(Number(summary?.nyan) || 0));
+        const safeBestStreak = Math.max(0, Math.floor(Number(summary?.bestStreak) || 0));
+        const lines = [
+            `${safePlayer} survived ${formatTime(safeTime)} in Flyin' Nyan!`,
+            `Score: ${safeScore.toLocaleString()} pts — Pickups: ${safeNyan.toLocaleString()}`
+        ];
+        if (safeBestStreak > 0) {
+            lines.push(`Best tail: x${safeBestStreak}`);
+        }
+        if (Number.isFinite(summary?.placement) && summary.placement > 0) {
+            lines.push(`Galaxy standings: #${summary.placement}`);
+        }
+        const hasRunsToday = typeof summary?.runsToday === 'number';
+        if (hasRunsToday) {
+            const runsUsed = Math.min(Math.max(summary.runsToday, 0), SUBMISSION_LIMIT);
+            lines.push(`Daily log: ${runsUsed}/${SUBMISSION_LIMIT}`);
+        }
+        let shareUrl = 'https://flyinnyan.com';
+        if (typeof window !== 'undefined' && window.location) {
+            const { origin, pathname, href } = window.location;
+            shareUrl = origin && pathname ? `${origin}${pathname}` : href || shareUrl;
+        }
+        return {
+            player: safePlayer,
+            title: `Flyin' Nyan – Flight log for ${safePlayer}`,
+            text: lines.join('\n'),
+            url: shareUrl
+        };
+    }
+
+    function updateRunSummaryOverview() {
+        if (!runSummaryTimeEl || !runSummaryScoreEl || !runSummaryStreakEl || !runSummaryNyanEl) {
+            return;
+        }
+
+        if (!lastRunSummary) {
+            runSummaryTimeEl.textContent = '—';
+            runSummaryScoreEl.textContent = '—';
+            runSummaryStreakEl.textContent = '—';
+            runSummaryNyanEl.textContent = '—';
+            if (runSummaryPlacementEl) {
+                runSummaryPlacementEl.textContent = '';
+                runSummaryPlacementEl.hidden = true;
+            }
+            if (runSummaryRunsEl) {
+                runSummaryRunsEl.textContent = '';
+                runSummaryRunsEl.hidden = true;
+            }
+            if (!runSummaryStatusState.message) {
+                setRunSummaryStatus('Complete a ranked flight to log your stats.', 'info');
+            }
+            return;
+        }
+
+        const summary = lastRunSummary;
+        const safeTime = Math.max(0, Math.floor(Number(summary.timeMs) || 0));
+        const safeScore = Math.max(0, Math.floor(Number(summary.score) || 0));
+        const safeBestStreak = Math.max(0, Math.floor(Number(summary.bestStreak) || 0));
+        const safeNyan = Math.max(0, Math.floor(Number(summary.nyan) || 0));
+        runSummaryTimeEl.textContent = formatTime(safeTime);
+        runSummaryScoreEl.textContent = safeScore.toLocaleString();
+        runSummaryStreakEl.textContent = `x${safeBestStreak}`;
+        runSummaryNyanEl.textContent = safeNyan.toLocaleString();
+
+        if (runSummaryPlacementEl) {
+            let placementMessage = '';
+            if (Number.isFinite(summary.placement) && summary.placement > 0) {
+                placementMessage = `Galaxy standings: #${summary.placement}`;
+            } else if (summary.recorded) {
+                placementMessage = 'Galaxy standings: Awaiting placement';
+            } else if (summary.reason === 'pending') {
+                placementMessage = 'Submit this run to enter the galaxy standings.';
+            } else if (summary.reason === 'limit') {
+                placementMessage = 'Galaxy standings: Daily log limit reached';
+            } else if (summary.reason === 'skipped') {
+                placementMessage = 'Galaxy standings: Submission skipped';
+            } else if (summary.reason === 'conflict') {
+                placementMessage = 'Galaxy standings: Stronger run already recorded';
+            } else if (summary.reason === 'error') {
+                placementMessage = 'Galaxy standings: Submission error';
+            }
+            runSummaryPlacementEl.textContent = placementMessage;
+            runSummaryPlacementEl.hidden = !placementMessage;
+        }
+
+        if (runSummaryRunsEl) {
+            if (typeof summary.runsToday === 'number') {
+                const runsUsed = Math.min(Math.max(summary.runsToday, 0), SUBMISSION_LIMIT);
+                runSummaryRunsEl.textContent = `Daily logs used: ${runsUsed}/${SUBMISSION_LIMIT}`;
+                runSummaryRunsEl.hidden = false;
+            } else {
+                runSummaryRunsEl.textContent = '';
+                runSummaryRunsEl.hidden = true;
+            }
+        }
+
+        const { message, type } = describeRunSummaryStatus(summary);
+        setRunSummaryStatus(message, type);
+    }
+
+    function updateSharePanel() {
+        if (!shareButton || !shareStatusEl) {
+            return;
+        }
+
+        const summary = pendingSubmission ?? lastRunSummary;
+        const hasSummary = summary && Number.isFinite(Number(summary.timeMs)) && Number.isFinite(Number(summary.score));
+        if (!hasSummary) {
+            detachShareButtonHandler();
+            setShareButtonEnabled(false);
+            shareStatusEl.textContent = 'Complete a ranked run to unlock sharing.';
+            return;
+        }
+
+        const payload = buildRunSharePayload(summary);
+        detachShareButtonHandler();
+        const handleShareClick = async () => {
+            setShareButtonEnabled(false);
+            shareStatusEl.textContent = canNativeShare
+                ? 'Preparing flight log…'
+                : 'Copying flight log to clipboard…';
+            try {
+                if (canNativeShare && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+                    await navigator.share({ title: payload.title, text: payload.text, url: payload.url });
+                    shareStatusEl.textContent = 'Flight log shared with the fleet!';
+                } else {
+                    const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : null;
+                    if (clipboard && typeof clipboard.writeText === 'function') {
+                        await clipboard.writeText(`${payload.text}\n${payload.url}`);
+                        shareStatusEl.textContent = 'Flight log copied to clipboard.';
+                    } else {
+                        shareStatusEl.textContent = 'Sharing unavailable — copy the flight log manually:';
+                        console.info(`${payload.text}\n${payload.url}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to share flight log', error);
+                shareStatusEl.textContent = 'Unable to share flight log right now.';
+            } finally {
+                setShareButtonEnabled(true);
+            }
+        };
+        shareButton.addEventListener('click', handleShareClick);
+        shareButtonClickHandler = handleShareClick;
+        setShareButtonEnabled(true);
+        shareStatusEl.textContent = canNativeShare
+            ? 'Share your latest flight log with the fleet.'
+            : 'Copy your latest flight log to the clipboard.';
     }
 
     function normalizeHighScoreEntry(entry = {}) {
