@@ -418,6 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cheerForCombo() {},
                 celebrateVictory() {},
                 lamentSetback() {},
+                notifyPerformanceMode() {},
                 reset() {},
                 hide() {}
             };
@@ -459,6 +460,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Keep your paws steady—we\'re still in this!'
             ]
         };
+        const performanceMessages = {
+            enabled: [
+                'Performance boost engaged—thrusters stay smooth!',
+                'Mission control trimmed the effects for max response!'
+            ],
+            disabled: [
+                'All clear—bringing full visuals back online!',
+                'Systems stable, restoring every sparkle!'
+            ]
+        };
         const comboMilestones = [3, 5, 8, 12, 16, 20, 30];
         const MIN_SETBACK_INTERVAL = 9000;
         const GLOBAL_APPEARANCE_COOLDOWN = 10000;
@@ -470,6 +481,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let lastComboCelebrated = 0;
         let lastSetbackAt = 0;
         let lastShownAt = 0;
+        let lastPerformanceMessageAt = 0;
+        const PERFORMANCE_MESSAGE_COOLDOWN = 6000;
 
         const toLocaleOrString = (value) => {
             if (typeof value === 'number' && Number.isFinite(value)) {
@@ -618,10 +631,25 @@ document.addEventListener('DOMContentLoaded', () => {
             show('sad', message);
         };
 
+        const announcePerformanceMode = (active) => {
+            const now = nowTime();
+            if (now - lastPerformanceMessageAt < PERFORMANCE_MESSAGE_COOLDOWN) {
+                return;
+            }
+            lastPerformanceMessageAt = now;
+            const pool = active ? performanceMessages.enabled : performanceMessages.disabled;
+            const message = randomFrom(pool);
+            if (!message) {
+                return;
+            }
+            show(active ? 'happy' : 'cheering', message);
+        };
+
         const reset = ({ immediate = false } = {}) => {
             lastComboCelebrated = 0;
             lastSetbackAt = 0;
             lastShownAt = 0;
+            lastPerformanceMessageAt = 0;
             hide({ immediate });
         };
 
@@ -629,6 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cheerForCombo,
             celebrateVictory,
             lamentSetback,
+            notifyPerformanceMode: announcePerformanceMode,
             reset,
             hide
         };
@@ -2706,6 +2735,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const difficultyDescriptionEl = document.getElementById('difficultyDescription');
     const bodyElement = document.body;
     let reducedEffectsMode = false;
+    let manualReducedEffectsEnabled = false;
+    let autoReducedEffectsEnabled = false;
+    const PERFORMANCE_SAMPLE_SIZE = 45;
+    const AUTO_REDUCED_EFFECTS_ENABLE_THRESHOLD = 1000 / 35;
+    const AUTO_REDUCED_EFFECTS_DISABLE_THRESHOLD = 1000 / 50;
+    const AUTO_REDUCED_EFFECTS_TRIGGER_DURATION = 800;
+    const AUTO_REDUCED_EFFECTS_RECOVERY_DURATION = 1600;
+    const AUTO_REDUCED_EFFECTS_MANUAL_COOLDOWN = 6000;
+    const AUTO_REDUCED_EFFECTS_CHANGE_COOLDOWN = 4000;
+    const MAX_FRAME_SAMPLE_MS = 160;
+    const performanceMonitor = {
+        lastTimestamp: null,
+        samples: [],
+        sampleSum: 0,
+        slowTimer: 0,
+        recoveryTimer: 0,
+        cooldownUntil: 0
+    };
     let reducedMotionListenerCleanup = null;
     const instructionButtons = instructionButtonBar
         ? Array.from(
@@ -7575,11 +7622,67 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function applyReducedEffectsFlag(enabled) {
-        reducedEffectsMode = Boolean(enabled);
+    function syncReducedEffectsMode() {
+        const next = manualReducedEffectsEnabled || autoReducedEffectsEnabled;
+        const previous = reducedEffectsMode;
+        reducedEffectsMode = next;
         if (bodyElement) {
             bodyElement.classList.toggle('reduced-effects', reducedEffectsMode);
+            bodyElement.classList.toggle('auto-reduced-effects', autoReducedEffectsEnabled && !manualReducedEffectsEnabled);
         }
+        return previous !== next;
+    }
+
+    function refreshReducedEffectsStatus() {
+        if (!reducedEffectsStatus) {
+            if (reducedEffectsToggle) {
+                reducedEffectsToggle.indeterminate = !manualReducedEffectsEnabled && autoReducedEffectsEnabled;
+            }
+            return;
+        }
+        if (reducedEffectsToggle) {
+            reducedEffectsToggle.indeterminate = !manualReducedEffectsEnabled && autoReducedEffectsEnabled;
+        }
+        if (manualReducedEffectsEnabled) {
+            reducedEffectsStatus.textContent = 'On';
+        } else if (autoReducedEffectsEnabled) {
+            reducedEffectsStatus.textContent = 'Auto';
+        } else {
+            reducedEffectsStatus.textContent = 'Off';
+        }
+    }
+
+    function applyReducedEffectsFlag(enabled, { source = 'manual', refreshUI = true } = {}) {
+        const normalized = Boolean(enabled);
+        if (source === 'manual') {
+            manualReducedEffectsEnabled = normalized;
+            if (normalized) {
+                autoReducedEffectsEnabled = false;
+            } else {
+                if (autoReducedEffectsEnabled) {
+                    autoReducedEffectsEnabled = false;
+                }
+                performanceMonitor.cooldownUntil = Math.max(
+                    performanceMonitor.cooldownUntil,
+                    getTimestamp() + AUTO_REDUCED_EFFECTS_MANUAL_COOLDOWN
+                );
+            }
+        } else if (source === 'auto') {
+            autoReducedEffectsEnabled = normalized;
+            if (!normalized) {
+                performanceMonitor.cooldownUntil = Math.max(
+                    performanceMonitor.cooldownUntil,
+                    getTimestamp() + AUTO_REDUCED_EFFECTS_CHANGE_COOLDOWN
+                );
+            }
+        } else {
+            reducedEffectsMode = normalized;
+        }
+        const changed = syncReducedEffectsMode();
+        if (refreshUI) {
+            refreshReducedEffectsStatus();
+        }
+        return changed;
     }
 
     function updateSettingsUI() {
@@ -7607,9 +7710,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (reducedEffectsToggle) {
             reducedEffectsToggle.checked = settingsState.reducedEffects;
         }
-        if (reducedEffectsStatus) {
-            reducedEffectsStatus.textContent = settingsState.reducedEffects ? 'On' : 'Off';
-        }
+        refreshReducedEffectsStatus();
         if (difficultyRadios.length) {
             const normalizedDifficulty = normalizeDifficultySetting(settingsState.difficulty);
             for (const radio of difficultyRadios) {
@@ -7638,7 +7739,7 @@ document.addEventListener('DOMContentLoaded', () => {
         audioManager.setMasterVolume(settingsState.masterVolume);
         audioManager.toggleMusic(settingsState.musicEnabled);
         audioManager.toggleSfx(settingsState.sfxEnabled);
-        applyReducedEffectsFlag(settingsState.reducedEffects);
+        applyReducedEffectsFlag(settingsState.reducedEffects, { source: 'manual' });
         updateSettingsUI();
         const normalizedDifficulty = normalizeDifficultySetting(settingsState.difficulty);
         const difficultyChanged = normalizeDifficultySetting(previousDifficulty) !== normalizedDifficulty;
@@ -16177,8 +16278,70 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function monitorFramePerformance(timestamp) {
+        if (!Number.isFinite(timestamp)) {
+            return;
+        }
+        const monitor = performanceMonitor;
+        if (state.gameState !== 'running') {
+            monitor.samples.length = 0;
+            monitor.sampleSum = 0;
+            monitor.slowTimer = 0;
+            monitor.recoveryTimer = 0;
+            monitor.lastTimestamp = timestamp;
+            return;
+        }
+        if (monitor.lastTimestamp !== null) {
+            const rawDelta = Math.max(0, timestamp - monitor.lastTimestamp);
+            const frameTime = Math.min(rawDelta, MAX_FRAME_SAMPLE_MS);
+            monitor.samples.push(frameTime);
+            monitor.sampleSum += frameTime;
+            if (monitor.samples.length > PERFORMANCE_SAMPLE_SIZE) {
+                const removed = monitor.samples.shift();
+                if (typeof removed === 'number') {
+                    monitor.sampleSum -= removed;
+                }
+            }
+            const average = monitor.samples.length
+                ? monitor.sampleSum / monitor.samples.length
+                : frameTime;
+            if (autoReducedEffectsEnabled) {
+                if (average <= AUTO_REDUCED_EFFECTS_DISABLE_THRESHOLD) {
+                    monitor.recoveryTimer += frameTime;
+                    if (monitor.recoveryTimer >= AUTO_REDUCED_EFFECTS_RECOVERY_DURATION) {
+                        monitor.recoveryTimer = 0;
+                        monitor.slowTimer = 0;
+                        if (applyReducedEffectsFlag(false, { source: 'auto' })) {
+                            mascotAnnouncer.notifyPerformanceMode(false);
+                        }
+                    }
+                } else {
+                    monitor.recoveryTimer = 0;
+                }
+            } else if (!manualReducedEffectsEnabled) {
+                if (average >= AUTO_REDUCED_EFFECTS_ENABLE_THRESHOLD && getTimestamp() >= monitor.cooldownUntil) {
+                    monitor.slowTimer += frameTime;
+                    if (monitor.slowTimer >= AUTO_REDUCED_EFFECTS_TRIGGER_DURATION) {
+                        monitor.slowTimer = 0;
+                        monitor.recoveryTimer = 0;
+                        if (applyReducedEffectsFlag(true, { source: 'auto' })) {
+                            mascotAnnouncer.notifyPerformanceMode(true);
+                        }
+                    }
+                } else {
+                    monitor.slowTimer = 0;
+                }
+            } else {
+                monitor.slowTimer = 0;
+                monitor.recoveryTimer = 0;
+            }
+        }
+        monitor.lastTimestamp = timestamp;
+    }
+
     function gameLoop(timestamp = performance.now()) {
         requestAnimationFrame(gameLoop);
+        monitorFramePerformance(timestamp);
 
         updateGamepadInput();
         updateGamepadCursor(timestamp);
