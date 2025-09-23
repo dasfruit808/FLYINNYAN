@@ -18,6 +18,140 @@ let openWeaponSelectButton = null;
 
 const weaponPatternStates = new Map();
 
+const weaponLoadouts = {};
+
+const pilotRoster = [
+    {
+        id: 'nova',
+        name: 'Nova',
+        role: 'Squad Vanguard',
+        image: 'assets/player.png',
+        summary:
+            'Balanced thrusters and pinpoint instincts keep Nova stable during any sortie. A dependable captain for first-time flyers.',
+        highlights: [
+            'Responsive handling with forgiving dash timing.',
+            'Launches with the Rainbow stream for clear trail visibility.',
+            'Pairs naturally with versatile cannon loadouts.'
+        ]
+    },
+    {
+        id: 'aurora',
+        name: 'Aurora',
+        role: 'Skystreak Ace',
+        image: 'assets/player2.png',
+        summary:
+            'Aurora’s tuned reactors favour evasive manoeuvres and quick recoveries, perfect for weaving through dense asteroid fields.',
+        highlights: [
+            'Improved dash recharge for aggressive repositioning.',
+            'Ships with a cool-tone Midnight hull finish.',
+            'Excels when paired with wide coverage weapon arrays.'
+        ]
+    },
+    {
+        id: 'ember',
+        name: 'Ember',
+        role: 'Siegebreak Specialist',
+        image: 'assets/player3.png',
+        summary:
+            'Ember thrives when the pressure spikes—charging forward with heavier ordinance to shatter shielded foes and bosses.',
+        highlights: [
+            'Higher impact tolerance before combo decay.',
+            'Ships with a Sunrise hull tuned for power bursts.',
+            'Loves precision weapon kits that trade speed for force.'
+        ]
+    }
+];
+
+const pilotIndex = new Map(pilotRoster.map((pilot) => [pilot.id, pilot]));
+
+const SKIN_LABELS = {
+    default: 'Aurora Standard',
+    midnight: 'Midnight Mirage',
+    sunrise: 'Solar Flare'
+};
+
+const TRAIL_LABELS = {
+    rainbow: 'Spectrum Stream',
+    aurora: 'Aurora Wake',
+    ember: 'Ember Wake',
+    ion: 'Ion Surge',
+    solstice: 'Solstice Bloom',
+    quantum: 'Quantum Drift'
+};
+
+Object.assign(weaponLoadouts, {
+    pulse: {
+        id: 'pulse',
+        name: 'Pulse Array',
+        icon: 'assets/weapon-pulse.svg',
+        rarity: 'common',
+        summary: 'Reliable dual-phase cannons that excel at steady clears.',
+        description:
+            'Baseline cannons engineered for all pilots. Fires a focused plasma bolt with every trigger pull and keeps combos stable.',
+        highlights: [
+            'Balanced cadence with no cooldown penalties.',
+            'Bolts travel straight with a luminous trail for easy tracking.',
+            'Pairs with any pilot that favours consistent damage.'
+        ],
+        cooldownMultiplier: 1,
+        speedMultiplier: 1,
+        createPatternState: () => ({}),
+        resetPatternState() {},
+        pattern(createProjectile) {
+            createProjectile(0, 'standard');
+        }
+    },
+    scatter: {
+        id: 'scatter',
+        name: 'Scatter Volley',
+        icon: 'assets/weapon-scatter.svg',
+        rarity: 'rare',
+        summary: 'Triple-shot volley that carpets the lane with plasma.',
+        description:
+            'A close-quarters spread built for clearing swarms. Fires three bolts in a cone, saturating obstacles that drift too close.',
+        highlights: [
+            'Widens coverage to keep asteroid clusters in check.',
+            'Slightly slower recharge to compensate for the volley.',
+            'Best with agile pilots who stay on top of positioning.'
+        ],
+        cooldownMultiplier: 1.12,
+        speedMultiplier: 0.98,
+        createPatternState: () => ({}),
+        resetPatternState() {},
+        pattern(createProjectile) {
+            const spread = 0.22;
+            createProjectile(-spread, 'scatter', { audioType: 'scatter' });
+            createProjectile(0, 'scatter', { audioType: 'scatter' });
+            createProjectile(spread, 'scatter', { audioType: 'scatter' });
+        }
+    },
+    lance: {
+        id: 'lance',
+        name: 'Photon Lance',
+        icon: 'assets/weapon-lance.svg',
+        rarity: 'epic',
+        summary: 'Charged spear shot that pierces heavy armour and bosses.',
+        description:
+            'Focuses the ship’s reactors into a piercing lance. The beam slows the firing rhythm but rips through anything aligned with the nose.',
+        highlights: [
+            'High impact projectile that pierces multiple targets.',
+            'Reduced fire rate—make every shot count.',
+            'Pairs with tanky pilots who can line up long shots.'
+        ],
+        cooldownMultiplier: 1.32,
+        speedMultiplier: 1.18,
+        createPatternState: () => ({}),
+        resetPatternState() {},
+        pattern(createProjectile) {
+            createProjectile(0, 'lance', { applyLoadoutSpeed: false, audioType: 'lance' });
+        }
+    }
+});
+
+if (typeof window !== 'undefined') {
+    window.weaponLoadouts = weaponLoadouts;
+}
+
 function getGlobalScope() {
     if (typeof globalThis !== 'undefined') {
         return globalThis;
@@ -1993,6 +2127,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const characterSelectCancel = document.getElementById('characterSelectCancel');
     swapPilotButton = document.getElementById('swapPilotButton');
     preflightSwapPilotButton = document.getElementById('preflightSwapPilotButton');
+    const preflightLoadoutSummary = document.getElementById('preflightLoadoutSummary');
+    const preflightPilotImage = document.getElementById('preflightPilotImage');
+    const preflightPilotName = document.getElementById('preflightPilotName');
+    const preflightPilotRole = document.getElementById('preflightPilotRole');
+    const preflightWeaponImage = document.getElementById('preflightWeaponImage');
+    const preflightWeaponName = document.getElementById('preflightWeaponName');
+    const preflightWeaponHighlight = document.getElementById('preflightWeaponHighlight');
     const characterSelectSummary = document.getElementById('characterSelectSummary');
     const characterSelectSummaryDescription = characterSelectSummary?.querySelector(
         '[data-character-summary-description]'
@@ -2195,6 +2336,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             delete characterSelectModal.dataset.openReason;
         }
+        pendingPilotId = activePilotId;
+        updatePilotSelectionState();
         openModal(characterSelectModal, {
             bodyClass: 'character-select-open',
             initialFocus: () =>
@@ -2225,6 +2368,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             delete weaponSelectModal.dataset.openReason;
         }
+        pendingWeaponId = activeWeaponId;
+        updateWeaponSelectionState();
         openModal(weaponSelectModal, {
             bodyClass: 'weapon-select-open',
             initialFocus: () =>
@@ -2255,8 +2400,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (characterSelectCancel) {
         characterSelectCancel.addEventListener('click', () => closeCharacterSelect());
     }
+    if (characterSelectConfirm) {
+        characterSelectConfirm.addEventListener('click', () => {
+            if (!pendingPilotId) {
+                return;
+            }
+            setActiveLoadoutId(null);
+            setActivePilot(pendingPilotId, { updatePending: true, refresh: true });
+            closeCharacterSelect();
+        });
+    }
     if (weaponSelectCancel) {
         weaponSelectCancel.addEventListener('click', () => closeWeaponSelect());
+    }
+    if (weaponSelectConfirm) {
+        weaponSelectConfirm.addEventListener('click', () => {
+            if (!pendingWeaponId) {
+                return;
+            }
+            setActiveLoadoutId(null);
+            setActiveWeapon(pendingWeaponId, { updatePending: true, refresh: true });
+            closeWeaponSelect();
+        });
     }
 
     const characterSelectOpenButtons = [swapPilotButton, preflightSwapPilotButton];
@@ -3882,6 +4047,611 @@ document.addEventListener('DOMContentLoaded', () => {
     let loadoutEditorPendingSkinId = null;
     let loadoutEditorPendingTrailId = null;
 
+    let activePilotId = pilotRoster[0]?.id ?? 'nova';
+    let pendingPilotId = activePilotId;
+    let activeWeaponId = 'pulse';
+    let pendingWeaponId = activeWeaponId;
+
+    function getPilotDefinition(pilotId) {
+        if (pilotIndex.has(pilotId)) {
+            return pilotIndex.get(pilotId);
+        }
+        return pilotRoster[0];
+    }
+
+    function getWeaponDefinition(weaponId) {
+        if (weaponId && weaponLoadouts[weaponId]) {
+            return weaponLoadouts[weaponId];
+        }
+        return weaponLoadouts.pulse;
+    }
+
+    function getSkinLabel(skinId) {
+        return SKIN_LABELS[skinId] ?? 'Prototype Hull';
+    }
+
+    function getTrailLabel(trailId) {
+        return TRAIL_LABELS[trailId] ?? 'Stellar Stream';
+    }
+
+    function getTrailGradientStyle(trailId) {
+        const style = resolveTrailStyle(trailId);
+        const colors = Array.isArray(style?.colors) ? style.colors : null;
+        if (!colors || !colors.length) {
+            return 'linear-gradient(90deg, rgba(56,189,248,0.8), rgba(99,102,241,0.8))';
+        }
+        const stops = colors
+            .map((color, index) => {
+                const percent = Math.round((index / Math.max(1, colors.length - 1)) * 100);
+                return `${color} ${percent}%`;
+            })
+            .join(', ');
+        return `linear-gradient(90deg, ${stops})`;
+    }
+
+    function ensureCosmeticsState() {
+        if (!isPlainObject(state)) {
+            state = { gameState: 'ready' };
+        }
+        if (!isPlainObject(state.cosmetics)) {
+            state.cosmetics = createDefaultCosmeticsState();
+            return state.cosmetics;
+        }
+
+        const defaults = createDefaultCosmeticsState();
+
+        if (!Array.isArray(state.cosmetics.ownedSkins)) {
+            state.cosmetics.ownedSkins = [...defaults.ownedSkins];
+        }
+        if (!Array.isArray(state.cosmetics.ownedTrails)) {
+            state.cosmetics.ownedTrails = [...defaults.ownedTrails];
+        }
+        if (!Array.isArray(state.cosmetics.ownedWeapons)) {
+            state.cosmetics.ownedWeapons = [...defaults.ownedWeapons];
+        }
+        if (!isPlainObject(state.cosmetics.equipped)) {
+            state.cosmetics.equipped = { ...defaults.equipped };
+        }
+        return state.cosmetics;
+    }
+
+    function updatePilotSummary(pilot) {
+        const definition = pilot ?? getPilotDefinition(activePilotId);
+        if (characterSelectSummaryDescription) {
+            characterSelectSummaryDescription.textContent = definition?.summary ?? '';
+        }
+        if (characterSelectSummaryOngoing) {
+            characterSelectSummaryOngoing.innerHTML = '';
+            const details = Array.isArray(definition?.highlights) ? definition.highlights : [];
+            if (details.length) {
+                characterSelectSummaryOngoing.hidden = false;
+                characterSelectSummaryOngoing.setAttribute('aria-hidden', 'false');
+                for (const item of details) {
+                    const li = document.createElement('li');
+                    li.textContent = item;
+                    characterSelectSummaryOngoing.appendChild(li);
+                }
+            } else {
+                characterSelectSummaryOngoing.hidden = true;
+                characterSelectSummaryOngoing.setAttribute('aria-hidden', 'true');
+            }
+        }
+    }
+
+    function updateWeaponSelectSummary(weapon) {
+        const definition = weapon ?? getWeaponDefinition(activeWeaponId);
+        if (weaponSelectSummaryDescription) {
+            weaponSelectSummaryDescription.textContent = definition?.description ?? '';
+        }
+    }
+
+    function refreshWeaponSummary(weapon) {
+        const definition = weapon ?? getWeaponDefinition(activeWeaponId);
+        if (weaponSummaryName) {
+            weaponSummaryName.textContent = definition?.name ?? 'Weapon Loadout';
+        }
+        if (weaponSummaryDescription) {
+            const highlight = Array.isArray(definition?.highlights) ? definition.highlights[0] : '';
+            weaponSummaryDescription.textContent = highlight || definition?.summary || '';
+        }
+        if (weaponSummaryImage && definition?.icon) {
+            weaponSummaryImage.src = definition.icon;
+            weaponSummaryImage.alt = `${definition.name ?? 'Weapon'} schematic`;
+        }
+    }
+
+    function updatePreflightSummary() {
+        const pilot = getPilotDefinition(activePilotId);
+        const weapon = getWeaponDefinition(activeWeaponId);
+        if (preflightLoadoutSummary) {
+            const hasData = Boolean(pilot || weapon);
+            preflightLoadoutSummary.hidden = !hasData;
+            preflightLoadoutSummary.setAttribute('aria-hidden', hasData ? 'false' : 'true');
+        }
+        if (preflightPilotName) {
+            preflightPilotName.textContent = pilot?.name ?? 'Nova';
+        }
+        if (preflightPilotRole) {
+            preflightPilotRole.textContent = pilot?.role ?? '';
+        }
+        if (preflightPilotImage) {
+            preflightPilotImage.src = pilot?.image ?? 'assets/player.png';
+            preflightPilotImage.alt = pilot?.name ? `${pilot.name} portrait` : 'Active pilot portrait';
+        }
+        if (preflightWeaponName) {
+            preflightWeaponName.textContent = weapon?.name ?? 'Pulse Array';
+        }
+        if (preflightWeaponHighlight) {
+            const highlight = Array.isArray(weapon?.highlights) && weapon.highlights.length
+                ? weapon.highlights[0]
+                : weapon?.summary ?? '';
+            preflightWeaponHighlight.textContent = highlight;
+        }
+        if (preflightWeaponImage) {
+            preflightWeaponImage.src = weapon?.icon ?? 'assets/weapon-pulse.svg';
+            preflightWeaponImage.alt = weapon?.name ? `${weapon.name} schematic` : 'Active weapon schematic';
+        }
+    }
+
+    function updatePilotSelectionState() {
+        const selectedId = pendingPilotId;
+        for (const card of characterCards) {
+            if (!(card instanceof HTMLElement)) {
+                continue;
+            }
+            const id = card.dataset.characterId;
+            card.classList.toggle('selected', id === selectedId);
+        }
+        const pilot = getPilotDefinition(selectedId);
+        updatePilotSummary(pilot);
+        if (characterSelectConfirm) {
+            const disabled = !selectedId;
+            characterSelectConfirm.disabled = disabled;
+            characterSelectConfirm.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        }
+    }
+
+    function updateWeaponSelectionState() {
+        const selectedId = pendingWeaponId;
+        for (const card of weaponCards) {
+            if (!(card instanceof HTMLElement)) {
+                continue;
+            }
+            const id = card.dataset.weaponId;
+            card.classList.toggle('selected', id === selectedId);
+        }
+        const weapon = getWeaponDefinition(selectedId);
+        updateWeaponSelectSummary(weapon);
+        if (weaponSelectConfirm) {
+            const disabled = !selectedId;
+            weaponSelectConfirm.disabled = disabled;
+            weaponSelectConfirm.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        }
+    }
+
+    function setActivePilot(pilotId, { updatePending = true, refresh = true } = {}) {
+        const definition = getPilotDefinition(pilotId);
+        activePilotId = definition?.id ?? activePilotId;
+        state.activePilotId = activePilotId;
+        if (updatePending) {
+            pendingPilotId = activePilotId;
+        }
+        if (refresh) {
+            updatePilotSelectionState();
+            renderCustomLoadoutCollections();
+            updatePreflightSummary();
+        }
+        return definition;
+    }
+
+    function setActiveWeapon(
+        weaponId,
+        { updatePending = true, refresh = true, fromLoadout = false } = {}
+    ) {
+        const definition = getWeaponDefinition(weaponId);
+        activeWeaponId = definition?.id ?? activeWeaponId;
+        const cosmetics = ensureCosmeticsState();
+        if (!cosmetics.ownedWeapons.includes(activeWeaponId)) {
+            cosmetics.ownedWeapons.push(activeWeaponId);
+        }
+        cosmetics.equipped.weapon = activeWeaponId;
+        synchronizeActiveWeaponLoadout(definition);
+        resetWeaponPatternState(activeWeaponId);
+        if (updatePending) {
+            pendingWeaponId = activeWeaponId;
+        }
+        if (refresh) {
+            updateWeaponSelectionState();
+            refreshWeaponSummary(definition);
+            if (!fromLoadout) {
+                renderCustomLoadoutCollections();
+            }
+            updatePreflightSummary();
+        }
+        return definition;
+    }
+
+    function showLoadoutStatus(slotId, message, type = 'info') {
+        if (!slotId) {
+            return;
+        }
+        loadoutStatusMessages.set(slotId, { message, type, timestamp: Date.now() });
+    }
+
+    function buildPreviewRow({ title, value, image }) {
+        const row = document.createElement('div');
+        row.className = 'custom-loadout-preview-row';
+
+        if (image) {
+            const thumb = document.createElement('div');
+            thumb.className = 'custom-loadout-preview-thumb';
+            const img = document.createElement('img');
+            img.src = image;
+            img.alt = value;
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            thumb.appendChild(img);
+            row.appendChild(thumb);
+        }
+
+        const info = document.createElement('div');
+        info.className = 'custom-loadout-preview-info';
+        const label = document.createElement('span');
+        label.className = 'custom-loadout-preview-title';
+        label.textContent = title;
+        const val = document.createElement('span');
+        val.className = 'custom-loadout-preview-value';
+        val.textContent = value;
+        info.appendChild(label);
+        info.appendChild(val);
+        row.appendChild(info);
+        return row;
+    }
+
+    function buildLoadoutCard(loadout, { context = 'panel' } = {}) {
+        const slotId = loadout?.slot ?? `slot-${Math.random().toString(36).slice(2)}`;
+        const card = document.createElement('article');
+        card.className = 'custom-loadout-card';
+        card.dataset.loadoutSlot = slotId;
+        if (activeLoadoutId && slotId === activeLoadoutId) {
+            card.classList.add('is-active');
+        }
+
+        const pilot = getPilotDefinition(loadout?.characterId);
+        const weapon = getWeaponDefinition(loadout?.weaponId);
+        const skinId = loadout?.skinId ?? ensureCosmeticsState().equipped.skin;
+        const trailId = loadout?.trailId ?? ensureCosmeticsState().equipped.trail;
+
+        const header = document.createElement('div');
+        header.className = 'custom-loadout-header';
+        const nameField = document.createElement('div');
+        nameField.className = 'custom-loadout-name-field';
+        const nameLabel = document.createElement('span');
+        nameLabel.className = 'custom-loadout-name-label';
+        nameLabel.textContent = 'Preset';
+        const nameValue = document.createElement('p');
+        nameValue.className = 'custom-loadout-preview-value';
+        nameValue.textContent = loadout?.name ?? 'Custom Loadout';
+        nameField.appendChild(nameLabel);
+        nameField.appendChild(nameValue);
+        header.appendChild(nameField);
+        card.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'custom-loadout-body';
+        body.appendChild(
+            buildPreviewRow({ title: 'Pilot', value: pilot?.name ?? 'Nova', image: pilot?.image ?? 'assets/player.png' })
+        );
+        body.appendChild(
+            buildPreviewRow({
+                title: 'Weapon',
+                value: weapon?.name ?? 'Pulse Array',
+                image: weapon?.icon ?? 'assets/weapon-pulse.svg'
+            })
+        );
+
+        const tags = document.createElement('div');
+        tags.className = 'custom-loadout-tags';
+
+        const skinTag = document.createElement('div');
+        skinTag.className = 'custom-loadout-tag';
+        const skinLabel = document.createElement('span');
+        skinLabel.className = 'custom-loadout-tag-label';
+        skinLabel.textContent = 'Suit';
+        const skinValue = document.createElement('span');
+        skinValue.className = 'custom-loadout-tag-value';
+        skinValue.textContent = getSkinLabel(skinId);
+        skinTag.appendChild(skinLabel);
+        skinTag.appendChild(skinValue);
+        tags.appendChild(skinTag);
+
+        const trailTag = document.createElement('div');
+        trailTag.className = 'custom-loadout-tag';
+        const trailLabel = document.createElement('span');
+        trailLabel.className = 'custom-loadout-tag-label';
+        trailLabel.textContent = 'Stream';
+        const trailValue = document.createElement('span');
+        trailValue.className = 'custom-loadout-tag-value';
+        trailValue.textContent = getTrailLabel(trailId);
+        const swatch = document.createElement('span');
+        swatch.className = 'custom-loadout-trail-swatch';
+        swatch.style.background = getTrailGradientStyle(trailId);
+        trailTag.appendChild(trailLabel);
+        trailTag.appendChild(trailValue);
+        trailTag.appendChild(swatch);
+        tags.appendChild(trailTag);
+
+        body.appendChild(tags);
+        card.appendChild(body);
+
+        const footer = document.createElement('div');
+        footer.className = 'custom-loadout-footer';
+        const applyButton = document.createElement('button');
+        applyButton.type = 'button';
+        applyButton.className = 'custom-loadout-apply';
+        applyButton.textContent = context === 'overlay' ? 'Equip Now' : 'Equip Loadout';
+        applyButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            applyCustomLoadout(loadout);
+        });
+        footer.appendChild(applyButton);
+
+        const statusMessage = document.createElement('p');
+        statusMessage.className = 'custom-loadout-status';
+        const status = loadoutStatusMessages.get(slotId);
+        if (status) {
+            statusMessage.textContent = status.message;
+            if (status.type === 'success') {
+                statusMessage.classList.add('success');
+            } else if (status.type === 'error') {
+                statusMessage.classList.add('error');
+            }
+        }
+        footer.appendChild(statusMessage);
+        card.appendChild(footer);
+
+        card.addEventListener('click', () => {
+            applyCustomLoadout(loadout);
+        });
+
+        return card;
+    }
+
+    function renderLoadoutGrid(container, context) {
+        if (!(container instanceof HTMLElement)) {
+            return;
+        }
+        container.innerHTML = '';
+        const now = Date.now();
+        for (const [slotKey, entry] of loadoutStatusMessages) {
+            if (entry?.timestamp && now - entry.timestamp > 6000) {
+                loadoutStatusMessages.delete(slotKey);
+            }
+        }
+        const entries = Array.isArray(customLoadouts) ? customLoadouts : [];
+        if (!entries.length) {
+            const empty = document.createElement('p');
+            empty.className = 'custom-loadout-status';
+            empty.textContent = 'No custom presets saved yet.';
+            container.appendChild(empty);
+            return;
+        }
+        for (const loadout of entries) {
+            const card = buildLoadoutCard(loadout, context);
+            container.appendChild(card);
+        }
+    }
+
+    function renderCustomLoadoutCollections() {
+        renderLoadoutGrid(customLoadoutGrid, { context: 'panel' });
+        renderLoadoutGrid(pilotPreviewGrid, { context: 'overlay' });
+    }
+
+    function renderPilotSelectGrid() {
+        if (!(characterSelectGrid instanceof HTMLElement)) {
+            return;
+        }
+        characterCards = [];
+        characterSelectGrid.innerHTML = '';
+        for (const pilot of pilotRoster) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'character-card';
+            button.dataset.characterId = pilot.id;
+
+            const img = document.createElement('img');
+            img.src = pilot.image;
+            img.alt = `${pilot.name} portrait`;
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            button.appendChild(img);
+
+            const name = document.createElement('span');
+            name.className = 'character-name';
+            name.textContent = pilot.name;
+            button.appendChild(name);
+
+            const role = document.createElement('span');
+            role.className = 'character-role';
+            role.textContent = pilot.role;
+            button.appendChild(role);
+
+            if (Array.isArray(pilot.highlights) && pilot.highlights.length) {
+                const details = document.createElement('div');
+                details.className = 'character-details';
+                const title = document.createElement('strong');
+                title.textContent = 'Flight notes';
+                const list = document.createElement('ul');
+                for (const entry of pilot.highlights) {
+                    const item = document.createElement('li');
+                    item.textContent = entry;
+                    list.appendChild(item);
+                }
+                details.appendChild(title);
+                details.appendChild(list);
+                button.appendChild(details);
+            }
+
+            button.addEventListener('click', () => {
+                pendingPilotId = pilot.id;
+                updatePilotSelectionState();
+            });
+            button.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    pendingPilotId = pilot.id;
+                    updatePilotSelectionState();
+                }
+            });
+
+            characterSelectGrid.appendChild(button);
+            characterCards.push(button);
+        }
+        updatePilotSelectionState();
+    }
+
+    function renderWeaponSelectGrid() {
+        if (!(weaponSelectGrid instanceof HTMLElement)) {
+            return;
+        }
+        weaponCards = [];
+        weaponSelectGrid.innerHTML = '';
+        for (const weapon of Object.values(weaponLoadouts)) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'character-card weapon-card';
+            button.dataset.weaponId = weapon.id;
+
+            if (weapon.icon) {
+                const img = document.createElement('img');
+                img.src = weapon.icon;
+                img.alt = `${weapon.name} icon`;
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                button.appendChild(img);
+            }
+
+            const name = document.createElement('span');
+            name.className = 'character-name';
+            name.textContent = weapon.name;
+            button.appendChild(name);
+
+            const role = document.createElement('span');
+            role.className = 'character-role';
+            role.textContent = weapon.summary ?? 'Weapon Loadout';
+            button.appendChild(role);
+
+            if (Array.isArray(weapon.highlights) && weapon.highlights.length) {
+                const details = document.createElement('div');
+                details.className = 'character-details';
+                const title = document.createElement('strong');
+                title.textContent = 'Highlights';
+                const list = document.createElement('ul');
+                for (const entry of weapon.highlights) {
+                    const item = document.createElement('li');
+                    item.textContent = entry;
+                    list.appendChild(item);
+                }
+                details.appendChild(title);
+                details.appendChild(list);
+                button.appendChild(details);
+            }
+
+            button.addEventListener('click', () => {
+                pendingWeaponId = weapon.id;
+                updateWeaponSelectionState();
+            });
+            button.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    pendingWeaponId = weapon.id;
+                    updateWeaponSelectionState();
+                }
+            });
+
+            weaponSelectGrid.appendChild(button);
+            weaponCards.push(button);
+        }
+        updateWeaponSelectionState();
+    }
+
+    function applyCustomLoadout(loadout, { silent = false } = {}) {
+        if (!loadout || typeof loadout !== 'object') {
+            return;
+        }
+        const cosmetics = ensureCosmeticsState();
+        if (loadout.skinId) {
+            cosmetics.equipped.skin = loadout.skinId;
+            if (!cosmetics.ownedSkins.includes(loadout.skinId)) {
+                cosmetics.ownedSkins.push(loadout.skinId);
+            }
+            setActivePlayerSkinById(loadout.skinId);
+        }
+        if (loadout.trailId) {
+            cosmetics.equipped.trail = loadout.trailId;
+            if (!cosmetics.ownedTrails.includes(loadout.trailId)) {
+                cosmetics.ownedTrails.push(loadout.trailId);
+            }
+            setActiveTrailStyleById(loadout.trailId);
+        }
+        setActivePilot(loadout.characterId ?? activePilotId, { updatePending: false, refresh: !silent });
+        setActiveWeapon(loadout.weaponId ?? activeWeaponId, {
+            updatePending: false,
+            refresh: !silent,
+            fromLoadout: true
+        });
+        setActiveLoadoutId(loadout.slot ?? null);
+        updatePreflightSummary();
+        if (!silent && loadout.slot) {
+            showLoadoutStatus(loadout.slot, 'Equipped for launch', 'success');
+            renderCustomLoadoutCollections();
+        }
+    }
+
+    function initializeLoadoutSelections() {
+        const cosmetics = ensureCosmeticsState();
+        const initial = Array.isArray(customLoadouts) && customLoadouts.length ? customLoadouts[0] : null;
+        if (initial) {
+            activePilotId = getPilotDefinition(initial.characterId).id;
+            pendingPilotId = activePilotId;
+            activeWeaponId = getWeaponDefinition(initial.weaponId).id;
+            pendingWeaponId = activeWeaponId;
+            cosmetics.equipped.skin = initial.skinId ?? cosmetics.equipped.skin;
+            cosmetics.equipped.trail = initial.trailId ?? cosmetics.equipped.trail;
+            if (initial.skinId && !cosmetics.ownedSkins.includes(initial.skinId)) {
+                cosmetics.ownedSkins.push(initial.skinId);
+            }
+            if (initial.trailId && !cosmetics.ownedTrails.includes(initial.trailId)) {
+                cosmetics.ownedTrails.push(initial.trailId);
+            }
+            setActivePlayerSkinById(cosmetics.equipped.skin);
+            setActiveTrailStyleById(cosmetics.equipped.trail);
+            cosmetics.equipped.weapon = activeWeaponId;
+            if (!cosmetics.ownedWeapons.includes(activeWeaponId)) {
+                cosmetics.ownedWeapons.push(activeWeaponId);
+            }
+            synchronizeActiveWeaponLoadout(getWeaponDefinition(activeWeaponId));
+            resetWeaponPatternState(activeWeaponId);
+            if (initial.slot) {
+                setActiveLoadoutId(initial.slot);
+            }
+        } else {
+            activePilotId = pilotRoster[0]?.id ?? 'nova';
+            pendingPilotId = activePilotId;
+            activeWeaponId = getWeaponDefinition(getActiveWeaponId()).id;
+            pendingWeaponId = activeWeaponId;
+            cosmetics.equipped.weapon = activeWeaponId;
+            if (!cosmetics.ownedWeapons.includes(activeWeaponId)) {
+                cosmetics.ownedWeapons.push(activeWeaponId);
+            }
+            synchronizeActiveWeaponLoadout(getWeaponDefinition(activeWeaponId));
+            resetWeaponPatternState(activeWeaponId);
+        }
+        refreshWeaponSummary();
+        updatePilotSummary(getPilotDefinition(activePilotId));
+        updatePreflightSummary();
+    }
+
     function setActiveLoadoutId(slotId) {
         if (slotId && getCustomLoadout(slotId)) {
             activeLoadoutId = slotId;
@@ -3890,6 +4660,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateActiveLoadoutPrompt();
     }
+
+    initializeLoadoutSelections();
+    renderPilotSelectGrid();
+    renderWeaponSelectGrid();
+    renderCustomLoadoutCollections();
 
     function runWithSuppressedActiveLoadoutSync(callback) {
         suppressActiveLoadoutSync += 1;
