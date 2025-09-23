@@ -32,6 +32,28 @@ function getActiveWeaponId(candidate) {
     return 'pulse';
 }
 
+function getActiveWeaponLoadout() {
+    const collection =
+        typeof weaponLoadouts !== 'undefined' && weaponLoadouts && typeof weaponLoadouts === 'object'
+            ? weaponLoadouts
+            : null;
+    if (!collection) {
+        return null;
+    }
+
+    const activeId = getActiveWeaponId();
+    if (activeId && typeof collection[activeId] === 'object') {
+        return collection[activeId];
+    }
+
+    if (typeof collection.pulse === 'object') {
+        return collection.pulse;
+    }
+
+    const fallback = Object.values(collection).find((entry) => entry && typeof entry === 'object');
+    return fallback ?? null;
+}
+
 function getWeaponPatternState(weaponId = null, { createIfMissing = true } = {}) {
     const resolvedId = getActiveWeaponId(weaponId);
     if (!resolvedId) {
@@ -10372,7 +10394,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function attemptShoot(delta) {
         state.timeSinceLastShot += delta;
-        const loadout = activeWeaponLoadout ?? weaponLoadouts.pulse;
+        const loadout = getActiveWeaponLoadout();
         const cooldownMultiplier = loadout?.cooldownMultiplier ?? 1;
         const cooldownOffset = loadout?.cooldownOffset ?? 0;
         const cooldown = Math.max(60, config.projectileCooldown * cooldownMultiplier + cooldownOffset);
@@ -10399,7 +10421,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const originX = entity.x + entity.width - 12;
         const originY = entity.y + entity.height * 0.5 - 6;
-        const loadout = activeWeaponLoadout ?? weaponLoadouts.pulse;
+        const loadout = getActiveWeaponLoadout();
         const weaponId = getActiveWeaponId(loadout?.id ?? null);
         const patternState = getWeaponPatternState(weaponId);
         const loadoutSpeedMultiplier = loadout?.speedMultiplier ?? 1;
