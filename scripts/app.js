@@ -60,6 +60,23 @@ function resetWeaponPatternState(weaponId = null) {
     weaponPatternStates.delete(resolvedId);
 }
 
+function getChallengeManager() {
+    const scope =
+        typeof globalThis !== 'undefined'
+            ? globalThis
+            : typeof window !== 'undefined'
+              ? window
+              : null;
+    if (!scope) {
+        return null;
+    }
+    const manager = scope.challengeManager;
+    if (manager && typeof manager.recordEvent === 'function') {
+        return manager;
+    }
+    return null;
+}
+
 const DOUBLE_TEAM_POWER = 'doubleTeam';
 const HYPER_BEAM_POWER = 'hyperBeam';
 const SHIELD_POWER = 'radiantShield';
@@ -11949,8 +11966,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (collected) {
                 powerUps.splice(i, 1);
                 activatePowerUp(powerUp.type);
-                if (typeof challengeManager !== 'undefined' && challengeManager) {
-                    challengeManager.recordEvent('powerUp', { type: powerUp.type });
+                const activeChallengeManager = getChallengeManager();
+                if (activeChallengeManager) {
+                    activeChallengeManager.recordEvent('powerUp', { type: powerUp.type });
                 }
                 storyManager.recordEvent('powerUp', { type: powerUp.type });
                 const color = powerUpColors[powerUp.type] ?? { r: 200, g: 200, b: 255 };
@@ -12884,8 +12902,9 @@ document.addEventListener('DOMContentLoaded', () => {
             color: '#f9a8d4'
         });
         triggerScreenShake(12, 300);
-        if (typeof challengeManager !== 'undefined' && challengeManager) {
-            challengeManager.recordEvent('villain', {
+        const activeChallengeManager = getChallengeManager();
+        if (activeChallengeManager) {
+            activeChallengeManager.recordEvent('villain', {
                 count: 1,
                 type: obstacle?.villainType?.key ?? null
             });
@@ -12959,6 +12978,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.comboTimer = 0;
         const previousBest = state.bestStreak;
         state.streak += 1;
+        const activeChallengeManager = getChallengeManager();
         if (state.streak > state.bestStreak) {
             state.bestStreak = state.streak;
             if (state.bestStreak >= 4 && state.bestStreak > previousBest) {
@@ -12967,8 +12987,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             storyManager.recordEvent('streak', { bestStreak: state.bestStreak });
-            if (typeof challengeManager !== 'undefined' && challengeManager) {
-                challengeManager.recordEvent('streak', { bestStreak: state.bestStreak });
+            if (activeChallengeManager) {
+                activeChallengeManager.recordEvent('streak', { bestStreak: state.bestStreak });
             }
             if (metaProgressManager) {
                 metaProgressManager.recordStreak({
@@ -12985,8 +13005,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const finalPoints = Math.floor(basePoints * totalMultiplier);
         state.score += finalPoints;
         storyManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
-        if (typeof challengeManager !== 'undefined' && challengeManager) {
-            challengeManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
+        if (activeChallengeManager) {
+            activeChallengeManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
         }
         if (metaProgressManager) {
             metaProgressManager.recordScore(finalPoints, { totalScore: state.score });
@@ -14296,8 +14316,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function stepRunning(delta) {
         state.elapsedTime += delta;
-        if (typeof challengeManager !== 'undefined' && challengeManager) {
-            challengeManager.recordEvent('time', { totalMs: state.elapsedTime });
+        const activeChallengeManager = getChallengeManager();
+        if (activeChallengeManager) {
+            activeChallengeManager.recordEvent('time', { totalMs: state.elapsedTime });
         }
         updateIntelLore(state.elapsedTime);
         storyManager.recordEvent('time', { totalMs: state.elapsedTime });
