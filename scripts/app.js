@@ -11949,7 +11949,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (collected) {
                 powerUps.splice(i, 1);
                 activatePowerUp(powerUp.type);
-                if (challengeManager) {
+                if (typeof challengeManager !== 'undefined' && challengeManager) {
                     challengeManager.recordEvent('powerUp', { type: powerUp.type });
                 }
                 storyManager.recordEvent('powerUp', { type: powerUp.type });
@@ -12884,7 +12884,7 @@ document.addEventListener('DOMContentLoaded', () => {
             color: '#f9a8d4'
         });
         triggerScreenShake(12, 300);
-        if (challengeManager) {
+        if (typeof challengeManager !== 'undefined' && challengeManager) {
             challengeManager.recordEvent('villain', {
                 count: 1,
                 type: obstacle?.villainType?.key ?? null
@@ -12967,7 +12967,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             storyManager.recordEvent('streak', { bestStreak: state.bestStreak });
-            if (challengeManager) {
+            if (typeof challengeManager !== 'undefined' && challengeManager) {
                 challengeManager.recordEvent('streak', { bestStreak: state.bestStreak });
             }
             if (metaProgressManager) {
@@ -12985,7 +12985,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const finalPoints = Math.floor(basePoints * totalMultiplier);
         state.score += finalPoints;
         storyManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
-        if (challengeManager) {
+        if (typeof challengeManager !== 'undefined' && challengeManager) {
             challengeManager.recordEvent('score', { totalScore: state.score, deltaScore: finalPoints });
         }
         if (metaProgressManager) {
@@ -14296,7 +14296,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function stepRunning(delta) {
         state.elapsedTime += delta;
-        if (challengeManager) {
+        if (typeof challengeManager !== 'undefined' && challengeManager) {
             challengeManager.recordEvent('time', { totalMs: state.elapsedTime });
         }
         updateIntelLore(state.elapsedTime);
