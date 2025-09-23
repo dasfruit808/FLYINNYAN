@@ -1,0 +1,24 @@
+{
+  "name": "Flyin Nyan",
+  "short_name": "Flyin Nyan",
+  "description": "Pilot Nova and the crew through the escape corridor, banking score streaks and dodging hazards in this arcade flight.",
+  "display": "standalone",
+  "start_url": "./",
+  "scope": "./",
+  "background_color": "#040711",
+  "theme_color": "#0b0f19",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "assets/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

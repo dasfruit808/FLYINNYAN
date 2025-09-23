@@ -24,7 +24,9 @@ FLYINNYAN/
 │   └── villain3.png
 ├── backend/
 │   └── leaderboard-function.ts
+├── manifest.webmanifest
 ├── index.html
+├── service-worker.js
 ├── scripts/
 │   └── app.js
 ├── styles/
@@ -35,6 +37,20 @@ FLYINNYAN/
 Serve the project root with any static file server or use the VS Code Live
 Server extension while editing. All required assets live inside the `assets`
 directory and no extra font downloads are needed.
+
+## Offline play & install prompts
+
+`manifest.webmanifest` and `service-worker.js` turn the build into an installable
+Progressive Web App. The service worker pre-caches core assets (sprites,
+audio, fonts, UI chrome) during its first install so returning players can
+launch the hangar without a network connection. When the cache is ready the
+client sets `data-offline-ready="true"` on `<body>`—hook into this attribute if
+you want to show bespoke UI copy for offline-ready devices.
+
+Because the service worker skips waiting, shipping a new release is as simple as
+redeploying the static files. Browsers automatically activate the new worker and
+refresh cached assets on the next navigation. If you need to bust caches
+manually, bump the `CACHE_VERSION` constant in `service-worker.js`.
 
 ## Remote leaderboard API
 
