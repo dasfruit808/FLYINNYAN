@@ -1951,8 +1951,8 @@ document.addEventListener('DOMContentLoaded', () => {
             asteroidKnockback: 640,
             clearance: 48,
             hitCooldown: 600,
-            auraColor: 'rgba(148, 210, 255, 0.6)',
-            auraPulse: 1600,
+            auraColor: { r: 148, g: 210, b: 255 },
+            auraPulse: 0.18,
             particleColor: { r: 148, g: 210, b: 255 }
         },
         difficulty: {
@@ -10940,6 +10940,55 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.max(min, Math.min(max, value));
     }
 
+    function normalizeColor(color) {
+        if (!color) {
+            return null;
+        }
+        if (typeof color === 'object') {
+            const r = Number.isFinite(color.r) ? color.r : Number(color.red);
+            const g = Number.isFinite(color.g) ? color.g : Number(color.green);
+            const b = Number.isFinite(color.b) ? color.b : Number(color.blue);
+            if ([r, g, b].every(Number.isFinite)) {
+                return {
+                    r: clamp(Math.round(r), 0, 255),
+                    g: clamp(Math.round(g), 0, 255),
+                    b: clamp(Math.round(b), 0, 255)
+                };
+            }
+            if (typeof color.hex === 'string') {
+                return normalizeColor(color.hex);
+            }
+        }
+        if (typeof color === 'string') {
+            const value = color.trim();
+            const hexMatch = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+            if (hexMatch) {
+                const hex = hexMatch[1];
+                if (hex.length === 3) {
+                    return {
+                        r: parseInt(hex[0] + hex[0], 16),
+                        g: parseInt(hex[1] + hex[1], 16),
+                        b: parseInt(hex[2] + hex[2], 16)
+                    };
+                }
+                return {
+                    r: parseInt(hex.slice(0, 2), 16),
+                    g: parseInt(hex.slice(2, 4), 16),
+                    b: parseInt(hex.slice(4, 6), 16)
+                };
+            }
+            const rgbaMatch = value.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+            if (rgbaMatch) {
+                return {
+                    r: clamp(Math.round(Number(rgbaMatch[1])), 0, 255),
+                    g: clamp(Math.round(Number(rgbaMatch[2])), 0, 255),
+                    b: clamp(Math.round(Number(rgbaMatch[3])), 0, 255)
+                };
+            }
+        }
+        return null;
+    }
+
     function moveTowards(value, target, maxDelta) {
         if (value < target) {
             return Math.min(target, value + maxDelta);
@@ -15353,12 +15402,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawShieldAura(entity, drawX, drawY, time = performance.now()) {
         if (!isShieldActive()) return;
         const shieldConfig = config.defensePower ?? {};
-        const auraColor = shieldConfig.auraColor ?? { r: 150, g: 214, b: 255 };
+        const auraColor = normalizeColor(shieldConfig.auraColor) ?? { r: 150, g: 214, b: 255 };
         const duration = config.powerUp.duration[SHIELD_POWER] ?? 1;
         const remaining = clamp(state.powerUpTimers[SHIELD_POWER] / duration, 0, 1);
-        const pulseStrength = Math.sin(time * 0.007) * (shieldConfig.auraPulse ?? 0.18);
+        const auraPulse = Number.isFinite(shieldConfig.auraPulse)
+            ? shieldConfig.auraPulse
+            : Number.isFinite(Number(shieldConfig.auraPulse))
+                ? Number(shieldConfig.auraPulse)
+                : 0.18;
+        const pulseStrength = Math.sin(time * 0.007) * clamp(auraPulse, -2, 2);
         const hitPulse = state.shieldHitPulse ?? 0;
         const baseRadius = Math.max(entity.width, entity.height) * (0.65 + pulseStrength + hitPulse * 0.18);
+        const safeBaseRadius = Math.max(baseRadius, 6);
         const centerX = drawX + entity.width * 0.5;
         const centerY = drawY + entity.height * 0.5;
 
@@ -15366,16 +15421,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.translate(centerX, centerY);
         ctx.globalCompositeOperation = 'lighter';
 
-        const gradient = ctx.createRadialGradient(0, 0, baseRadius * 0.35, 0, 0, baseRadius);
+        const gradient = ctx.createRadialGradient(0, 0, safeBaseRadius * 0.35, 0, 0, safeBaseRadius);
         gradient.addColorStop(0, `rgba(${auraColor.r}, ${auraColor.g}, ${auraColor.b}, ${0.55 + hitPulse * 0.25})`);
         gradient.addColorStop(0.58, `rgba(${auraColor.r}, ${auraColor.g}, ${auraColor.b}, ${0.28 + remaining * 0.35})`);
         gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(0, 0, baseRadius, 0, Math.PI * 2);
+        ctx.arc(0, 0, safeBaseRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        const ringRadius = baseRadius * (0.88 + 0.06 * Math.sin(time * 0.012 + hitPulse));
+        const ringRadius = safeBaseRadius * (0.88 + 0.06 * Math.sin(time * 0.012 + hitPulse));
         ctx.strokeStyle = `rgba(${auraColor.r}, ${auraColor.g}, ${auraColor.b}, ${0.35 + remaining * 0.4})`;
         ctx.lineWidth = 4.2 + hitPulse * 2.6;
         ctx.beginPath();
