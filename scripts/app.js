@@ -1847,6 +1847,76 @@ document.addEventListener('DOMContentLoaded', () => {
         cooldown: baseGameConfig.projectileCooldown
     };
 
+    const projectileArchetypes = Object.freeze({
+        standard: {
+            width: 24,
+            height: 12,
+            speedMultiplier: 1,
+            life: 2000,
+            damage: 1,
+            gradient: ['#00e5ff', '#6a5acd'],
+            glow: 'rgba(56, 189, 248, 0.45)',
+            shadowBlur: 14,
+            shadowColor: 'rgba(56, 189, 248, 0.3)'
+        },
+        spread: {
+            width: 22,
+            height: 12,
+            speedMultiplier: 0.92,
+            life: 1800,
+            damage: 1,
+            gradient: ['#ede9fe', '#a855f7'],
+            glow: 'rgba(168, 85, 247, 0.38)',
+            shadowBlur: 12,
+            shadowColor: 'rgba(168, 85, 247, 0.24)'
+        },
+        scatter: {
+            width: 18,
+            height: 10,
+            speedMultiplier: 0.9,
+            life: 1500,
+            damage: 1,
+            gradient: ['#bfdbfe', '#60a5fa'],
+            glow: 'rgba(96, 165, 250, 0.4)',
+            shadowBlur: 10,
+            shadowColor: 'rgba(96, 165, 250, 0.26)'
+        },
+        missile: {
+            width: 32,
+            height: 16,
+            speedMultiplier: 0.88,
+            life: 2600,
+            damage: 2,
+            glow: 'rgba(251, 191, 36, 0.5)',
+            shadowBlur: 12,
+            shadowColor: 'rgba(251, 191, 36, 0.3)'
+        },
+        lance: {
+            width: 42,
+            height: 14,
+            speedMultiplier: 1.12,
+            life: 2200,
+            damage: 2,
+            gradient: ['#e0f2fe', '#38bdf8', '#0284c7'],
+            glow: 'rgba(56, 189, 248, 0.55)',
+            shape: 'lance',
+            shadowBlur: 16,
+            shadowColor: 'rgba(56, 189, 248, 0.36)'
+        },
+        flameWhip: {
+            width: 48,
+            height: 26,
+            speedMultiplier: 1.05,
+            life: 640,
+            damage: 1,
+            gradient: ['#450a0a', '#9f1239', '#f97316'],
+            glow: 'rgba(248, 113, 113, 0.6)',
+            shape: 'flameWhip',
+            shadowBlur: 18,
+            shadowColor: 'rgba(248, 113, 113, 0.45)'
+        }
+    });
+
     const defaultBackgrounds = [
         'assets/background1.png',
         'assets/background2.png',
