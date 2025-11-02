@@ -59,6 +59,23 @@ function toCacheUrls(paths) {
   return paths.map((path) => new URL(path, scope).toString());
 }
 
+function isCacheableResponse(response) {
+  if (!response) {
+    return false;
+  }
+  if (!response.ok) {
+    return false;
+  }
+  if (response.status === 206) {
+    return false;
+  }
+  const cacheControl = response.headers.get('Cache-Control');
+  if (cacheControl && /no-store/i.test(cacheControl)) {
+    return false;
+  }
+  return true;
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then(async (cache) => {
@@ -97,6 +114,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (event.request.headers.get('range')) {
+    return;
+  }
+
   const requestUrl = new URL(event.request.url);
   const scope = self.registration?.scope ?? self.location.origin;
   if (requestUrl.origin !== new URL(scope).origin) {
@@ -111,8 +132,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, copy));
+          if (isCacheableResponse(response)) {
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, copy));
+          }
           return response;
         })
         .catch(async () => {
@@ -131,8 +154,10 @@ self.addEventListener('fetch', (event) => {
       }
       return fetch(event.request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, copy));
+          if (isCacheableResponse(response)) {
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, copy));
+          }
           return response;
         })
         .catch(() => caches.match(event.request));

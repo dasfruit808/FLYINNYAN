@@ -8405,6 +8405,215 @@ document.addEventListener('DOMContentLoaded', () => {
         return leaderboardFetchPromise;
     }
 
+    async function recordHighScore(timeMs, score, options = {}) {
+        const sanitizedPlayer = sanitizePlayerName(options?.player) || DEFAULT_PLAYER_NAME;
+        const sanitizedScore = Number.isFinite(score) ? Math.max(0, Math.floor(score)) : 0;
+        const sanitizedTime = Number.isFinite(timeMs) ? Math.max(0, Math.floor(timeMs)) : 0;
+        const bestStreak = Number.isFinite(options?.bestStreak) ? Math.max(0, Math.floor(options.bestStreak)) : 0;
+        const nyan = Number.isFinite(options?.nyan) ? Math.max(0, Math.floor(options.nyan)) : 0;
+        const recordedAtInput = options?.recordedAt;
+        const recordedAt = Number.isFinite(recordedAtInput)
+            ? Math.max(0, Math.floor(recordedAtInput))
+            : Date.now();
+        const usage = getSubmissionUsage(sanitizedPlayer, recordedAt);
+        if (sanitizedScore <= 0 || sanitizedTime <= 0) {
+            return {
+                recorded: false,
+                placement: null,
+                runsToday: usage.count,
+                reason: 'error',
+                source: 'local',
+                message: 'Invalid score payload.'
+            };
+        }
+
+        const commitLocalResult = (message = null, { markOffline = false } = {}) => {
+            if (markOffline) {
+                offlineModeActive = true;
+            }
+            const runsToday = trackSubmissionUsage(sanitizedPlayer, recordedAt);
+            return {
+                recorded: true,
+                placement: null,
+                runsToday,
+                reason: null,
+                source: 'offline',
+                message
+            };
+        };
+
+        if (!API_CONFIG.baseUrl) {
+            return commitLocalResult(null);
+        }
+
+        if (!getIsOnline()) {
+            return commitLocalResult(null, { markOffline: true });
+        }
+
+        let runToken;
+        try {
+            const tokenInfo = await ensureRunToken();
+            runToken = tokenInfo?.token;
+        } catch (error) {
+            if (error?.code === 'unconfigured') {
+                return commitLocalResult(null);
+            }
+            if (error?.code === 'timeout' || error?.code === 'network') {
+                return commitLocalResult(null, { markOffline: true });
+            }
+            console.error('Failed to acquire run token for submission', error);
+            return {
+                recorded: false,
+                placement: null,
+                runsToday: usage.count,
+                reason: 'error',
+                source: 'remote',
+                message: 'Unable to authenticate submission right now.'
+            };
+        }
+
+        if (!runToken) {
+            return {
+                recorded: false,
+                placement: null,
+                runsToday: usage.count,
+                reason: 'error',
+                source: 'remote',
+                message: 'Missing authorization token for submission.'
+            };
+        }
+
+        const endpoint = buildApiUrl('scores');
+        if (!endpoint) {
+            return commitLocalResult(null);
+        }
+
+        const payload = {
+            playerName: sanitizedPlayer,
+            deviceId: getDeviceIdentifier(),
+            score: sanitizedScore,
+            timeMs: sanitizedTime,
+            bestStreak,
+            nyan,
+            recordedAt,
+            runToken,
+            clientSubmissionId: generateUuid()
+        };
+
+        let response;
+        try {
+            response = await fetchWithTimeout(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+        } catch (error) {
+            if (error?.name === 'AbortError' || error instanceof TypeError) {
+                return commitLocalResult(null, { markOffline: true });
+            }
+            console.error('Score submission request failed', error);
+            return {
+                recorded: false,
+                placement: null,
+                runsToday: usage.count,
+                reason: 'error',
+                source: 'remote',
+                message: 'Unable to submit score right now.'
+            };
+        }
+
+        const data = await parseJsonSafely(response);
+
+        const syncLeaderboardsFromResponse = (payload, source = 'remote') => {
+            if (!payload || typeof payload !== 'object') {
+                return;
+            }
+            const leaderboards =
+                payload && typeof payload === 'object' && payload.leaderboards && typeof payload.leaderboards === 'object'
+                    ? payload.leaderboards
+                    : null;
+            if (!leaderboards) {
+                return;
+            }
+            const snapshot = {
+                global: leaderboards.global ?? [],
+                weekly: leaderboards.weekly ?? [],
+                fetchedAt: payload.fetchedAt ?? Date.now()
+            };
+            applyLeaderboardSnapshot(snapshot, { source, persist: true });
+        };
+
+        const placement = Number.isFinite(data?.placement) ? Math.max(1, Math.floor(data.placement)) : null;
+
+        if (response.status === 201 || response.status === 200) {
+            invalidateRunToken();
+            offlineModeActive = false;
+            syncLeaderboardsFromResponse(data, 'remote');
+            const runsToday =
+                response.status === 201
+                    ? trackSubmissionUsage(sanitizedPlayer, recordedAt)
+                    : getSubmissionUsage(sanitizedPlayer, recordedAt).count;
+            return {
+                recorded: true,
+                placement,
+                runsToday,
+                reason: null,
+                source: 'remote',
+                message: data?.message ?? null
+            };
+        }
+
+        if (response.status === 409) {
+            invalidateRunToken();
+            offlineModeActive = false;
+            syncLeaderboardsFromResponse(data, 'remote');
+            return {
+                recorded: false,
+                placement,
+                runsToday: usage.count,
+                reason: 'conflict',
+                source: 'remote',
+                message: data?.message ?? 'Existing submission is stronger; keeping the best run.'
+            };
+        }
+
+        if (response.status === 401) {
+            invalidateRunToken();
+            return {
+                recorded: false,
+                placement: null,
+                runsToday: usage.count,
+                reason: 'error',
+                source: 'remote',
+                message: data?.message ?? 'Run token expired. Try again shortly.'
+            };
+        }
+
+        if (response.status === 429) {
+            return {
+                recorded: false,
+                placement: null,
+                runsToday: usage.count,
+                reason: 'limit',
+                source: 'remote',
+                message: data?.message ?? 'Rate limit exceeded. Try again shortly.'
+            };
+        }
+
+        const fallbackMessage = data?.message || data?.error || `Submission failed (${response.status}).`;
+        return {
+            recorded: false,
+            placement: null,
+            runsToday: usage.count,
+            reason: 'error',
+            source: 'remote',
+            message: fallbackMessage
+        };
+    }
+
     function getIsOnline() {
         if (typeof navigator === 'undefined') {
             return true;
