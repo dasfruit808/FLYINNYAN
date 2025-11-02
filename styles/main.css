@@ -2754,22 +2754,12 @@ body.motion-controls-enabled #touchControls {
 }
 
 .player-hub-grid {
-    display: grid;
-    width: 100%;
-    max-width: 880px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: min(720px, 100%);
     margin: 0 auto;
     gap: clamp(18px, 3vw, 28px);
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-}
-
-@media (min-width: 1024px) {
-    .player-hub-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .player-hub-debrief {
-        grid-column: 1 / -1;
-    }
 }
 
 .player-hub-card {
@@ -2781,8 +2771,13 @@ body.motion-controls-enabled #touchControls {
     background: linear-gradient(160deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.84));
     border: 1px solid rgba(148, 210, 255, 0.18);
     box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
-    text-align: left;
-    align-items: stretch;
+    text-align: center;
+    align-items: center;
+    width: min(720px, 100%);
+}
+
+.player-hub-card > * {
+    width: 100%;
 }
 
 .player-hub-card-header {
@@ -2810,7 +2805,10 @@ body.motion-controls-enabled #touchControls {
 .player-hub-auth-toggle {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
 }
 
 .player-hub-auth-button {
@@ -2843,12 +2841,18 @@ body.motion-controls-enabled #touchControls {
     display: flex;
     flex-direction: column;
     gap: 14px;
+    align-items: center;
+}
+
+.player-hub-auth-form.is-busy {
+    opacity: 0.85;
 }
 
 .player-hub-auth-form .input-row {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    width: min(420px, 100%);
 }
 
 .player-hub-auth-form label {
@@ -2865,6 +2869,7 @@ body.motion-controls-enabled #touchControls {
     background: rgba(15, 23, 42, 0.72);
     color: #f8fafc;
     font-size: 0.92rem;
+    width: 100%;
 }
 
 .player-hub-auth-form input:focus-visible {
@@ -2877,7 +2882,7 @@ body.motion-controls-enabled #touchControls {
 }
 
 .player-hub-primary-action {
-    align-self: flex-start;
+    align-self: center;
     border: none;
     border-radius: 999px;
     padding: 10px 20px;
@@ -2906,6 +2911,7 @@ body.motion-controls-enabled #touchControls {
     letter-spacing: 0.05em;
     text-transform: uppercase;
     color: rgba(148, 163, 184, 0.9);
+    text-align: center;
 }
 
 .player-hub-status[hidden] {
@@ -2935,6 +2941,11 @@ body.motion-controls-enabled #touchControls {
 .player-hub-callsign .input-row {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: min(420px, 100%);
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .player-hub-callsign input {
@@ -2944,6 +2955,7 @@ body.motion-controls-enabled #touchControls {
     background: rgba(15, 23, 42, 0.68);
     color: #f8fafc;
     font-size: 1rem;
+    width: 100%;
 }
 
 .player-hub-callsign #callsignHint {
@@ -2951,21 +2963,23 @@ body.motion-controls-enabled #touchControls {
 }
 
 .player-hub-loadout-summary {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 12px;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    align-items: stretch;
+    align-items: center;
 }
 
 .player-hub-loadout-card {
     display: flex;
     gap: 12px;
     align-items: center;
+    justify-content: center;
     padding: 12px 14px;
     border-radius: 16px;
     background: rgba(15, 23, 42, 0.72);
     border: 1px solid rgba(148, 210, 255, 0.12);
     box-shadow: inset 0 1px 0 rgba(148, 210, 255, 0.12);
+    width: min(420px, 100%);
 }
 
 .player-hub-loadout-thumb {
@@ -2989,6 +3003,8 @@ body.motion-controls-enabled #touchControls {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    align-items: center;
+    text-align: center;
 }
 
 .player-hub-loadout-label {
@@ -3016,12 +3032,14 @@ body.motion-controls-enabled #touchControls {
     display: flex;
     flex-direction: column;
     gap: 14px;
+    align-items: center;
 }
 
 .player-hub-launch-primary {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    justify-content: center;
 }
 
 .player-hub-launch-primary button {
@@ -3032,6 +3050,7 @@ body.motion-controls-enabled #touchControls {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    justify-content: center;
 }
 
 .player-hub-quick-actions .tertiary {
@@ -3043,6 +3062,8 @@ body.motion-controls-enabled #touchControls {
     gap: 4px;
     font-size: 0.9rem;
     color: rgba(224, 231, 255, 0.9);
+    text-align: center;
+    justify-items: center;
 }
 
 .player-hub-level-label {
@@ -3070,6 +3091,9 @@ body.motion-controls-enabled #touchControls {
     background: rgba(30, 41, 59, 0.9);
     border: 1px solid rgba(59, 130, 246, 0.35);
     overflow: hidden;
+    width: min(420px, 100%);
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .player-hub-xp-fill {
@@ -3093,29 +3117,35 @@ body.motion-controls-enabled #touchControls {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    align-items: center;
 }
 
 .player-hub-stat-row {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 16px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: rgba(15, 23, 42, 0.68);
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.7);
     border: 1px solid rgba(148, 210, 255, 0.14);
+    width: min(420px, 100%);
 }
 
 .player-hub-stat-copy {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    align-items: center;
+    text-align: center;
 }
 
 .player-hub-stat-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    justify-content: center;
 }
 
 .player-hub-stat-controls .stat-value {

@@ -3098,11 +3098,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     let progressionLevelHighlightTimer = null;
     function renderProgressionPanel(snapshot, meta = {}) {
-        if (!progressionCard || !snapshot) {
+        if (!snapshot) {
             return;
         }
-        progressionCard.hidden = false;
-        progressionCard.setAttribute('aria-hidden', 'false');
+        const card = progressionCard instanceof HTMLElement ? progressionCard : null;
+        if (card) {
+            card.hidden = false;
+            card.setAttribute('aria-hidden', 'false');
+        }
         if (progressionLevelEl) {
             progressionLevelEl.textContent = String(snapshot.level ?? 1);
         }
@@ -3113,13 +3116,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const available = Math.max(0, snapshot.unspentPoints ?? 0);
             progressionPointsEl.textContent = available
                 ? `${available} point${available === 1 ? '' : 's'} ready`
-                : 'All systems tuned';
+                : 'Complete flights to earn upgrade points.';
         }
         if (playerHubLevelPointsEl) {
             const available = Math.max(0, snapshot.unspentPoints ?? 0);
             playerHubLevelPointsEl.textContent = available
                 ? `${available} point${available === 1 ? '' : 's'} ready`
-                : 'All systems tuned';
+                : 'Complete flights to earn upgrade points.';
         }
         if (progressionXpFill) {
             const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
@@ -3176,15 +3179,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.setAttribute('aria-disabled', disabled ? 'true' : 'false');
             }
         }
-        progressionCard.classList.toggle('has-points', (snapshot.unspentPoints ?? 0) > 0);
-        if (meta?.leveled) {
-            progressionCard.classList.add('level-up');
-            if (progressionLevelHighlightTimer) {
-                clearTimeout(progressionLevelHighlightTimer);
+        if (card) {
+            card.classList.toggle('has-points', (snapshot.unspentPoints ?? 0) > 0);
+            if (meta?.leveled) {
+                card.classList.add('level-up');
+                if (progressionLevelHighlightTimer) {
+                    clearTimeout(progressionLevelHighlightTimer);
+                }
+                progressionLevelHighlightTimer = setTimeout(() => {
+                    card.classList.remove('level-up');
+                }, 1400);
             }
-            progressionLevelHighlightTimer = setTimeout(() => {
-                progressionCard.classList.remove('level-up');
-            }, 1400);
+        } else if (progressionLevelHighlightTimer) {
+            clearTimeout(progressionLevelHighlightTimer);
+            progressionLevelHighlightTimer = null;
         }
     }
 
@@ -4647,7 +4655,8 @@ document.addEventListener('DOMContentLoaded', () => {
         customLoadouts: 'nyanEscape.customLoadouts',
         metaProgress: 'nyanEscape.metaProgress',
         pilotProgress: 'nyanEscape.pilotProgress',
-        playerProfile: 'nyanEscape.playerProfile'
+        playerProfile: 'nyanEscape.playerProfile',
+        playerAccounts: 'nyanEscape.playerAccounts'
     };
 
     let storageAvailable = false;
@@ -4723,6 +4732,270 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let playerProfile = loadPlayerProfile();
 
+    const ACCOUNT_STORE_VERSION = 1;
+
+    function normalizeAccountEmail(email) {
+        return typeof email === 'string' ? email.trim().toLowerCase() : '';
+    }
+
+    function defaultAccountStore() {
+        return { version: ACCOUNT_STORE_VERSION, accounts: {} };
+    }
+
+    function loadPlayerAccounts() {
+        if (!storageAvailable) {
+            return defaultAccountStore();
+        }
+        try {
+            const raw = readStorage(STORAGE_KEYS.playerAccounts);
+            if (!raw) {
+                return defaultAccountStore();
+            }
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') {
+                return defaultAccountStore();
+            }
+            const store = defaultAccountStore();
+            const entries = parsed.accounts;
+            if (entries && typeof entries === 'object') {
+                for (const [key, value] of Object.entries(entries)) {
+                    if (!value || typeof value !== 'object') {
+                        continue;
+                    }
+                    const normalized = normalizeAccountEmail(key);
+                    if (!normalized) {
+                        continue;
+                    }
+                    const passwordHash = typeof value.passwordHash === 'string' ? value.passwordHash : '';
+                    if (!passwordHash) {
+                        continue;
+                    }
+                    store.accounts[normalized] = {
+                        email: normalized,
+                        displayEmail:
+                            typeof value.displayEmail === 'string'
+                                ? value.displayEmail
+                                : typeof value.email === 'string'
+                                    ? value.email
+                                    : normalized,
+                        passwordHash,
+                        handle: typeof value.handle === 'string' ? value.handle : '',
+                        createdAt: Number.isFinite(value.createdAt) ? value.createdAt : Date.now(),
+                        updatedAt: Number.isFinite(value.updatedAt) ? value.updatedAt : Date.now()
+                    };
+                }
+            }
+            return store;
+        } catch (error) {
+            return defaultAccountStore();
+        }
+    }
+
+    let playerAccountStore = loadPlayerAccounts();
+
+    if (playerProfile.email && (!playerProfile.handle || !playerProfile.handle.trim())) {
+        const linkedAccount = getAccountRecord(playerProfile.email);
+        if (linkedAccount && linkedAccount.handle) {
+            playerProfile = { ...playerProfile, handle: linkedAccount.handle };
+            persistPlayerProfile(playerProfile);
+        }
+    }
+
+    function persistPlayerAccounts() {
+        if (!storageAvailable) {
+            return;
+        }
+        try {
+            const payload = {
+                version: ACCOUNT_STORE_VERSION,
+                accounts: {}
+            };
+            for (const [key, record] of Object.entries(playerAccountStore.accounts)) {
+                if (!record || typeof record !== 'object') {
+                    continue;
+                }
+                payload.accounts[key] = {
+                    email: record.email,
+                    displayEmail: record.displayEmail,
+                    passwordHash: record.passwordHash,
+                    handle: record.handle,
+                    createdAt: record.createdAt,
+                    updatedAt: record.updatedAt
+                };
+            }
+            writeStorage(STORAGE_KEYS.playerAccounts, JSON.stringify(payload));
+        } catch (error) {
+            // ignore persistence errors
+        }
+    }
+
+    function cloneAccountRecord(record) {
+        if (!record || typeof record !== 'object') {
+            return null;
+        }
+        return {
+            email: record.email,
+            displayEmail: record.displayEmail,
+            passwordHash: record.passwordHash,
+            handle: record.handle,
+            createdAt: record.createdAt,
+            updatedAt: record.updatedAt
+        };
+    }
+
+    function accountDisplayName(record) {
+        if (!record) {
+            return '';
+        }
+        const handle = typeof record.handle === 'string' ? record.handle.trim() : '';
+        if (handle) {
+            return handle;
+        }
+        const displayEmail = typeof record.displayEmail === 'string' ? record.displayEmail : '';
+        if (displayEmail) {
+            return displayEmail;
+        }
+        return typeof record.email === 'string' ? record.email : '';
+    }
+
+    function getAccountRecord(email) {
+        const normalized = normalizeAccountEmail(email);
+        if (!normalized) {
+            return null;
+        }
+        return cloneAccountRecord(playerAccountStore.accounts[normalized]);
+    }
+
+    function bufferToHex(buffer) {
+        return Array.from(new Uint8Array(buffer))
+            .map((byte) => byte.toString(16).padStart(2, '0'))
+            .join('');
+    }
+
+    async function hashAccessCode(accessCode) {
+        const code = typeof accessCode === 'string' ? accessCode : '';
+        if (!code) {
+            return '';
+        }
+        if (globalThis.crypto && globalThis.crypto.subtle && typeof TextEncoder !== 'undefined') {
+            try {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(code);
+                const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
+                return bufferToHex(digest);
+            } catch (error) {
+                // ignore hashing errors and fall through to fallback
+            }
+        }
+        try {
+            if (typeof btoa === 'function') {
+                return btoa(unescape(encodeURIComponent(code)));
+            }
+        } catch (error) {
+            // ignore fallback errors
+        }
+        return code;
+    }
+
+    async function registerLocalAccount({ email, password, handle }) {
+        const normalized = normalizeAccountEmail(email);
+        if (!normalized) {
+            return { ok: false, error: 'Enter a valid signal address to continue.' };
+        }
+        if (playerAccountStore.accounts[normalized]) {
+            return {
+                ok: false,
+                error: 'An account already exists for that signal address. Try signing in instead.'
+            };
+        }
+        const passwordHash = await hashAccessCode(password);
+        if (!passwordHash) {
+            return { ok: false, error: 'Choose a different access code and try again.' };
+        }
+        const now = Date.now();
+        const record = {
+            email: normalized,
+            displayEmail: typeof email === 'string' ? email.trim() : normalized,
+            passwordHash,
+            handle: typeof handle === 'string' ? handle.trim() : '',
+            createdAt: now,
+            updatedAt: now
+        };
+        playerAccountStore.accounts[normalized] = record;
+        persistPlayerAccounts();
+        return { ok: true, account: cloneAccountRecord(record) };
+    }
+
+    async function authenticateLocalAccount({ email, password }) {
+        const normalized = normalizeAccountEmail(email);
+        if (!normalized) {
+            return { ok: false, error: 'Enter a valid signal address to continue.' };
+        }
+        const record = playerAccountStore.accounts[normalized];
+        if (!record) {
+            return {
+                ok: false,
+                error: 'No hangar access found for that signal address. Create an account first.'
+            };
+        }
+        const passwordHash = await hashAccessCode(password);
+        if (!passwordHash || record.passwordHash !== passwordHash) {
+            return { ok: false, error: 'Incorrect access code. Try again.' };
+        }
+        record.updatedAt = Date.now();
+        playerAccountStore.accounts[normalized] = record;
+        persistPlayerAccounts();
+        return { ok: true, account: cloneAccountRecord(record) };
+    }
+
+    function updateAccountHandle(email, handle) {
+        const normalized = normalizeAccountEmail(email);
+        if (!normalized) {
+            return null;
+        }
+        const record = playerAccountStore.accounts[normalized];
+        if (!record) {
+            return null;
+        }
+        const sanitized = typeof handle === 'string' ? handle.trim() : '';
+        record.handle = sanitized;
+        record.updatedAt = Date.now();
+        playerAccountStore.accounts[normalized] = record;
+        persistPlayerAccounts();
+        return cloneAccountRecord(record);
+    }
+
+    const playerHubPrimaryActionButton =
+        playerHubAuthForm instanceof HTMLElement
+            ? playerHubAuthForm.querySelector('.player-hub-primary-action')
+            : null;
+
+    let playerHubAuthBusy = false;
+
+    function updatePlayerHubPrimaryActionText() {
+        if (!(playerHubPrimaryActionButton instanceof HTMLButtonElement)) {
+            return;
+        }
+        const mode = playerProfile.mode === 'create' ? 'create' : 'signin';
+        if (playerHubAuthBusy) {
+            playerHubPrimaryActionButton.textContent = mode === 'create' ? 'Creating…' : 'Signing in…';
+        } else {
+            playerHubPrimaryActionButton.textContent = mode === 'create' ? 'Create Account' : 'Sign In';
+        }
+    }
+
+    function setPlayerHubAuthBusy(isBusy) {
+        playerHubAuthBusy = Boolean(isBusy);
+        if (playerHubPrimaryActionButton instanceof HTMLButtonElement) {
+            playerHubPrimaryActionButton.disabled = playerHubAuthBusy;
+            playerHubPrimaryActionButton.setAttribute('aria-disabled', playerHubAuthBusy ? 'true' : 'false');
+            updatePlayerHubPrimaryActionText();
+        }
+        if (playerHubAuthForm instanceof HTMLFormElement) {
+            playerHubAuthForm.classList.toggle('is-busy', playerHubAuthBusy);
+        }
+    }
+
     function announcePlayerHubStatus(message = '', tone = 'info') {
         if (!(playerHubAuthStatus instanceof HTMLElement)) {
             return;
@@ -4785,6 +5058,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playerProfile.handle && playerNameInput instanceof HTMLInputElement && !playerNameInput.value) {
             playerNameInput.value = playerProfile.handle;
         }
+        updatePlayerHubPrimaryActionText();
     }
 
     function updatePlayerProfile(partial, { persist = true } = {}) {
@@ -4793,6 +5067,7 @@ document.addEventListener('DOMContentLoaded', () => {
             persistPlayerProfile(playerProfile);
         }
         applyPlayerProfileToUi();
+        updatePlayerHubPrimaryActionText();
     }
 
     applyPlayerProfileToUi();
@@ -4803,6 +5078,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             button.addEventListener('click', () => {
+                if (playerHubAuthBusy) {
+                    setPlayerHubAuthBusy(false);
+                }
                 const mode = button.dataset.authMode === 'create' ? 'create' : 'signin';
                 if (playerProfile.mode === mode) {
                     announcePlayerHubStatus(
@@ -4825,9 +5103,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (playerHubAuthForm instanceof HTMLFormElement) {
-        playerHubAuthForm.addEventListener('submit', (event) => {
+        playerHubAuthForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (playerHubAuthBusy) {
+                return;
+            }
             const mode = playerProfile.mode === 'create' ? 'create' : 'signin';
             const email = (playerHubEmailInput instanceof HTMLInputElement ? playerHubEmailInput.value : '').trim();
             const password = (playerHubPasswordInput instanceof HTMLInputElement ? playerHubPasswordInput.value : '').trim();
@@ -4848,20 +5129,89 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (!handle && playerProfile.handle) {
                 handle = playerProfile.handle;
             }
-            const updates = {
-                email,
-                lastAuth: Date.now(),
-                mode
-            };
-            if (handle) {
-                updates.handle = handle;
+            setPlayerHubAuthBusy(true);
+            announcePlayerHubStatus(
+                mode === 'create'
+                    ? 'Creating your hangar access…'
+                    : 'Signing you in…',
+                'info'
+            );
+            try {
+                if (mode === 'create') {
+                    const result = await registerLocalAccount({ email, password, handle });
+                    if (!result?.ok || !result.account) {
+                        announcePlayerHubStatus(result?.error || 'Unable to create the account. Try again.', 'error');
+                        return;
+                    }
+                    const account = result.account;
+                    updatePlayerProfile(
+                        {
+                            email: account.displayEmail || email,
+                            handle: account.handle || handle,
+                            lastAuth: Date.now(),
+                            mode: 'signin'
+                        },
+                        { persist: true }
+                    );
+                    if (playerHubPasswordInput instanceof HTMLInputElement) {
+                        playerHubPasswordInput.value = '';
+                    }
+                    if (playerHubHandleInput instanceof HTMLInputElement) {
+                        playerHubHandleInput.value = account.handle || handle;
+                    }
+                    if (account.handle && playerNameInput instanceof HTMLInputElement) {
+                        playerNameInput.value = account.handle;
+                        commitPlayerNameInput();
+                    }
+                    announcePlayerHubStatus(
+                        `Account created! Signed in as ${accountDisplayName(account)}.`,
+                        'success'
+                    );
+                } else {
+                    const result = await authenticateLocalAccount({ email, password });
+                    if (!result?.ok || !result.account) {
+                        announcePlayerHubStatus(result?.error || 'Sign-in failed. Try again.', 'error');
+                        return;
+                    }
+                    let account = result.account;
+                    if (handle && handle !== account.handle) {
+                        const updated = updateAccountHandle(email, handle);
+                        if (updated) {
+                            account = updated;
+                        } else {
+                            account = { ...account, handle };
+                        }
+                    }
+                    updatePlayerProfile(
+                        {
+                            email: account.displayEmail || email,
+                            handle: account.handle || '',
+                            lastAuth: Date.now(),
+                            mode: 'signin'
+                        },
+                        { persist: true }
+                    );
+                    if (playerHubPasswordInput instanceof HTMLInputElement) {
+                        playerHubPasswordInput.value = '';
+                    }
+                    if (playerHubHandleInput instanceof HTMLInputElement) {
+                        playerHubHandleInput.value = account.handle || '';
+                    }
+                    if (account.handle && playerNameInput instanceof HTMLInputElement) {
+                        playerNameInput.value = account.handle;
+                        commitPlayerNameInput();
+                    }
+                    announcePlayerHubStatus(
+                        `Signed in as ${accountDisplayName(account)}.`,
+                        'success'
+                    );
+                }
+            } catch (error) {
+                console.error('player hub auth error', error);
+                announcePlayerHubStatus('Unable to complete the request. Please try again.', 'error');
+            } finally {
+                setPlayerHubAuthBusy(false);
             }
-            updatePlayerProfile(updates, { persist: true });
-            if (mode === 'create' && handle && playerNameInput instanceof HTMLInputElement) {
-                playerNameInput.value = handle;
-                commitPlayerNameInput();
-            }
-            announcePlayerHubStatus('Access saved! Press Enter to launch.', 'success');
         });
     }
 
