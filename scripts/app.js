@@ -10,6 +10,11 @@ let spawnTimers = { obstacle: 0, collectible: 0, powerUp: 0 };
 let shellScale = 1;
 let metaProgressManager = null;
 let latestMetaSnapshot = null;
+let progressionManager = null;
+let projectileDamageMultiplier = 1;
+let basePowerUpSpawnInterval = 0;
+let baseHyperBeamConfig = null;
+let activeLuckBonusFactor = 0;
 let swapPilotButton = null;
 let preflightSwapPilotButton = null;
 let swapWeaponButton = null;
@@ -19,6 +24,191 @@ let openWeaponSelectButton = null;
 const weaponPatternStates = new Map();
 
 const weaponLoadouts = {};
+
+const STAT_IDS = ['agility', 'strength', 'luck'];
+const DEFAULT_STAT_POINTS = Object.freeze({ agility: 0, strength: 0, luck: 0 });
+const MAX_POINTS_PER_STAT = 24;
+const EXPERIENCE_REWARD_CONFIG = Object.freeze({
+    scoreRatio: 0.012,
+    runSecond: 1.2,
+    streak: 6,
+    powerUp: 25
+});
+
+const RUN_EXPERIENCE_KEYS = Object.freeze({
+    score: 'score',
+    time: 'time',
+    streak: 'streak',
+    powerUp: 'powerUp'
+});
+
+function createRunExperienceState() {
+    return {
+        total: 0,
+        leveled: false,
+        levelsGained: 0,
+        breakdown: {
+            [RUN_EXPERIENCE_KEYS.score]: 0,
+            [RUN_EXPERIENCE_KEYS.time]: 0,
+            [RUN_EXPERIENCE_KEYS.streak]: 0,
+            [RUN_EXPERIENCE_KEYS.powerUp]: 0
+        }
+    };
+}
+
+let currentRunExperience = createRunExperienceState();
+
+function ensureRunExperienceState() {
+    if (!currentRunExperience) {
+        currentRunExperience = createRunExperienceState();
+    }
+    return currentRunExperience;
+}
+
+function resetRunExperienceState() {
+    currentRunExperience = createRunExperienceState();
+}
+
+function cloneRunExperienceSummary(summary) {
+    if (!summary) {
+        return null;
+    }
+    return {
+        total: Math.max(0, Math.floor(summary.total ?? 0)),
+        leveled: Boolean(summary.leveled),
+        levelsGained: Math.max(0, Math.floor(summary.levelsGained ?? 0)),
+        breakdown: {
+            [RUN_EXPERIENCE_KEYS.score]: Math.max(
+                0,
+                Math.floor(summary.breakdown?.[RUN_EXPERIENCE_KEYS.score] ?? 0)
+            ),
+            [RUN_EXPERIENCE_KEYS.time]: Math.max(
+                0,
+                Math.floor(summary.breakdown?.[RUN_EXPERIENCE_KEYS.time] ?? 0)
+            ),
+            [RUN_EXPERIENCE_KEYS.streak]: Math.max(
+                0,
+                Math.floor(summary.breakdown?.[RUN_EXPERIENCE_KEYS.streak] ?? 0)
+            ),
+            [RUN_EXPERIENCE_KEYS.powerUp]: Math.max(
+                0,
+                Math.floor(summary.breakdown?.[RUN_EXPERIENCE_KEYS.powerUp] ?? 0)
+            )
+        }
+    };
+}
+
+function recordRunExperience(amount, context = {}, result = {}) {
+    const gain = Math.max(0, Math.floor(amount));
+    if (gain <= 0) {
+        return;
+    }
+    const state = ensureRunExperienceState();
+    state.total += gain;
+    const breakdown = state.breakdown;
+    switch (context.source) {
+        case 'score':
+            breakdown[RUN_EXPERIENCE_KEYS.score] += gain;
+            break;
+        case 'powerUp':
+            breakdown[RUN_EXPERIENCE_KEYS.powerUp] += gain;
+            break;
+        case 'run': {
+            const detail = context.detail ?? context.type;
+            if (detail === RUN_EXPERIENCE_KEYS.streak) {
+                breakdown[RUN_EXPERIENCE_KEYS.streak] += gain;
+            } else {
+                breakdown[RUN_EXPERIENCE_KEYS.time] += gain;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    if (result?.leveled) {
+        state.leveled = true;
+        state.levelsGained = Math.max(0, state.levelsGained + (result.levelsGained ?? 0));
+    }
+}
+
+function grantExperience(amount, context = {}) {
+    const gain = Math.max(0, Math.floor(amount));
+    if (gain <= 0 || !progressionManager) {
+        return { leveled: false, levelsGained: 0, xpGain: 0 };
+    }
+    const result = progressionManager.addExperience(gain, context);
+    recordRunExperience(result?.xpGain ?? gain, context, result);
+    return result;
+}
+
+function getRunExperienceSummary() {
+    if (!currentRunExperience) {
+        return null;
+    }
+    const summary = cloneRunExperienceSummary(currentRunExperience);
+    if (!summary) {
+        return null;
+    }
+    const hasProgress = summary.total > 0 || summary.leveled;
+    return hasProgress ? summary : null;
+}
+
+function sanitizeStatAllocation(source = {}) {
+    const allocation = {};
+    for (const stat of STAT_IDS) {
+        const raw = Number.isFinite(source?.[stat]) ? source[stat] : 0;
+        allocation[stat] = clamp(Math.floor(raw), 0, MAX_POINTS_PER_STAT);
+    }
+    return allocation;
+}
+
+function calculateStatModifiers(stats = DEFAULT_STAT_POINTS) {
+    const allocation = sanitizeStatAllocation(stats);
+    const agility = allocation.agility;
+    const strength = allocation.strength;
+    const luck = allocation.luck;
+
+    const agilityModifiers = {
+        acceleration: 1 + Math.min(0.75, agility * 0.05),
+        drag: 1 / (1 + Math.min(0.5, agility * 0.035)),
+        maxSpeed: 1 + Math.min(0.35, agility * 0.03),
+        dashSpeed: 1 + Math.min(0.45, agility * 0.045),
+        dashDuration: 1 + Math.min(0.14, agility * 0.012)
+    };
+
+    const strengthModifiers = {
+        damage: 1 + Math.min(0.75, strength * 0.07),
+        cooldown: 1 - Math.min(0.25, strength * 0.03),
+        projectileSpeed: 1 + Math.min(0.4, strength * 0.04)
+    };
+
+    const luckModifiers = {
+        spawnInterval: 1 - Math.min(0.3, luck * 0.045),
+        intervalBonus: Math.min(0.28, luck * 0.035)
+    };
+
+    return {
+        agility: agilityModifiers,
+        strength: strengthModifiers,
+        luck: luckModifiers
+    };
+}
+
+function describeStatEffects(stats = DEFAULT_STAT_POINTS) {
+    const modifiers = calculateStatModifiers(stats);
+    const formatIncrease = (value) => Math.max(0, Math.round(value));
+    const agilityAccel = formatIncrease((modifiers.agility.acceleration - 1) * 100);
+    const agilitySpeed = formatIncrease((modifiers.agility.maxSpeed - 1) * 100);
+    const strengthDamage = formatIncrease((modifiers.strength.damage - 1) * 100);
+    const strengthCooldown = formatIncrease((1 - modifiers.strength.cooldown) * 100);
+    const luckFrequency = formatIncrease((1 - modifiers.luck.spawnInterval) * 100);
+
+    return {
+        agility: `Acceleration +${agilityAccel}% • Top speed +${agilitySpeed}%`,
+        strength: `Damage +${strengthDamage}% • Cooldown -${strengthCooldown}%`,
+        luck: `Power-up finds +${luckFrequency}%`
+    };
+}
 
 const serviceWorkerSupported =
     typeof window !== 'undefined' &&
@@ -926,6 +1116,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const powerUpSpawnDirector = createPowerUpSpawnDirector();
     let nextPowerUpSpawnInterval = 10000;
 
+    function adjustPowerUpInterval(interval) {
+        if (!Number.isFinite(interval)) {
+            return interval;
+        }
+        if (activeLuckBonusFactor <= 0) {
+            return interval;
+        }
+        const reduction = clamp(activeLuckBonusFactor * 0.5, 0, 0.4);
+        const adjusted = interval * (1 - reduction);
+        return Math.max(4500, Math.round(adjusted));
+    }
+
     function reschedulePowerUps({ resetHistory = false, resetTimer = false, initialDelay = false } = {}) {
         if (resetHistory) {
             powerUpSpawnDirector.reset();
@@ -935,13 +1137,66 @@ document.addEventListener('DOMContentLoaded', () => {
             : 10000;
         const plannedInterval = powerUpSpawnDirector.planNextInterval(baseInterval);
         if (Number.isFinite(plannedInterval) && plannedInterval > 0) {
-            nextPowerUpSpawnInterval = plannedInterval;
+            nextPowerUpSpawnInterval = adjustPowerUpInterval(plannedInterval);
         } else {
-            nextPowerUpSpawnInterval = baseInterval;
+            nextPowerUpSpawnInterval = adjustPowerUpInterval(baseInterval);
         }
         if (resetTimer) {
             spawnTimers.powerUp = initialDelay ? randomBetween(0, baseInterval * 0.4) : 0;
         }
+    }
+
+    function applyProgressionToConfig(modifiers = null) {
+        if (!config || !basePlayerConfig || !baseDashConfig || !baseProjectileSettings) {
+            return;
+        }
+        const modifierSet = modifiers ?? (progressionManager ? progressionManager.getModifiers() : null);
+        const fallbackModifiers = calculateStatModifiers(DEFAULT_STAT_POINTS);
+        const agilityMods = modifierSet?.agility ?? fallbackModifiers.agility;
+        const strengthMods = modifierSet?.strength ?? fallbackModifiers.strength;
+        const luckMods = modifierSet?.luck ?? fallbackModifiers.luck;
+
+        config.player.acceleration = Math.round(
+            basePlayerConfig.acceleration * (agilityMods.acceleration ?? 1)
+        );
+        config.player.drag = Math.max(4, basePlayerConfig.drag * (agilityMods.drag ?? 1));
+        config.player.maxSpeed = Math.round(basePlayerConfig.maxSpeed * (agilityMods.maxSpeed ?? 1));
+        config.player.dash.boostSpeed = Math.round(baseDashConfig.boostSpeed * (agilityMods.dashSpeed ?? 1));
+        config.player.dash.duration = Math.max(
+            140,
+            Math.round(baseDashConfig.duration * (agilityMods.dashDuration ?? 1))
+        );
+
+        projectileDamageMultiplier = strengthMods.damage ?? 1;
+        config.projectileSpeed = Math.max(
+            300,
+            Math.round(baseProjectileSettings.speed * (strengthMods.projectileSpeed ?? 1))
+        );
+        config.projectileCooldown = Math.max(
+            80,
+            Math.round(baseProjectileSettings.cooldown * (strengthMods.cooldown ?? 1))
+        );
+
+        if (baseHyperBeamConfig && config.hyperBeam) {
+            config.hyperBeam.damagePerSecond = Math.round(
+                baseHyperBeamConfig.damagePerSecond * projectileDamageMultiplier
+            );
+            config.hyperBeam.asteroidDamagePerSecond = Math.round(
+                baseHyperBeamConfig.asteroidDamagePerSecond * projectileDamageMultiplier
+            );
+        }
+
+        if (basePowerUpSpawnInterval > 0) {
+            const intervalMultiplier = luckMods.spawnInterval ?? 1;
+            const nextInterval = Math.max(
+                5000,
+                Math.round(basePowerUpSpawnInterval * intervalMultiplier)
+            );
+            config.powerUpSpawnInterval = nextInterval;
+        }
+        activeLuckBonusFactor = clamp(luckMods.intervalBonus ?? 0, 0, 0.4);
+
+        reschedulePowerUps({ resetHistory: true });
     }
     const doubleTeamState = {
         clone: null,
@@ -2171,6 +2426,10 @@ document.addEventListener('DOMContentLoaded', () => {
         speed: baseGameConfig.projectileSpeed,
         cooldown: baseGameConfig.projectileCooldown
     };
+    basePowerUpSpawnInterval = Number.isFinite(config?.powerUpSpawnInterval)
+        ? config.powerUpSpawnInterval
+        : baseGameConfig.powerUpSpawnInterval;
+    baseHyperBeamConfig = cloneConfig(baseGameConfig.hyperBeam);
 
     const projectileArchetypes = Object.freeze({
         standard: {
@@ -2754,6 +3013,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let lastPauseReason = 'manual';
     const runSummaryRunsEl = document.getElementById('runSummaryRuns');
+    const runSummaryXpPanel = document.getElementById('runSummaryXpPanel');
+    const runSummaryXpTotal = document.getElementById('runSummaryXpTotal');
+    const runSummaryXpScore = document.getElementById('runSummaryXpScore');
+    const runSummaryXpTime = document.getElementById('runSummaryXpTime');
+    const runSummaryXpStreak = document.getElementById('runSummaryXpStreak');
+    const runSummaryXpPowerUp = document.getElementById('runSummaryXpPowerUp');
+    const runSummaryXpNote = document.getElementById('runSummaryXpNote');
     let shareButtonClickHandler = null;
     const weaponSummaryName = document.getElementById('weaponSummaryName');
     const weaponSummaryDescription = document.getElementById('weaponSummaryDescription');
@@ -2772,6 +3038,125 @@ document.addEventListener('DOMContentLoaded', () => {
     const seasonPassSummaryEl = document.getElementById('seasonPassSummary');
     const seasonPassProgressFill = document.getElementById('seasonPassProgressFill');
     const seasonPassTierListEl = document.getElementById('seasonPassTierList');
+    const progressionCard = document.getElementById('progressionCard');
+    const progressionLevelEl = document.getElementById('progressionLevel');
+    const progressionPointsEl = document.getElementById('progressionPoints');
+    const progressionXpTrack = document.getElementById('progressionXpTrack');
+    const progressionXpFill = document.getElementById('progressionXpFill');
+    const progressionXpLabel = document.getElementById('progressionXpLabel');
+    const statValueElements = {
+        agility: document.getElementById('statAgilityValue'),
+        strength: document.getElementById('statStrengthValue'),
+        luck: document.getElementById('statLuckValue')
+    };
+    const statEffectElements = {
+        agility: document.getElementById('statAgilityEffect'),
+        strength: document.getElementById('statStrengthEffect'),
+        luck: document.getElementById('statLuckEffect')
+    };
+    const statAllocateButtons = new Map();
+    document.querySelectorAll('[data-stat-allocate]').forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) {
+            return;
+        }
+        const statId = button.dataset.statAllocate;
+        if (!STAT_IDS.includes(statId)) {
+            return;
+        }
+        statAllocateButtons.set(statId, button);
+        button.addEventListener('click', () => {
+            if (!progressionManager) {
+                return;
+            }
+            progressionManager.allocateStat(statId);
+        });
+    });
+    let progressionLevelHighlightTimer = null;
+    function renderProgressionPanel(snapshot, meta = {}) {
+        if (!progressionCard || !snapshot) {
+            return;
+        }
+        progressionCard.hidden = false;
+        progressionCard.setAttribute('aria-hidden', 'false');
+        if (progressionLevelEl) {
+            progressionLevelEl.textContent = String(snapshot.level ?? 1);
+        }
+        if (progressionPointsEl) {
+            const available = Math.max(0, snapshot.unspentPoints ?? 0);
+            progressionPointsEl.textContent = available
+                ? `${available} point${available === 1 ? '' : 's'} ready`
+                : 'All systems tuned';
+        }
+        if (progressionXpFill) {
+            const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
+            progressionXpFill.style.width = `${(percent * 100).toFixed(1)}%`;
+        }
+        if (progressionXpTrack) {
+            const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
+            progressionXpTrack.setAttribute('aria-valuenow', String(Math.round(percent * 100)));
+            progressionXpTrack.setAttribute('aria-valuemin', '0');
+            progressionXpTrack.setAttribute('aria-valuemax', '100');
+        }
+        if (progressionXpLabel) {
+            const current = Math.max(0, snapshot.experience ?? 0);
+            const required = Math.max(1, snapshot.xpForNext ?? 1);
+            progressionXpLabel.textContent = `${current.toLocaleString()} / ${required.toLocaleString()} XP`;
+        }
+        for (const statId of STAT_IDS) {
+            const valueEl = statValueElements[statId];
+            if (valueEl) {
+                valueEl.textContent = String(snapshot.stats?.[statId] ?? 0);
+            }
+            const effectEl = statEffectElements[statId];
+            if (effectEl && snapshot.effects?.[statId]) {
+                effectEl.textContent = snapshot.effects[statId];
+            }
+            const button = statAllocateButtons.get(statId);
+            if (button) {
+                const maxed = (snapshot.stats?.[statId] ?? 0) >= (snapshot.maxPointsPerStat ?? MAX_POINTS_PER_STAT);
+                const disabled = !snapshot.unspentPoints || maxed;
+                button.disabled = disabled;
+                button.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+            }
+        }
+        progressionCard.classList.toggle('has-points', (snapshot.unspentPoints ?? 0) > 0);
+        if (meta?.leveled) {
+            progressionCard.classList.add('level-up');
+            if (progressionLevelHighlightTimer) {
+                clearTimeout(progressionLevelHighlightTimer);
+            }
+            progressionLevelHighlightTimer = setTimeout(() => {
+                progressionCard.classList.remove('level-up');
+            }, 1400);
+        }
+    }
+
+    progressionManager = createProgressionManager({
+        storageKey: STORAGE_KEYS.pilotProgress,
+        onAnnounce: ({ level } = {}) => {
+            if (!Number.isFinite(level) || state.gameState === 'running') {
+                return;
+            }
+            setRunSummaryStatus(`Level ${level} reached! Spend your upgrade points before launch.`, 'success');
+        }
+    });
+    progressionManager.subscribe((snapshot, meta) => {
+        renderProgressionPanel(snapshot, meta);
+        applyProgressionToConfig(snapshot.modifiers);
+        if (meta?.leveled && state.gameState === 'running') {
+            const center = getPlayerCenter();
+            spawnFloatingText({
+                text: `Level ${snapshot.level}!`,
+                x: center.x,
+                y: center.y - 32,
+                color: '#fde68a',
+                life: 1400,
+                variant: 'score'
+            });
+            triggerScreenShake(6, 220);
+        }
+    });
+
     const communityGoalListEl = document.getElementById('communityGoalList');
     const achievementBadgeListEl = document.getElementById('achievementBadgeList');
     const intelLogEl = document.getElementById('intelLog');
@@ -4196,7 +4581,8 @@ document.addEventListener('DOMContentLoaded', () => {
         challenges: 'nyanEscape.challenges',
         deviceId: 'nyanEscape.deviceId',
         customLoadouts: 'nyanEscape.customLoadouts',
-        metaProgress: 'nyanEscape.metaProgress'
+        metaProgress: 'nyanEscape.metaProgress',
+        pilotProgress: 'nyanEscape.pilotProgress'
     };
 
     let storageAvailable = false;
@@ -4226,6 +4612,195 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             storageAvailable = false;
         }
+    }
+
+    function createProgressionManager({ storageKey = STORAGE_KEYS.pilotProgress, onAnnounce } = {}) {
+        const VERSION = 1;
+        const POINTS_PER_LEVEL = 1;
+
+        const defaultState = () => ({
+            version: VERSION,
+            level: 1,
+            experience: 0,
+            unspentPoints: 0,
+            stats: { ...DEFAULT_STAT_POINTS }
+        });
+
+        function xpForLevel(level) {
+            const safeLevel = Math.max(1, Math.floor(level));
+            const base = 320 + (safeLevel - 1) * 140;
+            const scaling = Math.pow(safeLevel, 1.22) * 28;
+            return Math.max(180, Math.round(base + scaling));
+        }
+
+        function loadState() {
+            if (!storageAvailable || !storageKey) {
+                return defaultState();
+            }
+            try {
+                const raw = readStorage(storageKey);
+                if (!raw) {
+                    return defaultState();
+                }
+                const parsed = JSON.parse(raw);
+                if (!parsed || typeof parsed !== 'object') {
+                    return defaultState();
+                }
+                const state = defaultState();
+                state.level = Math.max(1, Math.floor(parsed.level ?? state.level));
+                state.experience = Math.max(0, Math.floor(parsed.experience ?? state.experience));
+                const stats = sanitizeStatAllocation(parsed.stats ?? state.stats);
+                state.stats = stats;
+                const totalEarned = (state.level - 1) * POINTS_PER_LEVEL;
+                const spent = STAT_IDS.reduce((sum, stat) => sum + stats[stat], 0);
+                state.unspentPoints = Math.max(0, totalEarned - spent);
+                const xpCap = xpForLevel(state.level);
+                state.experience = clamp(state.experience, 0, Math.max(0, xpCap - 1));
+                state.version = VERSION;
+                return state;
+            } catch (error) {
+                return defaultState();
+            }
+        }
+
+        function persistState(state) {
+            if (!storageAvailable || !storageKey) {
+                return;
+            }
+            try {
+                writeStorage(
+                    storageKey,
+                    JSON.stringify({
+                        version: VERSION,
+                        level: state.level,
+                        experience: state.experience,
+                        stats: state.stats
+                    })
+                );
+            } catch (error) {
+                // ignore persistence errors
+            }
+        }
+
+        function buildSnapshot(state) {
+            const stats = sanitizeStatAllocation(state.stats);
+            const modifiers = calculateStatModifiers(stats);
+            const xpForNext = xpForLevel(state.level);
+            const progressPercent = xpForNext > 0 ? clamp(state.experience / xpForNext, 0, 1) : 0;
+            const spent = STAT_IDS.reduce((sum, stat) => sum + stats[stat], 0);
+            const totalEarned = (state.level - 1) * POINTS_PER_LEVEL;
+            const unspent = Math.max(0, totalEarned - spent);
+            return {
+                version: VERSION,
+                level: state.level,
+                experience: state.experience,
+                xpForNext,
+                progressPercent,
+                unspentPoints: unspent,
+                stats,
+                modifiers,
+                effects: describeStatEffects(stats),
+                maxPointsPerStat: MAX_POINTS_PER_STAT
+            };
+        }
+
+        const listeners = new Set();
+        let state = loadState();
+        let cachedSnapshot = buildSnapshot(state);
+
+        function notifyListeners(meta = {}) {
+            cachedSnapshot = buildSnapshot(state);
+            for (const listener of listeners) {
+                try {
+                    listener(cachedSnapshot, meta);
+                } catch (error) {
+                    console.error('progression listener error', error);
+                }
+            }
+        }
+
+        function addExperience(amount, context = {}) {
+            const gain = Math.max(0, Math.floor(amount));
+            if (gain <= 0) {
+                return { leveled: false, levelsGained: 0, xpGain: 0 };
+            }
+            state.experience += gain;
+            let leveled = false;
+            let levelsGained = 0;
+            while (true) {
+                const xpNeeded = xpForLevel(state.level);
+                if (state.experience < xpNeeded) {
+                    break;
+                }
+                state.experience -= xpNeeded;
+                state.level += 1;
+                leveled = true;
+                levelsGained += 1;
+            }
+            const stats = sanitizeStatAllocation(state.stats);
+            state.stats = stats;
+            const totalEarned = (state.level - 1) * POINTS_PER_LEVEL;
+            const spent = STAT_IDS.reduce((sum, stat) => sum + stats[stat], 0);
+            state.unspentPoints = Math.max(0, totalEarned - spent);
+            persistState(state);
+            notifyListeners({
+                source: context.source ?? 'xp',
+                leveled,
+                levelsGained,
+                xpGain: gain
+            });
+            if (leveled && typeof onAnnounce === 'function') {
+                try {
+                    onAnnounce({ level: state.level, levelsGained });
+                } catch (error) {
+                    console.error('progression announce error', error);
+                }
+            }
+            return { leveled, levelsGained, xpGain: gain };
+        }
+
+        function allocateStat(statId) {
+            const normalized = typeof statId === 'string' ? statId.toLowerCase() : '';
+            if (!STAT_IDS.includes(normalized)) {
+                return false;
+            }
+            if (state.unspentPoints <= 0) {
+                return false;
+            }
+            const current = state.stats[normalized] ?? 0;
+            if (current >= MAX_POINTS_PER_STAT) {
+                return false;
+            }
+            state.stats[normalized] = current + 1;
+            state.unspentPoints -= 1;
+            persistState(state);
+            notifyListeners({ source: 'allocate', stat: normalized });
+            return true;
+        }
+
+        function subscribe(listener) {
+            if (typeof listener !== 'function') {
+                return () => {};
+            }
+            listeners.add(listener);
+            try {
+                listener(cachedSnapshot, { initial: true });
+            } catch (error) {
+                console.error('progression listener error', error);
+            }
+            return () => {
+                listeners.delete(listener);
+            };
+        }
+
+        return {
+            addExperience,
+            allocateStat,
+            subscribe,
+            getSnapshot: () => cachedSnapshot,
+            getModifiers: () => cachedSnapshot.modifiers,
+            getStats: () => ({ ...cachedSnapshot.stats })
+        };
     }
 
     const CUSTOM_LOADOUT_VERSION = 1;
@@ -9046,6 +9621,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 runSummaryRunsEl.textContent = '';
                 runSummaryRunsEl.hidden = true;
             }
+            if (runSummaryXpPanel) {
+                runSummaryXpPanel.hidden = true;
+            }
+            if (runSummaryXpNote) {
+                runSummaryXpNote.textContent = '';
+            }
             if (!runSummaryStatusState.message) {
                 setRunSummaryStatus('Complete a ranked flight to log your stats.', 'info');
             }
@@ -9091,6 +9672,45 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 runSummaryRunsEl.textContent = '';
                 runSummaryRunsEl.hidden = true;
+            }
+        }
+
+        if (runSummaryXpPanel) {
+            const experience = summary.experience;
+            const breakdown = experience?.breakdown ?? {};
+            const formatXp = (value) => `${Math.max(0, Math.floor(value ?? 0)).toLocaleString()} XP`;
+            if (experience && (experience.total > 0 || experience.leveled)) {
+                runSummaryXpPanel.hidden = false;
+                if (runSummaryXpTotal) {
+                    runSummaryXpTotal.textContent = formatXp(experience.total);
+                }
+                if (runSummaryXpScore) {
+                    runSummaryXpScore.textContent = formatXp(breakdown[RUN_EXPERIENCE_KEYS.score]);
+                }
+                if (runSummaryXpTime) {
+                    runSummaryXpTime.textContent = formatXp(breakdown[RUN_EXPERIENCE_KEYS.time]);
+                }
+                if (runSummaryXpStreak) {
+                    runSummaryXpStreak.textContent = formatXp(breakdown[RUN_EXPERIENCE_KEYS.streak]);
+                }
+                if (runSummaryXpPowerUp) {
+                    runSummaryXpPowerUp.textContent = formatXp(breakdown[RUN_EXPERIENCE_KEYS.powerUp]);
+                }
+                if (runSummaryXpNote) {
+                    if (experience.leveled && experience.levelsGained > 0) {
+                        runSummaryXpNote.textContent =
+                            experience.levelsGained === 1
+                                ? 'Leveled up mid-flight!'
+                                : `Leveled up ${experience.levelsGained} times mid-flight!`;
+                    } else {
+                        runSummaryXpNote.textContent = '';
+                    }
+                }
+            } else {
+                runSummaryXpPanel.hidden = true;
+                if (runSummaryXpNote) {
+                    runSummaryXpNote.textContent = '';
+                }
             }
         }
 
@@ -10585,6 +11205,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resetGame() {
         storyManager.prepareForRun();
+        resetRunExperienceState();
         state.score = 0;
         state.nyan = 0;
         state.streak = 0;
@@ -13721,7 +14342,7 @@ document.addEventListener('DOMContentLoaded', () => {
         spawnTimers.powerUp = 0;
         const plannedInterval = powerUpSpawnDirector.planNextInterval(config?.powerUpSpawnInterval);
         if (Number.isFinite(plannedInterval) && plannedInterval > 0) {
-            nextPowerUpSpawnInterval = plannedInterval;
+            nextPowerUpSpawnInterval = adjustPowerUpInterval(plannedInterval);
         }
     }
 
@@ -14145,6 +14766,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const duration = config.powerUp.duration[type];
         if (duration) {
             state.powerUpTimers[type] = duration;
+        }
+        if (!tutorialFlightActive) {
+            const bonusXp = Math.max(0, Math.round(EXPERIENCE_REWARD_CONFIG.powerUp));
+            if (bonusXp > 0) {
+                grantExperience(bonusXp, { source: 'powerUp', type });
+            }
         }
         if (type === 'powerBomb') {
             triggerPowerBombPulse();
@@ -14621,13 +15248,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const spawned = spawnPowerUp();
             const plannedInterval = powerUpSpawnDirector.planNextInterval(config?.powerUpSpawnInterval);
             if (Number.isFinite(plannedInterval) && plannedInterval > 0) {
-                nextPowerUpSpawnInterval = plannedInterval;
+                nextPowerUpSpawnInterval = adjustPowerUpInterval(plannedInterval);
             }
             if (!spawned) {
-                const fallback = Number.isFinite(config?.powerUpSpawnInterval)
+                const fallbackBase = Number.isFinite(config?.powerUpSpawnInterval)
                     ? Math.max(7000, config.powerUpSpawnInterval)
                     : nextPowerUpSpawnInterval;
-                nextPowerUpSpawnInterval = fallback;
+                nextPowerUpSpawnInterval = adjustPowerUpInterval(fallbackBase);
             }
         }
     }
@@ -14637,13 +15264,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return 1;
         }
         if (Number.isFinite(projectile.damage)) {
-            return Math.max(1, projectile.damage);
+            return Math.max(1, Math.round(projectile.damage * projectileDamageMultiplier));
         }
         switch (projectile.type) {
             case 'missile':
-                return 2;
+                return Math.max(1, Math.round(2 * projectileDamageMultiplier));
             default:
-                return 1;
+                return Math.max(1, Math.round(projectileDamageMultiplier));
         }
     }
 
@@ -15284,6 +15911,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (metaProgressManager) {
             metaProgressManager.recordScore(finalPoints, { totalScore: state.score });
         }
+        if (!tutorialFlightActive) {
+            const xpGain = Math.max(1, Math.round(finalPoints * EXPERIENCE_REWARD_CONFIG.scoreRatio));
+            grantExperience(xpGain, { source: 'score' });
+        }
         const originX = source.x ?? player.x + player.width * 0.5;
         const originY = source.y ?? player.y;
         const text = `+${finalPoints.toLocaleString()}${totalMultiplier > 1.01 ? ` x${totalMultiplier.toFixed(2)}` : ''}`;
@@ -15314,6 +15945,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return null;
         }
         const summary = { ...pendingSubmission };
+        const experience = cloneRunExperienceSummary(summary.experience);
+        summary.experience = experience;
         const formattedTime = formatTime(summary.timeMs);
         const formattedScore = summary.score.toLocaleString();
         const timestamp = summary.recordedAt;
@@ -15327,7 +15960,8 @@ document.addEventListener('DOMContentLoaded', () => {
             recordedAt: timestamp,
             runsToday,
             recorded,
-            reason
+            reason,
+            experience
         };
         updateRunSummaryOverview();
         updateSharePanel();
@@ -15422,7 +16056,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 recordedAt: runTimestamp,
                 runsToday: 0,
                 recorded: false,
-                reason: 'tutorial'
+                reason: 'tutorial',
+                experience: null
             };
             tutorialFlightActive = false;
             const label = tutorialCallsign
@@ -15449,6 +16084,24 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshFlyNowButton();
             return;
         }
+        let experienceSummary = null;
+        if (!tutorialFlightActive) {
+            const timeSeconds = Math.max(0, Math.round(finalTimeMs / 1000));
+            const timeXp = Math.round(timeSeconds * EXPERIENCE_REWARD_CONFIG.runSecond);
+            const streakXp = Math.round(
+                Math.max(0, state.bestStreak) * EXPERIENCE_REWARD_CONFIG.streak
+            );
+            if (timeXp > 0) {
+                grantExperience(timeXp, { source: 'run', detail: RUN_EXPERIENCE_KEYS.time });
+            }
+            if (streakXp > 0) {
+                grantExperience(streakXp, {
+                    source: 'run',
+                    detail: RUN_EXPERIENCE_KEYS.streak
+                });
+            }
+            experienceSummary = getRunExperienceSummary();
+        }
         const usage = getSubmissionUsage(playerName, runTimestamp);
         const limitReached = usage.count >= SUBMISSION_LIMIT;
         pendingSubmission = {
@@ -15460,7 +16113,8 @@ document.addEventListener('DOMContentLoaded', () => {
             recordedAt: runTimestamp,
             baseMessage: message,
             quotaCount: usage.count,
-            limitReached
+            limitReached,
+            experience: experienceSummary
         };
         lastRunSummary = {
             player: playerName,
@@ -15472,7 +16126,8 @@ document.addEventListener('DOMContentLoaded', () => {
             recordedAt: runTimestamp,
             runsToday: usage.count,
             recorded: false,
-            reason: limitReached ? 'limit' : 'pending'
+            reason: limitReached ? 'limit' : 'pending',
+            experience: cloneRunExperienceSummary(experienceSummary)
         };
         updateRunSummaryOverview();
         updateSharePanel();
