@@ -2694,21 +2694,19 @@ body.motion-controls-enabled #touchControls {
 }
 
 .overlay-content.player-hub {
-    width: min(1100px, 96vw);
-    max-height: none;
-    align-items: stretch;
-    text-align: left;
-    gap: clamp(24px, 4vw, 40px);
-}
-
-.overlay-content.player-hub p {
-    max-width: none;
+    width: min(940px, 94vw);
+    max-height: min(92vh, 880px);
+    align-items: center;
+    text-align: center;
+    gap: clamp(18px, 3vw, 32px);
 }
 
 .overlay-content.player-hub .overlay-logo {
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
-    gap: clamp(12px, 2vw, 20px);
+    justify-content: center;
+    gap: clamp(10px, 2vw, 16px);
     font-size: clamp(1.6rem, 4vw, 2.2rem);
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -2716,18 +2714,21 @@ body.motion-controls-enabled #touchControls {
 }
 
 .overlay-content.player-hub .overlay-logo img {
-    max-width: clamp(72px, 12vw, 96px);
+    max-width: clamp(84px, 14vw, 108px);
 }
 
 .player-hub-title {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.4ch;
 }
 
 .player-hub-header {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    text-align: center;
     gap: clamp(12px, 2vw, 18px);
 }
 
@@ -2736,17 +2737,27 @@ body.motion-controls-enabled #touchControls {
     font-size: clamp(1rem, 2.4vw, 1.25rem);
     font-weight: 600;
     color: rgba(224, 231, 255, 0.95);
+    text-align: center;
+    max-width: clamp(420px, 70vw, 640px);
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .player-hub-subhead {
     margin: 0;
     font-size: 0.88rem;
     color: rgba(191, 219, 254, 0.82);
+    text-align: center;
+    max-width: clamp(440px, 72vw, 680px);
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .player-hub-grid {
     display: grid;
     width: 100%;
+    max-width: 880px;
+    margin: 0 auto;
     gap: clamp(18px, 3vw, 28px);
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
@@ -2770,11 +2781,15 @@ body.motion-controls-enabled #touchControls {
     background: linear-gradient(160deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.84));
     border: 1px solid rgba(148, 210, 255, 0.18);
     box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
+    text-align: left;
+    align-items: stretch;
 }
 
 .player-hub-card-header {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    text-align: center;
     gap: 6px;
 }
 
