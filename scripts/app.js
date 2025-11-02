@@ -3511,8 +3511,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const widthScale = designWidth > 0 ? availableWidth / designWidth : 1;
         const heightScale = designHeight > 0 ? availableHeight / designHeight : 1;
-        const targetScale = widthScale < 1 ? widthScale : 1;
-        shellScale = Number.isFinite(targetScale) && targetScale > 0 ? targetScale : 1;
+        const scale = Math.min(widthScale, heightScale);
+        shellScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
         rootElement?.style.setProperty('--shell-scale', shellScale.toString());
     }
 
