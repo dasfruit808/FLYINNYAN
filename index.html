@@ -44,13 +44,13 @@
             <div id="playfield">
                 <div id="playfieldStage">
                     <canvas id="gameCanvas" tabindex="0" aria-label="Nyan Escape flight deck"></canvas>
-                <div id="debugOverlay" aria-hidden="true" hidden>
-                    <div data-debug-line="logical"></div>
-                    <div data-debug-line="physical"></div>
-                    <div data-debug-line="ratio"></div>
+                    <div id="debugOverlay" aria-hidden="true" hidden>
+                        <div data-debug-line="logical"></div>
+                        <div data-debug-line="physical"></div>
+                        <div data-debug-line="ratio"></div>
+                    </div>
+                    <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
                 </div>
-                <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
-            </div>
             <div id="preflightBar">
                 <div id="preflightPrompt" role="status" aria-live="polite" hidden>
                     <span class="hud-title" aria-hidden="true">Nyan Ready</span>
@@ -106,38 +106,38 @@
             class="flight-status-panel"
             role="complementary"
             aria-live="polite"
-            aria-label="Flight status"
+            aria-labelledby="flightStatusTitle"
         >
             <div class="flight-status-header">
-                <span class="flight-status-title">Flight Status</span>
+                <h2 class="flight-status-title" id="flightStatusTitle">Flight Status</h2>
             </div>
             <div class="flight-status-body">
-                <div class="flight-stat-list" role="presentation">
-                    <div class="flight-stat-row">
+                <div class="flight-stat-list" role="list">
+                    <div class="flight-stat-row" role="listitem">
                         <span class="stat-label">Score</span>
                         <span class="value" id="score">0</span>
                     </div>
-                    <div class="flight-stat-row">
+                    <div class="flight-stat-row" role="listitem">
                         <span class="stat-label">Points</span>
                         <span class="value" id="nyan">0</span>
                     </div>
-                    <div class="flight-stat-row">
+                    <div class="flight-stat-row" role="listitem">
                         <span class="stat-label">Streak</span>
                         <span class="value" id="streak">x1</span>
                     </div>
-                    <div class="flight-stat-row">
+                    <div class="flight-stat-row" role="listitem">
                         <span class="stat-label">Best Tail</span>
                         <span class="value" id="bestStreak">0</span>
                     </div>
-                    <div class="flight-stat-row">
+                    <div class="flight-stat-row" role="listitem">
                         <span class="stat-label">MCAP</span>
                         <span class="value" id="mcap">6.6K</span>
                     </div>
-                    <div class="flight-stat-row">
+                    <div class="flight-stat-row" role="listitem">
                         <span class="stat-label">VOL</span>
                         <span class="value" id="vol">2.8K</span>
                     </div>
-                    <div class="flight-stat-row">
+                    <div class="flight-stat-row" role="listitem">
                         <span class="stat-label">Boosts</span>
                         <span class="value" id="powerUps">None</span>
                     </div>
@@ -229,7 +229,7 @@
             </div>
         </aside>
     </div>
-    <div id="instructions" aria-label="Flight status and mission information">
+    <div id="instructions" aria-label="Mission intel and loadout information">
         <div
             id="instructionButtonBar"
             class="instruction-button-bar"

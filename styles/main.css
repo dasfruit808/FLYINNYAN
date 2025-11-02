@@ -449,7 +449,7 @@ body.touch-enabled #settingsButton {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(260px, clamp(320px, 24vw, 380px));
     gap: clamp(16px, 3vw, 28px);
-    align-items: stretch;
+    align-items: flex-start;
     min-height: 0;
 }
 
@@ -619,7 +619,8 @@ canvas {
 }
 
 #stats {
-    position: relative;
+    position: sticky;
+    top: clamp(18px, 4vw, 32px);
     display: flex;
     flex-direction: column;
     gap: clamp(18px, 3vw, 26px);
@@ -636,6 +637,7 @@ canvas {
     backdrop-filter: blur(14px);
     color: rgba(226, 232, 240, 0.94);
     min-width: 0;
+    align-self: start;
 }
 
 .flight-status-header {
@@ -661,6 +663,7 @@ canvas {
     text-transform: uppercase;
     color: #f8fafc;
     text-shadow: 0 2px 8px rgba(56, 189, 248, 0.55);
+    margin: 0;
 }
 
 .flight-status-body {
@@ -714,6 +717,9 @@ canvas {
     #stats {
         max-width: min(520px, 100%);
         margin: 0 auto;
+        position: relative;
+        top: auto;
+        align-self: stretch;
     }
 }
 
