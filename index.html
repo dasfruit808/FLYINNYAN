@@ -316,6 +316,86 @@
                             <h3>Reward Catalogue</h3>
                             <ul id="rewardCatalogueList" class="reward-catalogue" role="list" aria-live="polite"></ul>
                         </section>
+                        <section class="meta-card progression-card" id="progressionCard" aria-live="polite" hidden>
+                            <h3>Flight Mastery</h3>
+                            <p class="meta-card-summary">
+                                Level <span id="progressionLevel">1</span>
+                                <span class="progression-points" id="progressionPoints">All systems tuned</span>
+                            </p>
+                            <div
+                                class="progression-track"
+                                id="progressionXpTrack"
+                                role="progressbar"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                                aria-valuenow="0"
+                            >
+                                <div class="progression-track-fill" id="progressionXpFill"></div>
+                            </div>
+                            <p class="progression-xp" id="progressionXpLabel">0 / 0 XP</p>
+                            <ul class="stat-list" role="list">
+                                <li class="stat-row">
+                                    <div class="stat-copy">
+                                        <span class="stat-name">Agility</span>
+                                        <span class="stat-effect" id="statAgilityEffect">
+                                            Sharper thrusters and smoother rolls.
+                                        </span>
+                                    </div>
+                                    <div class="stat-controls">
+                                        <span class="stat-value" id="statAgilityValue">0</span>
+                                        <button
+                                            type="button"
+                                            class="stat-allocate"
+                                            data-stat-allocate="agility"
+                                            aria-label="Spend a point on Agility"
+                                            disabled
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                </li>
+                                <li class="stat-row">
+                                    <div class="stat-copy">
+                                        <span class="stat-name">Strength</span>
+                                        <span class="stat-effect" id="statStrengthEffect">
+                                            Amplifies weapon output and recharge cadence.
+                                        </span>
+                                    </div>
+                                    <div class="stat-controls">
+                                        <span class="stat-value" id="statStrengthValue">0</span>
+                                        <button
+                                            type="button"
+                                            class="stat-allocate"
+                                            data-stat-allocate="strength"
+                                            aria-label="Spend a point on Strength"
+                                            disabled
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                </li>
+                                <li class="stat-row">
+                                    <div class="stat-copy">
+                                        <span class="stat-name">Luck</span>
+                                        <span class="stat-effect" id="statLuckEffect">
+                                            Ups the odds of lucrative power-up drops.
+                                        </span>
+                                    </div>
+                                    <div class="stat-controls">
+                                        <span class="stat-value" id="statLuckValue">0</span>
+                                        <button
+                                            type="button"
+                                            class="stat-allocate"
+                                            data-stat-allocate="luck"
+                                            aria-label="Spend a point on Luck"
+                                            disabled
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                </li>
+                            </ul>
+                        </section>
                         <section
                             id="seasonPassPanel"
                             class="meta-card season-pass-card"
@@ -512,6 +592,32 @@
                             <div class="run-summary-meta">
                                 <span id="runSummaryPlacement" class="meta-item"></span>
                                 <span id="runSummaryRuns" class="meta-item"></span>
+                            </div>
+                            <div id="runSummaryXpPanel" class="summary-subpanel xp-panel" hidden>
+                                <div class="summary-subtitle">Flight XP</div>
+                                <dl class="xp-breakdown">
+                                    <div class="xp-row xp-total">
+                                        <dt>Total gained</dt>
+                                        <dd id="runSummaryXpTotal">0 XP</dd>
+                                    </div>
+                                    <div class="xp-row">
+                                        <dt>From score</dt>
+                                        <dd id="runSummaryXpScore">0 XP</dd>
+                                    </div>
+                                    <div class="xp-row">
+                                        <dt>From survival</dt>
+                                        <dd id="runSummaryXpTime">0 XP</dd>
+                                    </div>
+                                    <div class="xp-row">
+                                        <dt>From streaks</dt>
+                                        <dd id="runSummaryXpStreak">0 XP</dd>
+                                    </div>
+                                    <div class="xp-row">
+                                        <dt>From power-ups</dt>
+                                        <dd id="runSummaryXpPowerUp">0 XP</dd>
+                                    </div>
+                                </dl>
+                                <p id="runSummaryXpNote" class="xp-note"></p>
                             </div>
                             <div id="highScorePanel" class="summary-subpanel" aria-live="polite">
                                 <div id="highScoreTitle" class="summary-subtitle">Top Flight Times</div>
