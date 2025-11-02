@@ -417,16 +417,15 @@ body.touch-enabled #settingsButton {
 }
 
 #preflightBar {
-    width: min(520px, 100%);
-    padding: 0 clamp(16px, 4vw, 24px);
+    position: fixed;
+    inset: 0;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    align-items: stretch;
-    gap: clamp(12px, 3vw, 16px);
-    position: relative;
-    z-index: 2;
-    margin: 0 auto;
+    padding: clamp(24px, 6vw, 64px);
+    background: radial-gradient(circle at top, rgba(15, 23, 42, 0.78), rgba(8, 16, 32, 0.86));
+    backdrop-filter: blur(6px);
+    z-index: 70;
 }
 
 #gameShell {
@@ -695,68 +694,51 @@ canvas {
 }
 
 #preflightPrompt {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(420px, calc(100vw - 48px));
-    max-height: min(72vh, 460px);
+    width: min(520px, 100%);
+    max-height: min(80vh, 560px);
+    background: linear-gradient(165deg, rgba(15, 23, 42, 0.95), rgba(8, 16, 32, 0.88));
+    border-radius: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow: 0 24px 48px rgba(2, 6, 23, 0.6), inset 0 0 0 1px rgba(94, 234, 212, 0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: rgba(226, 232, 240, 0.94);
+}
+
+.preflight-modal-header {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.8));
+}
+
+.preflight-modal-header h2 {
     margin: 0;
-    padding: clamp(18px, 4vw, 24px);
-    border-radius: 12px;
-    border: 4px solid #f4f4f4;
-    background: linear-gradient(180deg, #161616 0%, #111 100%);
-    box-shadow:
-        0 0 0 8px #202020,
-        0 18px 0 rgba(0, 0, 0, 0.35);
-    color: #fefefe;
-    font-family: "Flight Time", "Press Start 2P", "Consolas", monospace;
-    font-size: clamp(13px, 2.4vw, 16px);
-    font-weight: 600;
-    letter-spacing: 0.14em;
     text-transform: uppercase;
-    text-align: center;
-    display: grid;
-    gap: clamp(12px, 2.4vw, 18px);
-    justify-items: center;
-    pointer-events: auto;
-    overflow-y: auto;
-    scrollbar-gutter: stable both-edges;
-    overscroll-behavior: contain;
-    z-index: 70;
+    letter-spacing: 0.22em;
+    color: rgba(148, 210, 255, 0.9);
 }
 
-#preflightPrompt::after {
-    content: "";
-    position: absolute;
-    inset: clamp(8px, 2.1vw, 12px);
-    border: 2px solid rgba(255, 255, 255, 0.12);
-    z-index: 0;
-    pointer-events: none;
-}
-
-#preflightPrompt > * {
-    position: relative;
-    z-index: 1;
-}
-
-#preflightPrompt .hud-title {
-    display: inline-flex;
+.preflight-modal-body {
     align-items: center;
-    justify-content: center;
-    padding: 6px 18px;
-    border: 3px solid #ffffff;
-    background: linear-gradient(180deg, #e53e3e 0%, #b91c1c 100%);
-    color: #ffffff;
-    font-size: clamp(12px, 2vw, 14px);
-    letter-spacing: 0.16em;
-    box-shadow: 0 4px 0 #450a0a;
+    text-align: center;
+    gap: clamp(16px, 3vw, 24px);
+    padding: clamp(20px, 4vw, 32px);
 }
 
-#preflightPrompt .prompt-text {
-    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
-    width: 100%;
+.preflight-modal-body .prompt-text {
+    margin: 0 auto;
     max-width: 32ch;
+    font-size: clamp(0.78rem, 2.1vw, 0.98rem);
+    line-height: 1.6;
+    color: rgba(226, 232, 240, 0.85);
+    text-shadow: 0 2px 12px rgba(15, 23, 42, 0.75);
+}
+
+.preflight-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
 }
 
 #preflightLoadoutSummary {
@@ -868,10 +850,6 @@ body.touch-enabled #preflightPrompt .desktop-only {
     #preflightPrompt {
         width: calc(100vw - 32px);
         max-height: calc(100vh - 32px);
-    }
-
-    #preflightPrompt::after {
-        inset: clamp(6px, 3vw, 10px);
     }
 }
 
