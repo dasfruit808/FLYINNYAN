@@ -98,7 +98,8 @@ body {
     padding: var(--shell-padding);
     font-family: var(--primary-font-stack);
     color: #0f235a;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     position: relative;
     gap: var(--shell-padding);
     -webkit-tap-highlight-color: transparent;
