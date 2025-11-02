@@ -50,50 +50,74 @@
                 </div>
                 <div id="survivalTimer">Flight Time: <span class="value" id="timerValue">00:00.0</span></div>
             </div>
-            <div id="preflightBar">
-                <div id="preflightPrompt" role="status" aria-live="polite" hidden>
-                    <span class="hud-title" aria-hidden="true">Nyan Ready</span>
-                    <span class="prompt-text desktop-only">Press Start (Enter) to launch</span>
-                    <button id="mobilePreflightButton" type="button" hidden aria-hidden="true">Tap Start</button>
-                    <button
-                        id="preflightSwapPilotButton"
-                        type="button"
-                        class="tertiary"
-                        hidden
-                        aria-hidden="true"
-                        aria-disabled="true"
-                    >
-                        Swap Pilot
-                    </button>
-                    <button
-                        id="preflightSwapWeaponButton"
-                        type="button"
-                        class="tertiary"
-                        hidden
-                        aria-hidden="true"
-                        aria-disabled="true"
-                    >
-                        Swap Weapon
-                    </button>
-                    <div id="preflightLoadoutSummary" class="preflight-loadout-summary" aria-live="polite">
-                        <div class="preflight-loadout-card" data-summary="pilot">
-                            <div class="preflight-loadout-thumb">
-                                <img id="preflightPilotImage" alt="Active pilot portrait" loading="lazy" decoding="async" />
-                            </div>
-                            <div class="preflight-loadout-info">
-                                <span class="preflight-loadout-label">Pilot</span>
-                                <span class="preflight-loadout-value" id="preflightPilotName"></span>
-                                <span class="preflight-loadout-meta" id="preflightPilotRole"></span>
-                            </div>
+            <div
+                id="preflightBar"
+                class="preflight-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="preflightPromptTitle"
+                aria-describedby="preflightPromptDescription"
+                aria-hidden="true"
+                hidden
+            >
+                <div
+                    id="preflightPrompt"
+                    class="preflight-modal-content"
+                    role="document"
+                    aria-live="polite"
+                    tabindex="-1"
+                    hidden
+                >
+                    <header class="info-modal-header preflight-modal-header">
+                        <h2 id="preflightPromptTitle">Nyan Ready</h2>
+                    </header>
+                    <div class="info-modal-body preflight-modal-body">
+                        <p class="prompt-text desktop-only" id="preflightPromptDescription">
+                            Press Start (Enter) to launch
+                        </p>
+                        <button id="mobilePreflightButton" type="button" hidden aria-hidden="true">Tap Start</button>
+                        <div class="preflight-modal-actions">
+                            <button
+                                id="preflightSwapPilotButton"
+                                type="button"
+                                class="tertiary"
+                                hidden
+                                aria-hidden="true"
+                                aria-disabled="true"
+                            >
+                                Swap Pilot
+                            </button>
+                            <button
+                                id="preflightSwapWeaponButton"
+                                type="button"
+                                class="tertiary"
+                                hidden
+                                aria-hidden="true"
+                                aria-disabled="true"
+                            >
+                                Swap Weapon
+                            </button>
                         </div>
-                        <div class="preflight-loadout-card" data-summary="weapon">
-                            <div class="preflight-loadout-thumb">
-                                <img id="preflightWeaponImage" alt="Active weapon schematic" loading="lazy" decoding="async" />
+                        <div id="preflightLoadoutSummary" class="preflight-loadout-summary" aria-live="polite">
+                            <div class="preflight-loadout-card" data-summary="pilot">
+                                <div class="preflight-loadout-thumb">
+                                    <img id="preflightPilotImage" alt="Active pilot portrait" loading="lazy" decoding="async" />
+                                </div>
+                                <div class="preflight-loadout-info">
+                                    <span class="preflight-loadout-label">Pilot</span>
+                                    <span class="preflight-loadout-value" id="preflightPilotName"></span>
+                                    <span class="preflight-loadout-meta" id="preflightPilotRole"></span>
+                                </div>
                             </div>
-                            <div class="preflight-loadout-info">
-                                <span class="preflight-loadout-label">Weapon</span>
-                                <span class="preflight-loadout-value" id="preflightWeaponName"></span>
-                                <span class="preflight-loadout-meta" id="preflightWeaponHighlight"></span>
+                            <div class="preflight-loadout-card" data-summary="weapon">
+                                <div class="preflight-loadout-thumb">
+                                    <img id="preflightWeaponImage" alt="Active weapon schematic" loading="lazy" decoding="async" />
+                                </div>
+                                <div class="preflight-loadout-info">
+                                    <span class="preflight-loadout-label">Weapon</span>
+                                    <span class="preflight-loadout-value" id="preflightWeaponName"></span>
+                                    <span class="preflight-loadout-meta" id="preflightWeaponHighlight"></span>
+                                </div>
                             </div>
                         </div>
                     </div>
