@@ -39,9 +39,21 @@ function registerGameServiceWorker() {
     if (serviceWorkerRegistrationPromise) {
         return serviceWorkerRegistrationPromise;
     }
-    const scriptUrl = new URL('../service-worker.js', import.meta.url);
+    let scriptUrl = null;
+    if (typeof window !== 'undefined' && typeof window.location === 'object') {
+        try {
+            scriptUrl = new URL('../service-worker.js', window.location.href);
+        } catch (error) {
+            try {
+                scriptUrl = new URL('service-worker.js', window.location.href);
+            } catch (nestedError) {
+                scriptUrl = null;
+            }
+        }
+    }
+    const registrationUrl = scriptUrl ? scriptUrl.href : 'service-worker.js';
     serviceWorkerRegistrationPromise = navigator.serviceWorker
-        .register(scriptUrl.href, { updateViaCache: 'none' })
+        .register(registrationUrl, { updateViaCache: 'none' })
         .then((registration) => {
             console.info('[service-worker] Registered', registration.scope);
             navigator.serviceWorker.ready
@@ -2351,7 +2363,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return Boolean(modal && !modal.hidden && modal.getAttribute('aria-hidden') !== 'true');
     }
 
-    function getModalFocusableElements(container) {
+    function getModalFocusableTargets(container) {
         if (!container) {
             return [];
         }
@@ -2426,7 +2438,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.key !== 'Tab') {
                 return;
             }
-            const focusable = getModalFocusableElements(modal);
+            const focusable = getModalFocusableTargets(modal);
             if (!focusable.length) {
                 event.preventDefault();
                 focusElement(modal);
@@ -3484,7 +3496,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const getModalFocusableElements = () => {
+    const getInfoModalFocusableElements = () => {
         if (!infoModal) {
             return [];
         }
@@ -3592,7 +3604,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (event.key === 'Tab' && activeInstructionPanelId) {
-                const focusable = getModalFocusableElements();
+                const focusable = getInfoModalFocusableElements();
                 if (!focusable.length) {
                     event.preventDefault();
                     return;
