@@ -83,7 +83,16 @@ self.addEventListener('install', (event) => {
       await Promise.all(
         urls.map(async (url) => {
           try {
-            await cache.add(url);
+            const response = await fetch(url, { cache: 'no-store' });
+            if (!isCacheableResponse(response)) {
+              console.warn(
+                '[service-worker] Skipping precache for uncacheable response',
+                url,
+                response.status
+              );
+              return;
+            }
+            await cache.put(url, response.clone());
           } catch (error) {
             console.warn('[service-worker] Failed to precache', url, error);
           }
