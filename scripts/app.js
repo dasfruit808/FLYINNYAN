@@ -2584,6 +2584,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const preflightWeaponImage = document.getElementById('preflightWeaponImage');
     const preflightWeaponName = document.getElementById('preflightWeaponName');
     const preflightWeaponHighlight = document.getElementById('preflightWeaponHighlight');
+    const playerHubAuthForm = document.getElementById('playerHubAuthForm');
+    const playerHubAuthButtons = document.querySelectorAll('.player-hub-auth-button[data-auth-mode]');
+    const playerHubAuthStatus = document.getElementById('playerHubAuthStatus');
+    const playerHubEmailInput = document.getElementById('playerHubEmail');
+    const playerHubPasswordInput = document.getElementById('playerHubPassword');
+    const playerHubHandleInput = document.getElementById('playerHubHandle');
+    const playerHubCreateFields = document.querySelectorAll('[data-auth-create-field]');
+    const playerHubLoadoutSummary = document.getElementById('playerHubLoadoutSummary');
+    const playerHubPilotImage = document.getElementById('playerHubPilotImage');
+    const playerHubPilotName = document.getElementById('playerHubPilotName');
+    const playerHubPilotRole = document.getElementById('playerHubPilotRole');
+    const playerHubWeaponImage = document.getElementById('playerHubWeaponImage');
+    const playerHubWeaponName = document.getElementById('playerHubWeaponName');
+    const playerHubWeaponHighlight = document.getElementById('playerHubWeaponHighlight');
+    const playerHubLevelEl = document.getElementById('playerHubLevel');
+    const playerHubLevelPointsEl = document.getElementById('playerHubLevelPoints');
+    const playerHubXpTrackEl = document.getElementById('playerHubXpTrack');
+    const playerHubXpFillEl = document.getElementById('playerHubXpFill');
+    const playerHubXpLabelEl = document.getElementById('playerHubXpLabel');
+    const playerHubStatAgilityValue = document.getElementById('playerHubStatAgilityValue');
+    const playerHubStatStrengthValue = document.getElementById('playerHubStatStrengthValue');
+    const playerHubStatLuckValue = document.getElementById('playerHubStatLuckValue');
+    const playerHubStatAgilityEffect = document.getElementById('playerHubStatAgilityEffect');
+    const playerHubStatStrengthEffect = document.getElementById('playerHubStatStrengthEffect');
+    const playerHubStatLuckEffect = document.getElementById('playerHubStatLuckEffect');
     const characterSelectSummary = document.getElementById('characterSelectSummary');
     const characterSelectSummaryDescription = characterSelectSummary?.querySelector(
         '[data-character-summary-description]'
@@ -3045,14 +3070,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressionXpFill = document.getElementById('progressionXpFill');
     const progressionXpLabel = document.getElementById('progressionXpLabel');
     const statValueElements = {
-        agility: document.getElementById('statAgilityValue'),
-        strength: document.getElementById('statStrengthValue'),
-        luck: document.getElementById('statLuckValue')
+        agility: [document.getElementById('statAgilityValue'), playerHubStatAgilityValue].filter(Boolean),
+        strength: [document.getElementById('statStrengthValue'), playerHubStatStrengthValue].filter(Boolean),
+        luck: [document.getElementById('statLuckValue'), playerHubStatLuckValue].filter(Boolean)
     };
     const statEffectElements = {
-        agility: document.getElementById('statAgilityEffect'),
-        strength: document.getElementById('statStrengthEffect'),
-        luck: document.getElementById('statLuckEffect')
+        agility: [document.getElementById('statAgilityEffect'), playerHubStatAgilityEffect].filter(Boolean),
+        strength: [document.getElementById('statStrengthEffect'), playerHubStatStrengthEffect].filter(Boolean),
+        luck: [document.getElementById('statLuckEffect'), playerHubStatLuckEffect].filter(Boolean)
     };
     const statAllocateButtons = new Map();
     document.querySelectorAll('[data-stat-allocate]').forEach((button) => {
@@ -3081,9 +3106,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (progressionLevelEl) {
             progressionLevelEl.textContent = String(snapshot.level ?? 1);
         }
+        if (playerHubLevelEl) {
+            playerHubLevelEl.textContent = String(snapshot.level ?? 1);
+        }
         if (progressionPointsEl) {
             const available = Math.max(0, snapshot.unspentPoints ?? 0);
             progressionPointsEl.textContent = available
+                ? `${available} point${available === 1 ? '' : 's'} ready`
+                : 'All systems tuned';
+        }
+        if (playerHubLevelPointsEl) {
+            const available = Math.max(0, snapshot.unspentPoints ?? 0);
+            playerHubLevelPointsEl.textContent = available
                 ? `${available} point${available === 1 ? '' : 's'} ready`
                 : 'All systems tuned';
         }
@@ -3091,25 +3125,48 @@ document.addEventListener('DOMContentLoaded', () => {
             const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
             progressionXpFill.style.width = `${(percent * 100).toFixed(1)}%`;
         }
+        if (playerHubXpFillEl) {
+            const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
+            playerHubXpFillEl.style.width = `${(percent * 100).toFixed(1)}%`;
+        }
         if (progressionXpTrack) {
             const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
             progressionXpTrack.setAttribute('aria-valuenow', String(Math.round(percent * 100)));
             progressionXpTrack.setAttribute('aria-valuemin', '0');
             progressionXpTrack.setAttribute('aria-valuemax', '100');
         }
+        if (playerHubXpTrackEl) {
+            const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
+            playerHubXpTrackEl.setAttribute('aria-valuenow', String(Math.round(percent * 100)));
+            playerHubXpTrackEl.setAttribute('aria-valuemin', '0');
+            playerHubXpTrackEl.setAttribute('aria-valuemax', '100');
+        }
         if (progressionXpLabel) {
             const current = Math.max(0, snapshot.experience ?? 0);
             const required = Math.max(1, snapshot.xpForNext ?? 1);
             progressionXpLabel.textContent = `${current.toLocaleString()} / ${required.toLocaleString()} XP`;
         }
+        if (playerHubXpLabelEl) {
+            const current = Math.max(0, snapshot.experience ?? 0);
+            const required = Math.max(1, snapshot.xpForNext ?? 1);
+            playerHubXpLabelEl.textContent = `${current.toLocaleString()} / ${required.toLocaleString()} XP`;
+        }
         for (const statId of STAT_IDS) {
-            const valueEl = statValueElements[statId];
-            if (valueEl) {
-                valueEl.textContent = String(snapshot.stats?.[statId] ?? 0);
+            const valueTargets = statValueElements[statId];
+            const valueElements = Array.isArray(valueTargets) ? valueTargets : valueTargets ? [valueTargets] : [];
+            for (const element of valueElements) {
+                if (element instanceof HTMLElement) {
+                    element.textContent = String(snapshot.stats?.[statId] ?? 0);
+                }
             }
-            const effectEl = statEffectElements[statId];
-            if (effectEl && snapshot.effects?.[statId]) {
-                effectEl.textContent = snapshot.effects[statId];
+            const effectTargets = statEffectElements[statId];
+            const effectElements = Array.isArray(effectTargets) ? effectTargets : effectTargets ? [effectTargets] : [];
+            if (snapshot.effects?.[statId]) {
+                for (const element of effectElements) {
+                    if (element instanceof HTMLElement) {
+                        element.textContent = snapshot.effects[statId];
+                    }
+                }
             }
             const button = statAllocateButtons.get(statId);
             if (button) {
@@ -3798,8 +3855,8 @@ document.addEventListener('DOMContentLoaded', () => {
         teardownViewportWatchers();
     });
 
-    const getLaunchControlText = () => (isTouchInterface ? 'Tap Start' : 'Press Start (Enter)');
-    const getRetryControlText = () => (isTouchInterface ? 'Tap Start Again' : 'Press Start (Enter) Again');
+    const getLaunchControlText = () => (isTouchInterface ? 'Tap Enter Hangar' : 'Press Enter to Launch');
+    const getRetryControlText = () => (isTouchInterface ? 'Tap Retry Flight' : 'Press Enter to Retry');
 
     function refreshInteractionHints() {
         if (bodyElement) {
@@ -3811,14 +3868,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mobilePreflightButton) {
             mobilePreflightButton.hidden = !isTouchInterface;
             mobilePreflightButton.setAttribute('aria-hidden', isTouchInterface ? 'false' : 'true');
-            mobilePreflightButton.textContent = isTouchInterface ? 'Tap Start' : 'Press Start';
+            mobilePreflightButton.textContent = isTouchInterface ? 'Tap Enter Hangar' : 'Press Enter';
             const promptVisible = preflightPrompt && !preflightPrompt.hidden;
             mobilePreflightButton.disabled = !promptVisible || !isTouchInterface;
         }
         if (callsignHint) {
             callsignHint.textContent = isTouchInterface
-                ? 'Tap Start to begin a run.'
-                : 'Press Start (Enter) or click Launch to begin a run.';
+                ? 'Tap Enter Hangar to begin a run.'
+                : 'Press Enter or use Enter Hangar to begin a run.';
         }
         updateTouchControlsLayout();
         updateMotionBodyClasses();
@@ -4023,6 +4080,13 @@ document.addEventListener('DOMContentLoaded', () => {
             flightControlsSection.hidden = !shouldShow;
             controlsToggleButton.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
             controlsToggleButton.textContent = shouldShow ? 'Hide Controls' : 'Show Controls';
+            if (shouldShow) {
+                try {
+                    flightControlsSection.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } catch (error) {
+                    flightControlsSection.scrollIntoView({ block: 'nearest' });
+                }
+            }
         };
 
         setFlightControlsVisibility(false);
@@ -4582,7 +4646,8 @@ document.addEventListener('DOMContentLoaded', () => {
         deviceId: 'nyanEscape.deviceId',
         customLoadouts: 'nyanEscape.customLoadouts',
         metaProgress: 'nyanEscape.metaProgress',
-        pilotProgress: 'nyanEscape.pilotProgress'
+        pilotProgress: 'nyanEscape.pilotProgress',
+        playerProfile: 'nyanEscape.playerProfile'
     };
 
     let storageAvailable = false;
@@ -4612,6 +4677,192 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             storageAvailable = false;
         }
+    }
+
+    const defaultPlayerProfile = () => ({
+        mode: 'signin',
+        email: '',
+        handle: '',
+        lastAuth: 0
+    });
+
+    function loadPlayerProfile() {
+        if (!storageAvailable) {
+            return defaultPlayerProfile();
+        }
+        try {
+            const raw = readStorage(STORAGE_KEYS.playerProfile);
+            if (!raw) {
+                return defaultPlayerProfile();
+            }
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') {
+                return defaultPlayerProfile();
+            }
+            return {
+                mode: parsed.mode === 'create' ? 'create' : 'signin',
+                email: typeof parsed.email === 'string' ? parsed.email : '',
+                handle: typeof parsed.handle === 'string' ? parsed.handle : '',
+                lastAuth: Number.isFinite(parsed.lastAuth) ? parsed.lastAuth : 0
+            };
+        } catch (error) {
+            return defaultPlayerProfile();
+        }
+    }
+
+    function persistPlayerProfile(profile) {
+        if (!storageAvailable) {
+            return;
+        }
+        try {
+            writeStorage(STORAGE_KEYS.playerProfile, JSON.stringify(profile));
+        } catch (error) {
+            storageAvailable = false;
+        }
+    }
+
+    let playerProfile = loadPlayerProfile();
+
+    function announcePlayerHubStatus(message = '', tone = 'info') {
+        if (!(playerHubAuthStatus instanceof HTMLElement)) {
+            return;
+        }
+        playerHubAuthStatus.textContent = message;
+        playerHubAuthStatus.dataset.tone = tone;
+        playerHubAuthStatus.hidden = message ? false : true;
+        playerHubAuthStatus.setAttribute('aria-hidden', message ? 'false' : 'true');
+    }
+
+    function applyPlayerProfileToUi() {
+        const mode = playerProfile.mode === 'create' ? 'create' : 'signin';
+        if (playerHubAuthForm instanceof HTMLElement) {
+            playerHubAuthForm.dataset.authMode = mode;
+        }
+        playerHubAuthButtons.forEach((button) => {
+            if (!(button instanceof HTMLElement)) {
+                return;
+            }
+            const buttonMode = button.dataset.authMode === 'create' ? 'create' : 'signin';
+            const isActive = buttonMode === mode;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+        playerHubCreateFields.forEach((field) => {
+            if (!(field instanceof HTMLElement)) {
+                return;
+            }
+            const show = mode === 'create';
+            field.hidden = !show;
+            field.setAttribute('aria-hidden', show ? 'false' : 'true');
+        });
+        if (playerHubEmailInput instanceof HTMLInputElement) {
+            playerHubEmailInput.value = playerProfile.email ?? '';
+        }
+        if (playerHubPasswordInput instanceof HTMLInputElement) {
+            playerHubPasswordInput.value = '';
+        }
+        if (playerHubHandleInput instanceof HTMLInputElement) {
+            playerHubHandleInput.value = playerProfile.handle ?? '';
+        }
+        if (overlayMessage) {
+            const baseMessage = overlayDefaultMessage ||
+                'Welcome to the Player\'s Hub. Tune your pilot profile and squad before launch.';
+            if (playerProfile.handle) {
+                overlayMessage.textContent = `Welcome back, ${playerProfile.handle}. Tune your pilot profile and squad before launch.`;
+            } else if (playerProfile.email) {
+                overlayMessage.textContent = `Welcome back, ${playerProfile.email}. Prepare your loadout before launch.`;
+            } else {
+                overlayMessage.textContent = baseMessage;
+            }
+        }
+        if (playerHubAuthStatus instanceof HTMLElement && !playerHubAuthStatus.textContent) {
+            if (playerProfile.email) {
+                announcePlayerHubStatus(`Linked to ${playerProfile.email}`, 'success');
+            } else {
+                announcePlayerHubStatus('Link an account to sync your progress.', 'info');
+            }
+        }
+        if (playerProfile.handle && playerNameInput instanceof HTMLInputElement && !playerNameInput.value) {
+            playerNameInput.value = playerProfile.handle;
+        }
+    }
+
+    function updatePlayerProfile(partial, { persist = true } = {}) {
+        playerProfile = { ...playerProfile, ...partial };
+        if (persist) {
+            persistPlayerProfile(playerProfile);
+        }
+        applyPlayerProfileToUi();
+    }
+
+    applyPlayerProfileToUi();
+
+    if (playerHubAuthButtons.length) {
+        playerHubAuthButtons.forEach((button) => {
+            if (!(button instanceof HTMLElement)) {
+                return;
+            }
+            button.addEventListener('click', () => {
+                const mode = button.dataset.authMode === 'create' ? 'create' : 'signin';
+                if (playerProfile.mode === mode) {
+                    announcePlayerHubStatus(
+                        mode === 'create'
+                            ? 'Create a handle and access code to register.'
+                            : 'Enter your access code to link your pilot.',
+                        'info'
+                    );
+                    return;
+                }
+                updatePlayerProfile({ mode }, { persist: true });
+                announcePlayerHubStatus(
+                    mode === 'create'
+                        ? 'Create a handle and access code to register.'
+                        : 'Enter your access code to link your pilot.',
+                    'info'
+                );
+            });
+        });
+    }
+
+    if (playerHubAuthForm instanceof HTMLFormElement) {
+        playerHubAuthForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const mode = playerProfile.mode === 'create' ? 'create' : 'signin';
+            const email = (playerHubEmailInput instanceof HTMLInputElement ? playerHubEmailInput.value : '').trim();
+            const password = (playerHubPasswordInput instanceof HTMLInputElement ? playerHubPasswordInput.value : '').trim();
+            let handle = (playerHubHandleInput instanceof HTMLInputElement ? playerHubHandleInput.value : '').trim();
+            if (!email) {
+                announcePlayerHubStatus('Enter a signal address to continue.', 'warning');
+                return;
+            }
+            if (!password) {
+                announcePlayerHubStatus('Enter your access code to continue.', 'warning');
+                return;
+            }
+            if (mode === 'create') {
+                if (!handle) {
+                    announcePlayerHubStatus('Choose a pilot handle to register.', 'warning');
+                    return;
+                }
+            } else if (!handle && playerProfile.handle) {
+                handle = playerProfile.handle;
+            }
+            const updates = {
+                email,
+                lastAuth: Date.now(),
+                mode
+            };
+            if (handle) {
+                updates.handle = handle;
+            }
+            updatePlayerProfile(updates, { persist: true });
+            if (mode === 'create' && handle && playerNameInput instanceof HTMLInputElement) {
+                playerNameInput.value = handle;
+                commitPlayerNameInput();
+            }
+            announcePlayerHubStatus('Access saved! Press Enter to launch.', 'success');
+        });
     }
 
     function createProgressionManager({ storageKey = STORAGE_KEYS.pilotProgress, onAnnounce } = {}) {
@@ -5039,18 +5290,36 @@ document.addEventListener('DOMContentLoaded', () => {
             preflightLoadoutSummary.hidden = !hasData;
             preflightLoadoutSummary.setAttribute('aria-hidden', hasData ? 'false' : 'true');
         }
+        if (playerHubLoadoutSummary) {
+            const hasData = Boolean(pilot || weapon);
+            playerHubLoadoutSummary.hidden = !hasData;
+            playerHubLoadoutSummary.setAttribute('aria-hidden', hasData ? 'false' : 'true');
+        }
         if (preflightPilotName) {
             preflightPilotName.textContent = pilot?.name ?? 'Nova';
         }
+        if (playerHubPilotName) {
+            playerHubPilotName.textContent = pilot?.name ?? 'Nova';
+        }
         if (preflightPilotRole) {
             preflightPilotRole.textContent = pilot?.role ?? '';
+        }
+        if (playerHubPilotRole) {
+            playerHubPilotRole.textContent = pilot?.role ?? '';
         }
         if (preflightPilotImage) {
             preflightPilotImage.src = pilot?.image ?? 'assets/player.png';
             preflightPilotImage.alt = pilot?.name ? `${pilot.name} portrait` : 'Active pilot portrait';
         }
+        if (playerHubPilotImage) {
+            playerHubPilotImage.src = pilot?.image ?? 'assets/player.png';
+            playerHubPilotImage.alt = pilot?.name ? `${pilot.name} portrait` : 'Active pilot portrait';
+        }
         if (preflightWeaponName) {
             preflightWeaponName.textContent = weapon?.name ?? 'Pulse Array';
+        }
+        if (playerHubWeaponName) {
+            playerHubWeaponName.textContent = weapon?.name ?? 'Pulse Array';
         }
         if (preflightWeaponHighlight) {
             const highlight = Array.isArray(weapon?.highlights) && weapon.highlights.length
@@ -5058,9 +5327,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 : weapon?.summary ?? '';
             preflightWeaponHighlight.textContent = highlight;
         }
+        if (playerHubWeaponHighlight) {
+            const highlight = Array.isArray(weapon?.highlights) && weapon.highlights.length
+                ? weapon.highlights[0]
+                : weapon?.summary ?? '';
+            playerHubWeaponHighlight.textContent = highlight;
+        }
         if (preflightWeaponImage) {
             preflightWeaponImage.src = weapon?.icon ?? 'assets/weapon-pulse.svg';
             preflightWeaponImage.alt = weapon?.name ? `${weapon.name} schematic` : 'Active weapon schematic';
+        }
+        if (playerHubWeaponImage) {
+            playerHubWeaponImage.src = weapon?.icon ?? 'assets/weapon-pulse.svg';
+            playerHubWeaponImage.alt = weapon?.name ? `${weapon.name} schematic` : 'Active weapon schematic';
         }
     }
 
