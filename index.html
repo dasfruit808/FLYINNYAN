@@ -360,14 +360,16 @@
         </div>
         <div
             id="infoModal"
-            class="info-modal"
+            class="modal-shell info-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="infoModalTitle"
+            aria-hidden="true"
             hidden
             tabindex="-1"
         >
-            <div class="info-modal-content" role="document">
+            <div class="modal-backdrop info-modal-backdrop" data-modal-dismiss="backdrop" aria-hidden="true"></div>
+            <div class="modal-content info-modal-content" role="document">
                 <div class="info-modal-header">
                     <h2 id="infoModalTitle"></h2>
                     <button type="button" id="infoModalClose" class="info-modal-close" aria-label="Close panel">
@@ -577,10 +579,14 @@
             </div>
         </div>
     </div>
-    <div id="characterSelectModal" hidden aria-hidden="true">
-        <div class="character-select-backdrop" aria-hidden="true"></div>
+    <div id="characterSelectModal" class="modal-shell character-select-modal" hidden aria-hidden="true">
         <div
-            class="character-select-content"
+            class="modal-backdrop character-select-backdrop"
+            data-modal-dismiss="backdrop"
+            aria-hidden="true"
+        ></div>
+        <div
+            class="modal-content character-select-content"
             role="dialog"
             aria-modal="true"
             aria-labelledby="characterSelectTitle"
@@ -602,10 +608,14 @@
             </div>
         </div>
     </div>
-    <div id="weaponSelectModal" hidden aria-hidden="true">
-        <div class="character-select-backdrop" aria-hidden="true"></div>
+    <div id="weaponSelectModal" class="modal-shell weapon-select-modal" hidden aria-hidden="true">
         <div
-            class="character-select-content"
+            class="modal-backdrop character-select-backdrop"
+            data-modal-dismiss="backdrop"
+            aria-hidden="true"
+        ></div>
+        <div
+            class="modal-content character-select-content"
             role="dialog"
             aria-modal="true"
             aria-labelledby="weaponSelectTitle"
@@ -624,10 +634,15 @@
             </div>
         </div>
     </div>
-    <div id="loadoutEditorModal" hidden aria-hidden="true">
-        <div class="loadout-editor-backdrop" data-loadout-editor-dismiss="backdrop" aria-hidden="true"></div>
+    <div id="loadoutEditorModal" class="modal-shell loadout-editor-modal" hidden aria-hidden="true">
         <div
-            class="loadout-editor-content"
+            class="modal-backdrop loadout-editor-backdrop"
+            data-loadout-editor-dismiss="backdrop"
+            data-modal-dismiss="backdrop"
+            aria-hidden="true"
+        ></div>
+        <div
+            class="modal-content loadout-editor-content"
             role="dialog"
             aria-modal="true"
             aria-labelledby="loadoutEditorTitle"

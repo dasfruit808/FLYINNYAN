@@ -2344,10 +2344,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingStatus = document.getElementById('loadingStatus');
     const loadingImageEl = document.getElementById('loadingImage');
     const modalFocusMemory = new WeakMap();
+    const modalFocusTrapHandlers = new WeakMap();
     const loadingSequenceTimers = new Set();
 
     function isModalOpen(modal) {
         return Boolean(modal && !modal.hidden && modal.getAttribute('aria-hidden') !== 'true');
+    }
+
+    function getModalFocusableElements(container) {
+        if (!container) {
+            return [];
+        }
+        const nodes = container.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        return Array.from(nodes).filter(
+            (node) =>
+                node instanceof HTMLElement &&
+                !node.hasAttribute('disabled') &&
+                node.getAttribute('aria-hidden') !== 'true'
+        );
     }
 
     function focusElement(element) {
@@ -2389,6 +2405,11 @@ document.addEventListener('DOMContentLoaded', () => {
         modalFocusMemory.set(modal, previousFocus);
         modal.hidden = false;
         modal.setAttribute('aria-hidden', 'false');
+        const existingTrap = modalFocusTrapHandlers.get(modal);
+        if (existingTrap) {
+            modal.removeEventListener('keydown', existingTrap);
+            modalFocusTrapHandlers.delete(modal);
+        }
         if (bodyClass && bodyElement) {
             bodyElement.classList.add(bodyClass);
         }
@@ -2400,6 +2421,32 @@ document.addEventListener('DOMContentLoaded', () => {
                   modal.querySelector('[autofocus]') ??
                   modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
         focusElement(resolvedInitialFocus instanceof HTMLElement ? resolvedInitialFocus : modal);
+
+        const trapHandler = (event) => {
+            if (event.key !== 'Tab') {
+                return;
+            }
+            const focusable = getModalFocusableElements(modal);
+            if (!focusable.length) {
+                event.preventDefault();
+                focusElement(modal);
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const activeElement = document.activeElement;
+            if (event.shiftKey) {
+                if (!modal.contains(activeElement) || activeElement === first) {
+                    event.preventDefault();
+                    focusElement(last);
+                }
+            } else if (!modal.contains(activeElement) || activeElement === last) {
+                event.preventDefault();
+                focusElement(first);
+            }
+        };
+        modal.addEventListener('keydown', trapHandler);
+        modalFocusTrapHandlers.set(modal, trapHandler);
     }
 
     function closeModal(modal, { bodyClass, restoreFocus = true } = {}) {
@@ -2410,6 +2457,11 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.setAttribute('aria-hidden', 'true');
         if (bodyClass && bodyElement) {
             bodyElement.classList.remove(bodyClass);
+        }
+        const trapHandler = modalFocusTrapHandlers.get(modal);
+        if (trapHandler) {
+            modal.removeEventListener('keydown', trapHandler);
+            modalFocusTrapHandlers.delete(modal);
         }
         const previousFocus = modalFocusMemory.get(modal);
         modalFocusMemory.delete(modal);
@@ -3454,6 +3506,7 @@ document.addEventListener('DOMContentLoaded', () => {
         detachActiveInstructionPanel();
         activeInstructionPanelId = null;
         infoModal.setAttribute('hidden', '');
+        infoModal.setAttribute('aria-hidden', 'true');
         infoModal.removeAttribute('data-active-panel');
         instructionsEl?.removeAttribute('data-active-panel');
         bodyElement.classList.remove('info-modal-open');
@@ -3483,6 +3536,7 @@ document.addEventListener('DOMContentLoaded', () => {
         infoModalBody.scrollTop = 0;
         activeInstructionPanelId = panelId;
         infoModal.removeAttribute('hidden');
+        infoModal.setAttribute('aria-hidden', 'false');
         infoModal.setAttribute('data-active-panel', panelId);
         instructionsEl?.setAttribute('data-active-panel', panelId);
         bodyElement.classList.add('info-modal-open');
@@ -3522,7 +3576,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         infoModal.addEventListener('click', (event) => {
-            if (event.target === infoModal) {
+            const target = event.target;
+            if (
+                target === infoModal ||
+                (target instanceof HTMLElement && target.dataset.modalDismiss === 'backdrop')
+            ) {
                 closeInstructionModal();
             }
         });
