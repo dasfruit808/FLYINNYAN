@@ -16,6 +16,20 @@
     --xp-panel-mid: #dfeafc;
     --xp-panel-border-dark: #204b9b;
     --xp-panel-border-light: #9bc9ff;
+    --modal-backdrop: radial-gradient(circle at top, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.94));
+    --modal-backdrop-fallback: rgba(2, 6, 23, 0.94);
+    --modal-backdrop-blur: blur(10px);
+    --modal-surface: linear-gradient(155deg, rgba(8, 15, 35, 0.95), rgba(2, 6, 23, 0.92));
+    --modal-surface-border: rgba(56, 189, 248, 0.22);
+    --modal-shadow: 0 32px 64px rgba(2, 6, 23, 0.65), inset 0 0 0 1px rgba(56, 189, 248, 0.22);
+    --modal-radius: 28px;
+    --modal-text-color: rgba(226, 232, 240, 0.96);
+    --modal-padding: clamp(24px, 5vw, 48px);
+    --modal-content-padding: clamp(24px, 4vw, 48px);
+    --modal-content-gap: clamp(16px, 3vw, 28px);
+    --modal-content-width: 960px;
+    --modal-max-height: min(90vh, 720px);
+    --modal-border-width: 0px;
 }
 
 @font-face {
@@ -29,6 +43,30 @@
     user-select: none;
     -webkit-user-select: none;
     -ms-user-select: none;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+    font: inherit;
+    color: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+}
+
+input,
+textarea {
+    user-select: text;
+    -webkit-user-select: text;
+    -ms-user-select: text;
 }
 
 html {
@@ -114,6 +152,57 @@ body.touch-enabled .desktop-only {
 
 body.touch-enabled .touch-only {
     display: inline;
+}
+
+.modal-shell {
+    position: fixed;
+    inset: 0;
+    z-index: var(--modal-z-index, 120);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--modal-padding, clamp(24px, 5vw, 48px));
+    pointer-events: none;
+}
+
+.modal-shell[hidden] {
+    display: none;
+}
+
+.modal-shell .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--modal-backdrop);
+    pointer-events: auto;
+    backdrop-filter: var(--modal-backdrop-blur);
+    -webkit-backdrop-filter: var(--modal-backdrop-blur);
+}
+
+@supports not (backdrop-filter: blur(0.5rem)) {
+    .modal-shell .modal-backdrop {
+        background: var(--modal-backdrop-fallback);
+    }
+}
+
+.modal-shell .modal-content {
+    position: relative;
+    width: min(var(--modal-content-width, 960px), 100%);
+    max-height: var(--modal-max-height, min(90vh, 720px));
+    background: var(--modal-surface);
+    border-radius: var(--modal-radius, 28px);
+    border: var(--modal-border-width, 0px) solid var(--modal-surface-border, rgba(56, 189, 248, 0.22));
+    box-shadow: var(--modal-shadow, 0 32px 64px rgba(2, 6, 23, 0.65));
+    color: var(--modal-text-color, rgba(226, 232, 240, 0.96));
+    display: flex;
+    flex-direction: column;
+    gap: var(--modal-content-gap, clamp(16px, 3vw, 28px));
+    padding: var(--modal-content-padding, clamp(24px, 4vw, 48px));
+    pointer-events: auto;
+    overflow: hidden;
+}
+
+.modal-shell .modal-content:focus {
+    outline: none;
 }
 
 button:focus-visible,
@@ -2641,51 +2730,20 @@ body.loadout-editor-open {
     overflow: hidden;
 }
 
-#characterSelectModal[hidden],
-#weaponSelectModal[hidden],
-#loadoutEditorModal[hidden] {
-    display: none;
+.character-select-modal,
+.weapon-select-modal,
+.loadout-editor-modal {
+    --modal-padding: clamp(24px, 5vw, 48px);
+    --modal-content-width: 960px;
+    --modal-content-padding: clamp(24px, 4vw, 48px);
+    --modal-content-gap: clamp(16px, 3vw, 28px);
 }
 
-#characterSelectModal,
-#weaponSelectModal,
-#loadoutEditorModal {
-    position: fixed;
-    inset: 0;
-    z-index: 120;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: clamp(24px, 5vw, 48px);
-}
-
-#characterSelectModal .character-select-backdrop,
-#weaponSelectModal .character-select-backdrop,
-#loadoutEditorModal .loadout-editor-backdrop {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at top, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.94));
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-}
-
-#characterSelectModal .character-select-content,
-#weaponSelectModal .character-select-content,
-#loadoutEditorModal .loadout-editor-content {
-    position: relative;
+.character-select-modal .modal-content,
+.weapon-select-modal .modal-content,
+.loadout-editor-modal .modal-content {
     width: min(960px, 92vw);
-    background: linear-gradient(155deg, rgba(8, 15, 35, 0.95), rgba(2, 6, 23, 0.92));
-    border-radius: 28px;
-    padding: clamp(24px, 4vw, 48px);
-    box-shadow:
-        0 32px 64px rgba(2, 6, 23, 0.65),
-        inset 0 0 0 1px rgba(56, 189, 248, 0.22);
-    color: rgba(226, 232, 240, 0.96);
-    display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: clamp(16px, 3vw, 28px);
-    max-height: min(90vh, 720px);
     overflow-y: auto;
     scrollbar-gutter: stable both-edges;
     overscroll-behavior: contain;
@@ -3598,9 +3656,9 @@ body.loadout-editor-open {
         padding: clamp(10px, 2.5vw, 14px) clamp(12px, 4vw, 18px);
     }
 
-    .info-modal-content {
-        width: min(94vw, 600px);
-        max-height: min(82vh, 720px);
+    .info-modal {
+        --modal-content-width: min(94vw, 600px);
+        --modal-max-height: min(82vh, 720px);
     }
 
     .info-modal-body {
@@ -4069,30 +4127,24 @@ body.loadout-editor-open {
 }
 
 .info-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 70;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: clamp(24px, 6vw, 64px);
-    background: radial-gradient(circle at top, rgba(15, 23, 42, 0.78), rgba(8, 16, 32, 0.86));
-    backdrop-filter: blur(6px);
+    --modal-z-index: 70;
+    --modal-padding: clamp(24px, 6vw, 64px);
+    --modal-backdrop: radial-gradient(circle at top, rgba(15, 23, 42, 0.78), rgba(8, 16, 32, 0.86));
+    --modal-backdrop-fallback: rgba(8, 16, 32, 0.86);
+    --modal-backdrop-blur: blur(6px);
+    --modal-surface: linear-gradient(165deg, rgba(15, 23, 42, 0.95), rgba(8, 16, 32, 0.88));
+    --modal-surface-border: rgba(148, 163, 184, 0.22);
+    --modal-shadow: 0 28px 56px rgba(2, 6, 23, 0.65), inset 0 0 0 1px rgba(94, 234, 212, 0.1);
+    --modal-radius: 20px;
+    --modal-content-width: 960px;
+    --modal-max-height: min(80vh, 880px);
+    --modal-text-color: rgba(226, 232, 240, 0.96);
+    --modal-border-width: 1px;
+    --modal-content-padding: 0;
+    --modal-content-gap: 0;
 }
 
-.info-modal[hidden] {
-    display: none;
-}
-
-.info-modal-content {
-    width: min(960px, 100%);
-    max-height: min(80vh, 880px);
-    background: linear-gradient(165deg, rgba(15, 23, 42, 0.95), rgba(8, 16, 32, 0.88));
-    border-radius: 20px;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    box-shadow: 0 28px 56px rgba(2, 6, 23, 0.65), inset 0 0 0 1px rgba(94, 234, 212, 0.1);
-    display: flex;
-    flex-direction: column;
+.info-modal .modal-content {
     overflow: hidden;
 }
 
