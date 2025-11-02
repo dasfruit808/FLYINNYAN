@@ -83,6 +83,7 @@ body {
 
 body.settings-open {
     overflow: hidden;
+    z-index: 0;
 }
 
 body.info-modal-open {
@@ -428,6 +429,17 @@ body.touch-enabled #settingsButton {
     z-index: 70;
 }
 
+#gameViewport {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: clamp(18px, 4vw, 32px);
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+}
+
 #gameShell {
     position: relative;
     display: flex;
@@ -441,6 +453,23 @@ body.touch-enabled #settingsButton {
     margin: 0;
     z-index: 0;
     min-height: 0;
+}
+
+@media (min-width: 960px) {
+    #gameViewport {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+
+    #gameShell {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    #stats {
+        flex: 0 0 clamp(260px, 24vw, 320px);
+        align-self: flex-start;
+    }
 }
 
 #playfield {
@@ -610,23 +639,64 @@ canvas {
 
 #stats {
     position: sticky;
-    top: 0;
+    top: var(--shell-padding);
     font-size: 15px;
-    line-height: 1.4;
+    line-height: 1.45;
     text-align: left;
     text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
-    padding: 18px 20px 16px;
-    border-radius: 18px;
-    background: linear-gradient(165deg, rgba(15, 23, 42, 0.88), rgba(8, 16, 32, 0.82));
+    padding: clamp(18px, 3vw, 26px);
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at 18% -10%, rgba(56, 189, 248, 0.18), transparent 55%),
+        linear-gradient(180deg, rgba(7, 16, 35, 0.92) 0%, rgba(12, 30, 68, 0.9) 45%, rgba(5, 13, 34, 0.94) 100%);
     box-shadow:
-        0 18px 38px rgba(2, 6, 23, 0.45),
-        inset 0 0 0 1px rgba(94, 234, 212, 0.08);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    backdrop-filter: blur(12px);
-    width: 100%;
+        0 22px 42px rgba(2, 6, 23, 0.6),
+        inset 0 0 0 1px rgba(94, 234, 212, 0.08),
+        inset 0 0 0 2px rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(148, 210, 255, 0.2);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    width: min(100%, 340px);
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: clamp(12px, 2vw, 18px);
+    overflow: hidden;
+}
+
+#stats::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.6), rgba(147, 197, 253, 0.12));
+    opacity: 0.35;
+    filter: blur(0.5px);
+    pointer-events: none;
+    z-index: -2;
+}
+
+#stats::after {
+    content: '';
+    position: absolute;
+    inset: 18px 18px auto;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0), rgba(56, 189, 248, 0.45), rgba(99, 102, 241, 0));
+    pointer-events: none;
+    z-index: -1;
+}
+
+#stats .card-title {
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(248, 250, 252, 0.92);
+    text-shadow:
+        0 0 10px rgba(59, 130, 246, 0.45),
+        0 0 18px rgba(14, 165, 233, 0.35);
+    margin: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(148, 210, 255, 0.24);
 }
 
 #stats .stat-row {
@@ -636,29 +706,42 @@ canvas {
 #stats .value {
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum' 1;
+    font-family: 'Flight Time', 'Consolas', 'Lucida Console', 'Courier New', monospace;
+    font-size: clamp(0.9rem, 2.2vw, 1.2rem);
+    color: #fcd34d;
+    letter-spacing: 0.06em;
+    text-shadow:
+        0 0 8px rgba(250, 204, 21, 0.55),
+        0 0 18px rgba(251, 191, 36, 0.35);
 }
 
 #stats .stat-list {
     display: grid;
-    gap: 10px;
+    gap: clamp(8px, 1.5vw, 14px);
     margin: 0;
-    padding: 0;
+    padding: 6px 0 0;
     list-style: none;
 }
 
 #stats .stat-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 16px;
-    color: rgba(226, 232, 240, 0.9);
+    padding: 4px 0;
+    color: rgba(224, 242, 254, 0.94);
+    font-size: clamp(0.76rem, 1.8vw, 0.9rem);
+}
+
+#stats .stat-row:not(:last-child) {
+    border-bottom: 1px solid rgba(22, 78, 99, 0.28);
 }
 
 #stats .stat-label {
-    font-size: 0.68rem;
+    font-size: clamp(0.58rem, 1.4vw, 0.7rem);
     text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: rgba(148, 163, 184, 0.85);
+    letter-spacing: 0.22em;
+    color: rgba(148, 197, 253, 0.75);
 }
 
 #survivalTimer {
@@ -855,7 +938,6 @@ body.touch-enabled #preflightPrompt .desktop-only {
 
 #stats span.value {
     font-weight: 700;
-    color: #ffd54f;
 }
 
 #stats #comboMeter {
