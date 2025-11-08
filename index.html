@@ -476,23 +476,40 @@
                         <span class="player-hub-title">Player's Hub</span>
                     </h1>
                     <p id="overlayMessage" class="player-hub-message">
-                        Welcome to the Player's Hub. Tune your pilot profile and squad before launch.
+                        Get ready for launch without leaving the hangar. Every account, loadout, and mission detail lives here.
                     </p>
-                    <p class="player-hub-subhead">
-                        Link your account, refine your callsign, and review custom loadouts or mission intel before entering the lane.
-                    </p>
+                    <ul class="player-hub-highlights" role="list">
+                        <li>
+                            <span class="player-hub-highlight-label">Account</span>
+                            Link credentials so flight data syncs instantly.
+                        </li>
+                        <li>
+                            <span class="player-hub-highlight-label">Loadout</span>
+                            Lock a callsign, pilot, and weapon before entering the lane.
+                        </li>
+                        <li>
+                            <span class="player-hub-highlight-label">Progress</span>
+                            Track your XP and recent runs at a glance.
+                        </li>
+                    </ul>
                 </div>
                 <div class="player-hub-header-aside" aria-label="Launch prep status">
-                    <div class="player-hub-badge" data-tone="online">Docked &amp; Stable</div>
-                    <ol class="player-hub-flow" role="list">
-                        <li class="player-hub-flow-step" data-step="1">Connect</li>
-                        <li class="player-hub-flow-step" data-step="2">Customize</li>
-                        <li class="player-hub-flow-step" data-step="3">Launch</li>
-                    </ol>
+                    <div class="player-hub-status-card" data-tone="online">
+                        <span class="player-hub-status-label">Hangar</span>
+                        <span class="player-hub-status-value">Docked &amp; Stable</span>
+                    </div>
+                    <div class="player-hub-status-card" aria-live="polite">
+                        <span class="player-hub-status-label">Pre-flight Checklist</span>
+                        <ol class="player-hub-flow" role="list">
+                            <li class="player-hub-flow-step" data-step="1">Connect</li>
+                            <li class="player-hub-flow-step" data-step="2">Customize</li>
+                            <li class="player-hub-flow-step" data-step="3">Launch</li>
+                        </ol>
+                    </div>
                 </div>
             </header>
             <div class="player-hub-layout">
-                <div class="player-hub-navigation" role="tablist" aria-label="Player hub sections">
+                <div class="player-hub-navigation" role="tablist" aria-label="Player hub sections" aria-orientation="vertical">
                     <button
                         type="button"
                         class="player-hub-tab active"
