@@ -491,156 +491,307 @@
                     </ol>
                 </div>
             </header>
-            <div class="player-hub-grid" role="list">
-                <section class="player-hub-card player-hub-account" role="listitem" aria-labelledby="playerHubAccountTitle">
-                    <div class="player-hub-card-header">
-                        <h2 id="playerHubAccountTitle">Account Access</h2>
-                        <p>Securely connect to sync unlocks, saved presets, and squad progress.</p>
-                    </div>
-                    <div class="player-hub-auth-toggle" role="group" aria-label="Account access mode">
-                        <button type="button" class="player-hub-auth-button active" data-auth-mode="signin" aria-pressed="true">Sign In</button>
-                        <button type="button" class="player-hub-auth-button" data-auth-mode="create" aria-pressed="false">Create Account</button>
-                    </div>
-                    <form id="playerHubAuthForm" class="player-hub-auth-form" autocomplete="off" novalidate data-auth-mode="signin">
-                        <div class="input-row">
-                            <label for="playerHubEmail">Signal Address</label>
-                            <input id="playerHubEmail" name="email" type="email" autocomplete="off" placeholder="pilot@fleet.command">
+            <div class="player-hub-layout">
+                <div class="player-hub-navigation" role="tablist" aria-label="Player hub sections">
+                    <button
+                        type="button"
+                        class="player-hub-tab active"
+                        id="playerHubTab-account"
+                        data-player-hub-tab="account"
+                        role="tab"
+                        aria-selected="true"
+                        tabindex="0"
+                        aria-controls="playerHubPanel-account"
+                    >
+                        Account
+                    </button>
+                    <button
+                        type="button"
+                        class="player-hub-tab"
+                        id="playerHubTab-loadout"
+                        data-player-hub-tab="loadout"
+                        role="tab"
+                        aria-selected="false"
+                        tabindex="-1"
+                        aria-controls="playerHubPanel-loadout"
+                    >
+                        Loadout
+                    </button>
+                    <button
+                        type="button"
+                        class="player-hub-tab"
+                        id="playerHubTab-progression"
+                        data-player-hub-tab="progression"
+                        role="tab"
+                        aria-selected="false"
+                        tabindex="-1"
+                        aria-controls="playerHubPanel-progression"
+                    >
+                        Progression
+                    </button>
+                    <button
+                        type="button"
+                        class="player-hub-tab"
+                        id="playerHubTab-presets"
+                        data-player-hub-tab="presets"
+                        role="tab"
+                        aria-selected="false"
+                        tabindex="-1"
+                        aria-controls="playerHubPanel-presets"
+                    >
+                        Presets
+                    </button>
+                    <button
+                        type="button"
+                        class="player-hub-tab"
+                        id="playerHubTab-debrief"
+                        data-player-hub-tab="debrief"
+                        role="tab"
+                        aria-selected="false"
+                        tabindex="-1"
+                        aria-controls="playerHubPanel-debrief"
+                    >
+                        Debrief
+                    </button>
+                </div>
+                <div class="player-hub-panels">
+                    <section
+                        class="player-hub-card player-hub-account player-hub-panel"
+                        id="playerHubPanel-account"
+                        data-player-hub-panel="account"
+                        role="tabpanel"
+                        aria-labelledby="playerHubTab-account"
+                    >
+                        <div class="player-hub-card-header">
+                            <h2 id="playerHubAccountTitle">Account Access</h2>
+                            <p>Securely connect to sync unlocks, saved presets, and squad progress.</p>
+                            <button
+                                type="button"
+                                class="player-hub-expand"
+                                data-player-hub-modal-open="account"
+                                aria-haspopup="dialog"
+                                aria-controls="playerHubModal-account"
+                            >
+                                View account modal
+                            </button>
                         </div>
-                        <div class="input-row">
-                            <label for="playerHubPassword">Access Code</label>
-                            <input id="playerHubPassword" name="password" type="password" autocomplete="off" placeholder="••••••••">
+                        <div class="player-hub-panel-summary">
+                            <p id="playerHubAccountSummaryMessage">Link an account to sync your progress.</p>
+                            <p id="playerHubAccountSummaryHandle" class="player-hub-summary-secondary">Handle: —</p>
                         </div>
-                        <div class="input-row player-hub-create-field" data-auth-create-field>
-                            <label for="playerHubHandle">Pilot Handle</label>
-                            <input id="playerHubHandle" name="handle" type="text" maxlength="24" autocomplete="off" placeholder="Star Seeker">
+                        <div class="player-hub-auth-toggle" role="group" aria-label="Account access mode">
+                            <button type="button" class="player-hub-auth-button active" data-auth-mode="signin" aria-pressed="true">Sign In</button>
+                            <button type="button" class="player-hub-auth-button" data-auth-mode="create" aria-pressed="false">Create Account</button>
                         </div>
-                        <button type="submit" class="player-hub-primary-action">Sign In</button>
-                    </form>
-                    <p id="playerHubAuthStatus" class="player-hub-status" role="status" aria-live="polite" hidden></p>
-                </section>
-                <section class="player-hub-card player-hub-character" role="listitem" aria-labelledby="playerHubCharacterTitle">
-                    <div class="player-hub-card-header">
-                        <h2 id="playerHubCharacterTitle">Callsign & Crew</h2>
-                        <p>Name your pilot and prime the active loadout before departure.</p>
-                    </div>
-                    <form id="callsignForm" class="player-hub-callsign" autocomplete="off" novalidate>
-                        <label for="playerNameInput">Pilot Callsign</label>
-                        <div class="input-row">
-                            <input id="playerNameInput" name="playerName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Ace Pilot" aria-describedby="callsignHint">
-                        </div>
-                        <p id="callsignHint">Confirm your callsign, then press Enter to launch.</p>
-                    </form>
-                    <div
-                        id="playerHubLoadoutSummary"
-                        class="player-hub-loadout-summary"
-                        aria-live="polite"
+                        <form id="playerHubAuthForm" class="player-hub-auth-form" autocomplete="off" novalidate data-auth-mode="signin">
+                            <div class="input-row">
+                                <label for="playerHubEmail">Signal Address</label>
+                                <input id="playerHubEmail" name="email" type="email" autocomplete="off" placeholder="pilot@fleet.command">
+                            </div>
+                            <div class="input-row">
+                                <label for="playerHubPassword">Access Code</label>
+                                <input id="playerHubPassword" name="password" type="password" autocomplete="off" placeholder="••••••••">
+                            </div>
+                            <div class="input-row player-hub-create-field" data-auth-create-field>
+                                <label for="playerHubHandle">Pilot Handle</label>
+                                <input id="playerHubHandle" name="handle" type="text" maxlength="24" autocomplete="off" placeholder="Star Seeker">
+                            </div>
+                            <button type="submit" class="player-hub-primary-action">Sign In</button>
+                        </form>
+                        <p id="playerHubAuthStatus" class="player-hub-status" role="status" aria-live="polite" hidden></p>
+                    </section>
+                    <section
+                        class="player-hub-card player-hub-character player-hub-panel"
+                        id="playerHubPanel-loadout"
+                        data-player-hub-panel="loadout"
+                        role="tabpanel"
+                        aria-labelledby="playerHubTab-loadout"
                         hidden
                         aria-hidden="true"
                     >
-                        <div class="player-hub-loadout-card" data-summary="pilot">
-                            <div class="player-hub-loadout-thumb">
-                                <img id="playerHubPilotImage" alt="Active pilot portrait" loading="lazy" decoding="async">
+                        <div class="player-hub-card-header">
+                            <h2 id="playerHubCharacterTitle">Callsign & Crew</h2>
+                            <p>Name your pilot and prime the active loadout before departure.</p>
+                            <button
+                                type="button"
+                                class="player-hub-expand"
+                                data-player-hub-modal-open="loadout"
+                                aria-haspopup="dialog"
+                                aria-controls="playerHubModal-loadout"
+                            >
+                                View loadout modal
+                            </button>
+                        </div>
+                        <form id="callsignForm" class="player-hub-callsign" autocomplete="off" novalidate>
+                            <label for="playerNameInput">Pilot Callsign</label>
+                            <div class="input-row">
+                                <input id="playerNameInput" name="playerName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Ace Pilot" aria-describedby="callsignHint">
                             </div>
-                            <div class="player-hub-loadout-info">
-                                <span class="player-hub-loadout-label">Pilot</span>
-                                <span class="player-hub-loadout-value" id="playerHubPilotName"></span>
-                                <span class="player-hub-loadout-meta" id="playerHubPilotRole"></span>
+                            <p id="callsignHint">Confirm your callsign, then press Enter to launch.</p>
+                        </form>
+                        <div
+                            id="playerHubLoadoutSummary"
+                            class="player-hub-loadout-summary"
+                            aria-live="polite"
+                            hidden
+                            aria-hidden="true"
+                        >
+                            <div class="player-hub-loadout-card" data-summary="pilot">
+                                <div class="player-hub-loadout-thumb">
+                                    <img id="playerHubPilotImage" alt="Active pilot portrait" loading="lazy" decoding="async">
+                                </div>
+                                <div class="player-hub-loadout-info">
+                                    <span class="player-hub-loadout-label">Pilot</span>
+                                    <span class="player-hub-loadout-value" id="playerHubPilotName"></span>
+                                    <span class="player-hub-loadout-meta" id="playerHubPilotRole"></span>
+                                </div>
+                            </div>
+                            <div class="player-hub-loadout-card" data-summary="weapon">
+                                <div class="player-hub-loadout-thumb">
+                                    <img id="playerHubWeaponImage" alt="Active weapon schematic" loading="lazy" decoding="async">
+                                </div>
+                                <div class="player-hub-loadout-info">
+                                    <span class="player-hub-loadout-label">Weapon</span>
+                                    <span class="player-hub-loadout-value" id="playerHubWeaponName"></span>
+                                    <span class="player-hub-loadout-meta" id="playerHubWeaponHighlight"></span>
+                                </div>
                             </div>
                         </div>
-                        <div class="player-hub-loadout-card" data-summary="weapon">
-                            <div class="player-hub-loadout-thumb">
-                                <img id="playerHubWeaponImage" alt="Active weapon schematic" loading="lazy" decoding="async">
+                        <div id="overlayActions" class="player-hub-launch">
+                            <div class="player-hub-launch-primary">
+                                <p class="player-hub-launch-note">Ready up once your callsign locks in and systems show green.</p>
+                                <div class="player-hub-launch-buttons">
+                                    <button id="overlayButton" type="button" disabled aria-disabled="true">Enter Hangar</button>
+                                    <button id="overlaySecondaryButton" type="button" class="secondary" hidden aria-disabled="true">Skip Submission</button>
+                                    <button
+                                        id="flyNowButton"
+                                        type="button"
+                                        data-launch-action="fly"
+                                        hidden
+                                        aria-hidden="true"
+                                        aria-disabled="true"
+                                    >
+                                        Launch Now
+                                    </button>
+                                </div>
                             </div>
-                            <div class="player-hub-loadout-info">
-                                <span class="player-hub-loadout-label">Weapon</span>
-                                <span class="player-hub-loadout-value" id="playerHubWeaponName"></span>
-                                <span class="player-hub-loadout-meta" id="playerHubWeaponHighlight"></span>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="overlayActions" class="player-hub-launch">
-                        <div class="player-hub-launch-primary">
-                            <p class="player-hub-launch-note">Ready up once your callsign locks in and systems show green.</p>
-                            <div class="player-hub-launch-buttons">
-                                <button id="overlayButton" type="button" disabled aria-disabled="true">Enter Hangar</button>
-                                <button id="overlaySecondaryButton" type="button" class="secondary" hidden aria-disabled="true">Skip Submission</button>
-                                <button
-                                    id="flyNowButton"
-                                    type="button"
-                                    data-launch-action="fly"
-                                    hidden
-                                    aria-hidden="true"
-                                    aria-disabled="true"
-                                >
-                                    Launch Now
-                                </button>
+                            <div class="player-hub-quick-actions">
+                                <button id="swapPilotButton" type="button" class="tertiary">Swap Pilot</button>
+                                <button id="swapWeaponButton" type="button" class="tertiary">Swap Weapon</button>
                             </div>
                         </div>
-                        <div class="player-hub-quick-actions">
-                            <button id="swapPilotButton" type="button" class="tertiary">Swap Pilot</button>
-                            <button id="swapWeaponButton" type="button" class="tertiary">Swap Weapon</button>
+                    </section>
+                    <section
+                        class="player-hub-card player-hub-stats player-hub-panel"
+                        id="playerHubPanel-progression"
+                        data-player-hub-panel="progression"
+                        role="tabpanel"
+                        aria-labelledby="playerHubTab-progression"
+                        hidden
+                        aria-hidden="true"
+                    >
+                        <div class="player-hub-card-header">
+                            <h2 id="playerHubStatsTitle">Progression</h2>
+                            <p>Review your mastery level and allocate upgrade points.</p>
+                            <button
+                                type="button"
+                                class="player-hub-expand"
+                                data-player-hub-modal-open="progression"
+                                aria-haspopup="dialog"
+                                aria-controls="playerHubModal-progression"
+                            >
+                                View progression modal
+                            </button>
                         </div>
-                    </div>
-                </section>
-                <section class="player-hub-card player-hub-stats" role="listitem" aria-labelledby="playerHubStatsTitle">
-                    <div class="player-hub-card-header">
-                        <h2 id="playerHubStatsTitle">Progression</h2>
-                        <p>Review your mastery level and allocate upgrade points.</p>
-                    </div>
-                    <div class="player-hub-level" aria-live="polite">
-                        <span class="player-hub-level-label">Level</span>
-                        <span class="player-hub-level-value" id="playerHubLevel">1</span>
-                        <span class="player-hub-level-points" id="playerHubLevelPoints">All systems tuned</span>
-                    </div>
-                    <div class="player-hub-xp-track" id="playerHubXpTrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                        <div class="player-hub-xp-fill" id="playerHubXpFill"></div>
-                    </div>
-                    <p class="player-hub-xp-label" id="playerHubXpLabel">0 / 0 XP</p>
-                    <ul class="player-hub-stat-list" role="list">
-                        <li class="player-hub-stat-row" role="listitem">
-                            <div class="player-hub-stat-copy">
-                                <span class="stat-name">Agility</span>
-                                <span class="stat-effect" id="playerHubStatAgilityEffect">Sharper thrusters and smoother rolls.</span>
-                            </div>
-                            <div class="player-hub-stat-controls">
-                                <span class="stat-value" id="playerHubStatAgilityValue">0</span>
-                                <button type="button" class="stat-allocate" data-stat-allocate="agility" aria-label="Spend a point on Agility">+</button>
-                            </div>
-                        </li>
-                        <li class="player-hub-stat-row" role="listitem">
-                            <div class="player-hub-stat-copy">
-                                <span class="stat-name">Strength</span>
-                                <span class="stat-effect" id="playerHubStatStrengthEffect">Amplifies weapon output and recharge cadence.</span>
-                            </div>
-                            <div class="player-hub-stat-controls">
-                                <span class="stat-value" id="playerHubStatStrengthValue">0</span>
-                                <button type="button" class="stat-allocate" data-stat-allocate="strength" aria-label="Spend a point on Strength">+</button>
-                            </div>
-                        </li>
-                        <li class="player-hub-stat-row" role="listitem">
-                            <div class="player-hub-stat-copy">
-                                <span class="stat-name">Luck</span>
-                                <span class="stat-effect" id="playerHubStatLuckEffect">Ups the odds of lucrative power-up drops.</span>
-                            </div>
-                            <div class="player-hub-stat-controls">
-                                <span class="stat-value" id="playerHubStatLuckValue">0</span>
-                                <button type="button" class="stat-allocate" data-stat-allocate="luck" aria-label="Spend a point on Luck">+</button>
-                            </div>
-                        </li>
-                    </ul>
-                </section>
-                <section id="pilotPreview" class="player-hub-card player-hub-loadouts" role="listitem" aria-live="polite">
-                    <div class="player-hub-card-header">
-                        <h2>Custom Loadouts</h2>
-                        <p id="pilotPreviewDescription">Equip one of your saved presets instantly before launch. Manage the presets in the Custom Loadouts panel below.</p>
-                    </div>
-                    <div id="pilotPreviewGrid" class="pilot-preview-grid" role="list"></div>
-                </section>
-                <section class="player-hub-card player-hub-debrief" role="listitem" aria-labelledby="playerHubDebriefTitle">
-                    <div class="player-hub-card-header">
-                        <h2 id="playerHubDebriefTitle" class="player-hub-debrief-title">Flight Debrief</h2>
-                        <p>Track recent runs, leaderboard standings, and broadcast options.</p>
-                    </div>
+                        <div class="player-hub-level" aria-live="polite">
+                            <span class="player-hub-level-label">Level</span>
+                            <span class="player-hub-level-value" id="playerHubLevel">1</span>
+                            <span class="player-hub-level-points" id="playerHubLevelPoints">All systems tuned</span>
+                        </div>
+                        <div class="player-hub-xp-track" id="playerHubXpTrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                            <div class="player-hub-xp-fill" id="playerHubXpFill"></div>
+                        </div>
+                        <p class="player-hub-xp-label" id="playerHubXpLabel">0 / 0 XP</p>
+                        <ul class="player-hub-stat-list" role="list">
+                            <li class="player-hub-stat-row" role="listitem">
+                                <div class="player-hub-stat-copy">
+                                    <span class="stat-name">Agility</span>
+                                    <span class="stat-effect" id="playerHubStatAgilityEffect">Sharper thrusters and smoother rolls.</span>
+                                </div>
+                                <div class="player-hub-stat-controls">
+                                    <span class="stat-value" id="playerHubStatAgilityValue">0</span>
+                                    <button type="button" class="stat-allocate" data-stat-allocate="agility" aria-label="Spend a point on Agility">+</button>
+                                </div>
+                            </li>
+                            <li class="player-hub-stat-row" role="listitem">
+                                <div class="player-hub-stat-copy">
+                                    <span class="stat-name">Strength</span>
+                                    <span class="stat-effect" id="playerHubStatStrengthEffect">Amplifies weapon output and recharge cadence.</span>
+                                </div>
+                                <div class="player-hub-stat-controls">
+                                    <span class="stat-value" id="playerHubStatStrengthValue">0</span>
+                                    <button type="button" class="stat-allocate" data-stat-allocate="strength" aria-label="Spend a point on Strength">+</button>
+                                </div>
+                            </li>
+                            <li class="player-hub-stat-row" role="listitem">
+                                <div class="player-hub-stat-copy">
+                                    <span class="stat-name">Luck</span>
+                                    <span class="stat-effect" id="playerHubStatLuckEffect">Ups the odds of lucrative power-up drops.</span>
+                                </div>
+                                <div class="player-hub-stat-controls">
+                                    <span class="stat-value" id="playerHubStatLuckValue">0</span>
+                                    <button type="button" class="stat-allocate" data-stat-allocate="luck" aria-label="Spend a point on Luck">+</button>
+                                </div>
+                            </li>
+                        </ul>
+                    </section>
+                    <section
+                        id="pilotPreview"
+                        class="player-hub-card player-hub-loadouts player-hub-panel"
+                        data-player-hub-panel="presets"
+                        role="tabpanel"
+                        aria-live="polite"
+                        aria-labelledby="playerHubTab-presets"
+                        hidden
+                        aria-hidden="true"
+                    >
+                        <div class="player-hub-card-header">
+                            <h2>Custom Loadouts</h2>
+                            <p id="pilotPreviewDescription">Equip one of your saved presets instantly before launch. Manage the presets in the Custom Loadouts panel below.</p>
+                            <button
+                                type="button"
+                                class="player-hub-expand"
+                                data-player-hub-modal-open="presets"
+                                aria-haspopup="dialog"
+                                aria-controls="playerHubModal-presets"
+                            >
+                                View presets modal
+                            </button>
+                        </div>
+                        <div id="pilotPreviewGrid" class="pilot-preview-grid" role="list"></div>
+                    </section>
+                    <section
+                        class="player-hub-card player-hub-debrief player-hub-panel"
+                        id="playerHubPanel-debrief"
+                        data-player-hub-panel="debrief"
+                        role="tabpanel"
+                        aria-labelledby="playerHubTab-debrief"
+                        hidden
+                        aria-hidden="true"
+                    >
+                        <div class="player-hub-card-header">
+                            <h2 id="playerHubDebriefTitle" class="player-hub-debrief-title">Flight Debrief</h2>
+                            <p>Track recent runs, leaderboard standings, and broadcast options.</p>
+                            <button
+                                type="button"
+                                class="player-hub-expand"
+                                data-player-hub-modal-open="debrief"
+                                aria-haspopup="dialog"
+                                aria-controls="playerHubModal-debrief"
+                            >
+                                View debrief modal
+                            </button>
+                        </div>
                 <article id="summaryCard" class="summary-card" aria-label="Flight summary">
                                     <header class="summary-card-header">
                                         <h2 class="summary-card-title">Flight Debrief</h2>
@@ -806,6 +957,259 @@
                                     </div>
                                 </article>
                 </section>
+            </div>
+        </div>
+    </div>
+    <div
+        id="playerHubModal-account"
+        class="modal-shell player-hub-modal"
+        data-player-hub-modal="account"
+        hidden
+        aria-hidden="true"
+    >
+        <div
+            class="modal-backdrop player-hub-modal-backdrop"
+            data-player-hub-modal-dismiss="account"
+            aria-hidden="true"
+        ></div>
+        <div
+            class="modal-content player-hub-modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="playerHubModalAccountTitle"
+        >
+            <header class="player-hub-modal-header">
+                <h2 id="playerHubModalAccountTitle">Account Status</h2>
+                <button
+                    type="button"
+                    class="player-hub-modal-close"
+                    data-player-hub-modal-dismiss="account"
+                    aria-label="Close account modal"
+                >
+                    ✕
+                </button>
+            </header>
+            <div class="player-hub-modal-body">
+                <p id="playerHubModalAccountStatus" class="player-hub-modal-status" aria-live="polite">
+                    Link an account to sync your progress.
+                </p>
+                <dl class="player-hub-modal-list">
+                    <div class="player-hub-modal-row">
+                        <dt>Handle</dt>
+                        <dd id="playerHubModalAccountHandle">—</dd>
+                    </div>
+                    <div class="player-hub-modal-row">
+                        <dt>Signal address</dt>
+                        <dd id="playerHubModalAccountEmail">—</dd>
+                    </div>
+                </dl>
+                <p class="player-hub-modal-footnote">
+                    Use the Account tab to sign in or create a new callsign before heading to the hangar.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div
+        id="playerHubModal-loadout"
+        class="modal-shell player-hub-modal"
+        data-player-hub-modal="loadout"
+        hidden
+        aria-hidden="true"
+    >
+        <div
+            class="modal-backdrop player-hub-modal-backdrop"
+            data-player-hub-modal-dismiss="loadout"
+            aria-hidden="true"
+        ></div>
+        <div
+            class="modal-content player-hub-modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="playerHubModalLoadoutTitle"
+        >
+            <header class="player-hub-modal-header">
+                <h2 id="playerHubModalLoadoutTitle">Active Loadout</h2>
+                <button
+                    type="button"
+                    class="player-hub-modal-close"
+                    data-player-hub-modal-dismiss="loadout"
+                    aria-label="Close loadout modal"
+                >
+                    ✕
+                </button>
+            </header>
+            <div class="player-hub-modal-body">
+                <div class="player-hub-modal-summary-grid">
+                    <div class="player-hub-modal-summary-card">
+                        <span class="player-hub-modal-summary-label">Pilot</span>
+                        <span class="player-hub-modal-summary-value" id="playerHubModalPilotName">—</span>
+                        <span class="player-hub-modal-summary-meta" id="playerHubModalPilotRole"></span>
+                    </div>
+                    <div class="player-hub-modal-summary-card">
+                        <span class="player-hub-modal-summary-label">Weapon</span>
+                        <span class="player-hub-modal-summary-value" id="playerHubModalWeaponName">—</span>
+                        <span class="player-hub-modal-summary-meta" id="playerHubModalWeaponHighlight"></span>
+                    </div>
+                </div>
+                <p class="player-hub-modal-footnote">
+                    Adjust your callsign or swap pilots and weapons from the Loadout tab.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div
+        id="playerHubModal-progression"
+        class="modal-shell player-hub-modal"
+        data-player-hub-modal="progression"
+        hidden
+        aria-hidden="true"
+    >
+        <div
+            class="modal-backdrop player-hub-modal-backdrop"
+            data-player-hub-modal-dismiss="progression"
+            aria-hidden="true"
+        ></div>
+        <div
+            class="modal-content player-hub-modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="playerHubModalProgressionTitle"
+        >
+            <header class="player-hub-modal-header">
+                <h2 id="playerHubModalProgressionTitle">Progress Overview</h2>
+                <button
+                    type="button"
+                    class="player-hub-modal-close"
+                    data-player-hub-modal-dismiss="progression"
+                    aria-label="Close progression modal"
+                >
+                    ✕
+                </button>
+            </header>
+            <div class="player-hub-modal-body">
+                <div class="player-hub-modal-level" aria-live="polite">
+                    <span class="player-hub-modal-level-label">Level</span>
+                    <span class="player-hub-modal-level-value" id="playerHubModalLevel">1</span>
+                    <span class="player-hub-modal-level-points" id="playerHubModalLevelPoints">All systems tuned</span>
+                </div>
+                <div
+                    class="player-hub-modal-xp-track"
+                    id="playerHubModalXpTrack"
+                    role="progressbar"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow="0"
+                >
+                    <div class="player-hub-modal-xp-fill" id="playerHubModalXpFill"></div>
+                </div>
+                <p class="player-hub-modal-xp-label" id="playerHubModalXpLabel">0 / 0 XP</p>
+                <ul class="player-hub-modal-stat-list" role="list">
+                    <li class="player-hub-modal-stat-row" role="listitem">
+                        <span class="player-hub-modal-stat-name">Agility</span>
+                        <span class="player-hub-modal-stat-value" id="playerHubModalStatAgilityValue">0</span>
+                        <span class="player-hub-modal-stat-effect" id="playerHubModalStatAgilityEffect"></span>
+                    </li>
+                    <li class="player-hub-modal-stat-row" role="listitem">
+                        <span class="player-hub-modal-stat-name">Strength</span>
+                        <span class="player-hub-modal-stat-value" id="playerHubModalStatStrengthValue">0</span>
+                        <span class="player-hub-modal-stat-effect" id="playerHubModalStatStrengthEffect"></span>
+                    </li>
+                    <li class="player-hub-modal-stat-row" role="listitem">
+                        <span class="player-hub-modal-stat-name">Luck</span>
+                        <span class="player-hub-modal-stat-value" id="playerHubModalStatLuckValue">0</span>
+                        <span class="player-hub-modal-stat-effect" id="playerHubModalStatLuckEffect"></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div
+        id="playerHubModal-presets"
+        class="modal-shell player-hub-modal"
+        data-player-hub-modal="presets"
+        hidden
+        aria-hidden="true"
+    >
+        <div
+            class="modal-backdrop player-hub-modal-backdrop"
+            data-player-hub-modal-dismiss="presets"
+            aria-hidden="true"
+        ></div>
+        <div
+            class="modal-content player-hub-modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="playerHubModalPresetsTitle"
+        >
+            <header class="player-hub-modal-header">
+                <h2 id="playerHubModalPresetsTitle">Preset Status</h2>
+                <button
+                    type="button"
+                    class="player-hub-modal-close"
+                    data-player-hub-modal-dismiss="presets"
+                    aria-label="Close presets modal"
+                >
+                    ✕
+                </button>
+            </header>
+            <div class="player-hub-modal-body">
+                <p id="playerHubModalPresetSummary">
+                    No custom presets saved yet. Build a favorite crew in the Presets tab to quick-launch before missions.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div
+        id="playerHubModal-debrief"
+        class="modal-shell player-hub-modal"
+        data-player-hub-modal="debrief"
+        hidden
+        aria-hidden="true"
+    >
+        <div
+            class="modal-backdrop player-hub-modal-backdrop"
+            data-player-hub-modal-dismiss="debrief"
+            aria-hidden="true"
+        ></div>
+        <div
+            class="modal-content player-hub-modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="playerHubModalDebriefTitle"
+        >
+            <header class="player-hub-modal-header">
+                <h2 id="playerHubModalDebriefTitle">Run Snapshot</h2>
+                <button
+                    type="button"
+                    class="player-hub-modal-close"
+                    data-player-hub-modal-dismiss="debrief"
+                    aria-label="Close debrief modal"
+                >
+                    ✕
+                </button>
+            </header>
+            <div class="player-hub-modal-body">
+                <p id="playerHubModalRunStatus" class="player-hub-modal-status" aria-live="polite"></p>
+                <dl class="player-hub-modal-list">
+                    <div class="player-hub-modal-row">
+                        <dt>Flight time</dt>
+                        <dd id="playerHubModalRunTime">—</dd>
+                    </div>
+                    <div class="player-hub-modal-row">
+                        <dt>Score</dt>
+                        <dd id="playerHubModalRunScore">—</dd>
+                    </div>
+                    <div class="player-hub-modal-row">
+                        <dt>Best tail</dt>
+                        <dd id="playerHubModalRunStreak">—</dd>
+                    </div>
+                    <div class="player-hub-modal-row">
+                        <dt>Pickups</dt>
+                        <dd id="playerHubModalRunNyan">—</dd>
+                    </div>
+                </dl>
+                <p id="playerHubModalRunPlacement" class="player-hub-modal-footnote"></p>
+                <p id="playerHubModalRunRuns" class="player-hub-modal-footnote"></p>
             </div>
         </div>
     </div>

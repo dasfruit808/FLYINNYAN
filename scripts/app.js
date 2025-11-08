@@ -2603,6 +2603,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const playerHubWeaponImage = document.getElementById('playerHubWeaponImage');
     const playerHubWeaponName = document.getElementById('playerHubWeaponName');
     const playerHubWeaponHighlight = document.getElementById('playerHubWeaponHighlight');
+    const playerHubAccountSummaryMessage = document.getElementById('playerHubAccountSummaryMessage');
+    const playerHubAccountSummaryHandle = document.getElementById('playerHubAccountSummaryHandle');
+    const playerHubModalAccountStatus = document.getElementById('playerHubModalAccountStatus');
+    const playerHubModalAccountHandle = document.getElementById('playerHubModalAccountHandle');
+    const playerHubModalAccountEmail = document.getElementById('playerHubModalAccountEmail');
+    const playerHubModalPilotName = document.getElementById('playerHubModalPilotName');
+    const playerHubModalPilotRole = document.getElementById('playerHubModalPilotRole');
+    const playerHubModalWeaponName = document.getElementById('playerHubModalWeaponName');
+    const playerHubModalWeaponHighlight = document.getElementById('playerHubModalWeaponHighlight');
+    const playerHubModalLevelEl = document.getElementById('playerHubModalLevel');
+    const playerHubModalLevelPointsEl = document.getElementById('playerHubModalLevelPoints');
+    const playerHubModalXpTrack = document.getElementById('playerHubModalXpTrack');
+    const playerHubModalXpFill = document.getElementById('playerHubModalXpFill');
+    const playerHubModalXpLabel = document.getElementById('playerHubModalXpLabel');
+    const playerHubModalStatAgilityValue = document.getElementById('playerHubModalStatAgilityValue');
+    const playerHubModalStatStrengthValue = document.getElementById('playerHubModalStatStrengthValue');
+    const playerHubModalStatLuckValue = document.getElementById('playerHubModalStatLuckValue');
+    const playerHubModalStatAgilityEffect = document.getElementById('playerHubModalStatAgilityEffect');
+    const playerHubModalStatStrengthEffect = document.getElementById('playerHubModalStatStrengthEffect');
+    const playerHubModalStatLuckEffect = document.getElementById('playerHubModalStatLuckEffect');
+    const playerHubModalRunStatus = document.getElementById('playerHubModalRunStatus');
+    const playerHubModalRunTime = document.getElementById('playerHubModalRunTime');
+    const playerHubModalRunScore = document.getElementById('playerHubModalRunScore');
+    const playerHubModalRunStreak = document.getElementById('playerHubModalRunStreak');
+    const playerHubModalRunNyan = document.getElementById('playerHubModalRunNyan');
+    const playerHubModalRunPlacement = document.getElementById('playerHubModalRunPlacement');
+    const playerHubModalRunRuns = document.getElementById('playerHubModalRunRuns');
+    const playerHubModalPresetSummary = document.getElementById('playerHubModalPresetSummary');
     const playerHubLevelEl = document.getElementById('playerHubLevel');
     const playerHubLevelPointsEl = document.getElementById('playerHubLevelPoints');
     const playerHubXpTrackEl = document.getElementById('playerHubXpTrack');
@@ -2640,6 +2668,269 @@ document.addEventListener('DOMContentLoaded', () => {
         weaponSelectModal?.querySelector('[data-weapon-grid]') ??
         weaponSelectModal?.querySelector('.character-grid') ??
         null;
+    const playerHubTabButtons = Array.from(
+        document.querySelectorAll('[data-player-hub-tab]')
+    ).filter((button) => button instanceof HTMLElement);
+    const playerHubPanels = new Map();
+    document.querySelectorAll('[data-player-hub-panel]').forEach((panel) => {
+        if (!(panel instanceof HTMLElement)) {
+            return;
+        }
+        const key = panel.dataset.playerHubPanel;
+        if (key) {
+            playerHubPanels.set(key, panel);
+        }
+    });
+    let activePlayerHubTab = null;
+
+    function activatePlayerHubTab(tabId, options = {}) {
+        const normalizedId = typeof tabId === 'string' && tabId ? tabId : null;
+        if (!normalizedId) {
+            return;
+        }
+        activePlayerHubTab = normalizedId;
+        for (const button of playerHubTabButtons) {
+            if (!(button instanceof HTMLElement)) {
+                continue;
+            }
+            const isActive = button.dataset.playerHubTab === normalizedId;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            button.setAttribute('tabindex', isActive ? '0' : '-1');
+            if (isActive && options.focusTab) {
+                button.focus();
+            }
+        }
+        for (const [panelId, panel] of playerHubPanels.entries()) {
+            if (!(panel instanceof HTMLElement)) {
+                continue;
+            }
+            const visible = panelId === normalizedId;
+            panel.hidden = !visible;
+            panel.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        }
+    }
+
+    function focusPlayerHubTabByIndex(index) {
+        if (!playerHubTabButtons.length) {
+            return;
+        }
+        const normalizedIndex = ((index % playerHubTabButtons.length) + playerHubTabButtons.length) % playerHubTabButtons.length;
+        const targetButton = playerHubTabButtons[normalizedIndex];
+        if (!(targetButton instanceof HTMLElement)) {
+            return;
+        }
+        const tabId = targetButton.dataset.playerHubTab;
+        if (tabId) {
+            activatePlayerHubTab(tabId, { focusTab: true });
+        }
+    }
+
+    function handlePlayerHubTabKeydown(event) {
+        const target = event.currentTarget;
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+        const currentIndex = playerHubTabButtons.indexOf(target);
+        if (currentIndex < 0) {
+            return;
+        }
+        switch (event.key) {
+            case 'ArrowRight':
+                event.preventDefault();
+                focusPlayerHubTabByIndex(currentIndex + 1);
+                break;
+            case 'ArrowLeft':
+                event.preventDefault();
+                focusPlayerHubTabByIndex(currentIndex - 1);
+                break;
+            case 'Home':
+                event.preventDefault();
+                focusPlayerHubTabByIndex(0);
+                break;
+            case 'End':
+                event.preventDefault();
+                focusPlayerHubTabByIndex(playerHubTabButtons.length - 1);
+                break;
+            default:
+                break;
+        }
+    }
+
+    playerHubTabButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const tabId = button.dataset.playerHubTab;
+            if (tabId) {
+                activatePlayerHubTab(tabId);
+            }
+        });
+        button.addEventListener('keydown', handlePlayerHubTabKeydown);
+    });
+
+    if (playerHubTabButtons.length) {
+        const initialTabId = playerHubTabButtons[0]?.dataset.playerHubTab;
+        if (initialTabId) {
+            activatePlayerHubTab(initialTabId);
+        }
+    }
+
+    const playerHubModalShells = new Map();
+    document.querySelectorAll('[data-player-hub-modal]').forEach((modal) => {
+        if (!(modal instanceof HTMLElement)) {
+            return;
+        }
+        const modalId = modal.dataset.playerHubModal;
+        if (modalId) {
+            playerHubModalShells.set(modalId, modal);
+            modal.hidden = true;
+            modal.setAttribute('aria-hidden', 'true');
+        }
+    });
+
+    const playerHubModalState = {
+        active: null,
+        trigger: null
+    };
+    const playerHubModalFocusTraps = new Map();
+    const playerHubModalFocusFallbacks = new Map();
+
+    function getPlayerHubFocusableElements(container) {
+        if (!(container instanceof HTMLElement)) {
+            return [];
+        }
+        const selectors = [
+            'button:not([disabled])',
+            '[href]',
+            'input:not([disabled])',
+            'select:not([disabled])',
+            'textarea:not([disabled])',
+            '[tabindex]:not([tabindex="-1"])'
+        ];
+        return Array.from(container.querySelectorAll(selectors.join(','))).filter((el) =>
+            el instanceof HTMLElement && el.offsetParent !== null
+        );
+    }
+
+    function openPlayerHubModal(modalId, trigger) {
+        const modal = playerHubModalShells.get(modalId ?? '');
+        if (!(modal instanceof HTMLElement)) {
+            return;
+        }
+        if (playerHubModalState.active && playerHubModalState.active !== modalId) {
+            closePlayerHubModal(playerHubModalState.active);
+        }
+        playerHubModalState.active = modalId ?? null;
+        playerHubModalState.trigger = trigger instanceof HTMLElement ? trigger : null;
+        if (playerHubModalState.trigger) {
+            playerHubModalState.trigger.setAttribute('aria-expanded', 'true');
+        }
+        const existingTrap = playerHubModalFocusTraps.get(modalId ?? '');
+        if (existingTrap) {
+            modal.removeEventListener('keydown', existingTrap);
+            playerHubModalFocusTraps.delete(modalId ?? '');
+        }
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('player-hub-modal-open');
+        const focusTargets = getPlayerHubFocusableElements(modal);
+        const fallbackTarget = focusTargets.length
+            ? focusTargets[0]
+            : modal.querySelector('.modal-content');
+        if (focusTargets.length) {
+            focusElement(focusTargets[0]);
+        } else if (fallbackTarget instanceof HTMLElement) {
+            focusElement(fallbackTarget);
+        }
+        playerHubModalFocusFallbacks.set(
+            modalId ?? '',
+            fallbackTarget instanceof HTMLElement ? fallbackTarget : null
+        );
+        const trapHandler = (event) => {
+            if (event.key !== 'Tab') {
+                return;
+            }
+            const focusable = getPlayerHubFocusableElements(modal);
+            if (!focusable.length) {
+                const fallback = playerHubModalFocusFallbacks.get(modalId ?? '');
+                if (fallback instanceof HTMLElement) {
+                    event.preventDefault();
+                    focusElement(fallback);
+                }
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement;
+            if (event.shiftKey) {
+                if (!modal.contains(active) || active === first) {
+                    event.preventDefault();
+                    focusElement(last);
+                }
+            } else if (!modal.contains(active) || active === last) {
+                event.preventDefault();
+                focusElement(first);
+            }
+        };
+        modal.addEventListener('keydown', trapHandler);
+        playerHubModalFocusTraps.set(modalId ?? '', trapHandler);
+    }
+
+    function closePlayerHubModal(modalId) {
+        const targetId = modalId ?? playerHubModalState.active;
+        const modal = playerHubModalShells.get(targetId ?? '');
+        if (!(modal instanceof HTMLElement)) {
+            return;
+        }
+        const trapHandler = playerHubModalFocusTraps.get(targetId ?? '');
+        if (trapHandler) {
+            modal.removeEventListener('keydown', trapHandler);
+            playerHubModalFocusTraps.delete(targetId ?? '');
+        }
+        playerHubModalFocusFallbacks.delete(targetId ?? '');
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+        if (playerHubModalState.active === targetId) {
+            document.body.classList.remove('player-hub-modal-open');
+            const trigger = playerHubModalState.trigger;
+            playerHubModalState.active = null;
+            playerHubModalState.trigger = null;
+            if (trigger instanceof HTMLElement) {
+                trigger.setAttribute('aria-expanded', 'false');
+                trigger.focus({ preventScroll: true });
+            }
+        }
+    }
+
+    document.querySelectorAll('[data-player-hub-modal-open]').forEach((button) => {
+        if (!(button instanceof HTMLElement)) {
+            return;
+        }
+        if (!button.hasAttribute('aria-expanded')) {
+            button.setAttribute('aria-expanded', 'false');
+        }
+        button.addEventListener('click', () => {
+            const modalId = button.dataset.playerHubModalOpen;
+            if (modalId) {
+                openPlayerHubModal(modalId, button);
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-player-hub-modal-dismiss]').forEach((dismissTarget) => {
+        if (!(dismissTarget instanceof HTMLElement)) {
+            return;
+        }
+        dismissTarget.addEventListener('click', () => {
+            const modalId = dismissTarget.dataset.playerHubModalDismiss;
+            closePlayerHubModal(modalId);
+        });
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && playerHubModalState.active) {
+            closePlayerHubModal();
+        }
+    });
     let weaponCards = [];
     const loadingScreen = document.getElementById('loadingScreen');
     const loadingStatus = document.getElementById('loadingStatus');
@@ -3086,6 +3377,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const runSummaryNyanEl = document.getElementById('runSummaryNyan');
     const runSummaryPlacementEl = document.getElementById('runSummaryPlacement');
     const runSummaryStatusState = { message: '', type: 'info' };
+    const runSummaryTimeOutputs = [runSummaryTimeEl, playerHubModalRunTime].filter(Boolean);
+    const runSummaryScoreOutputs = [runSummaryScoreEl, playerHubModalRunScore].filter(Boolean);
+    const runSummaryStreakOutputs = [runSummaryStreakEl, playerHubModalRunStreak].filter(Boolean);
+    const runSummaryNyanOutputs = [runSummaryNyanEl, playerHubModalRunNyan].filter(Boolean);
 
     let lastPauseReason = 'manual';
     const runSummaryRunsEl = document.getElementById('runSummaryRuns');
@@ -3121,14 +3416,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressionXpFill = document.getElementById('progressionXpFill');
     const progressionXpLabel = document.getElementById('progressionXpLabel');
     const statValueElements = {
-        agility: [document.getElementById('statAgilityValue'), playerHubStatAgilityValue].filter(Boolean),
-        strength: [document.getElementById('statStrengthValue'), playerHubStatStrengthValue].filter(Boolean),
-        luck: [document.getElementById('statLuckValue'), playerHubStatLuckValue].filter(Boolean)
+        agility: [
+            document.getElementById('statAgilityValue'),
+            playerHubStatAgilityValue,
+            playerHubModalStatAgilityValue
+        ].filter(Boolean),
+        strength: [
+            document.getElementById('statStrengthValue'),
+            playerHubStatStrengthValue,
+            playerHubModalStatStrengthValue
+        ].filter(Boolean),
+        luck: [
+            document.getElementById('statLuckValue'),
+            playerHubStatLuckValue,
+            playerHubModalStatLuckValue
+        ].filter(Boolean)
     };
     const statEffectElements = {
-        agility: [document.getElementById('statAgilityEffect'), playerHubStatAgilityEffect].filter(Boolean),
-        strength: [document.getElementById('statStrengthEffect'), playerHubStatStrengthEffect].filter(Boolean),
-        luck: [document.getElementById('statLuckEffect'), playerHubStatLuckEffect].filter(Boolean)
+        agility: [
+            document.getElementById('statAgilityEffect'),
+            playerHubStatAgilityEffect,
+            playerHubModalStatAgilityEffect
+        ].filter(Boolean),
+        strength: [
+            document.getElementById('statStrengthEffect'),
+            playerHubStatStrengthEffect,
+            playerHubModalStatStrengthEffect
+        ].filter(Boolean),
+        luck: [
+            document.getElementById('statLuckEffect'),
+            playerHubStatLuckEffect,
+            playerHubModalStatLuckEffect
+        ].filter(Boolean)
     };
     const statAllocateButtons = new Map();
     document.querySelectorAll('[data-stat-allocate]').forEach((button) => {
@@ -3163,6 +3482,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playerHubLevelEl) {
             playerHubLevelEl.textContent = String(snapshot.level ?? 1);
         }
+        if (playerHubModalLevelEl) {
+            playerHubModalLevelEl.textContent = String(snapshot.level ?? 1);
+        }
         if (progressionPointsEl) {
             const available = Math.max(0, snapshot.unspentPoints ?? 0);
             progressionPointsEl.textContent = available
@@ -3175,6 +3497,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `${available} point${available === 1 ? '' : 's'} ready`
                 : 'Complete flights to earn upgrade points.';
         }
+        if (playerHubModalLevelPointsEl) {
+            const available = Math.max(0, snapshot.unspentPoints ?? 0);
+            playerHubModalLevelPointsEl.textContent = available
+                ? `${available} point${available === 1 ? '' : 's'} ready`
+                : 'Complete flights to earn upgrade points.';
+        }
         if (progressionXpFill) {
             const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
             progressionXpFill.style.width = `${(percent * 100).toFixed(1)}%`;
@@ -3182,6 +3510,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playerHubXpFillEl) {
             const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
             playerHubXpFillEl.style.width = `${(percent * 100).toFixed(1)}%`;
+        }
+        if (playerHubModalXpFill) {
+            const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
+            playerHubModalXpFill.style.width = `${(percent * 100).toFixed(1)}%`;
         }
         if (progressionXpTrack) {
             const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
@@ -3195,6 +3527,12 @@ document.addEventListener('DOMContentLoaded', () => {
             playerHubXpTrackEl.setAttribute('aria-valuemin', '0');
             playerHubXpTrackEl.setAttribute('aria-valuemax', '100');
         }
+        if (playerHubModalXpTrack) {
+            const percent = clamp(snapshot.progressPercent ?? 0, 0, 1);
+            playerHubModalXpTrack.setAttribute('aria-valuenow', String(Math.round(percent * 100)));
+            playerHubModalXpTrack.setAttribute('aria-valuemin', '0');
+            playerHubModalXpTrack.setAttribute('aria-valuemax', '100');
+        }
         if (progressionXpLabel) {
             const current = Math.max(0, snapshot.experience ?? 0);
             const required = Math.max(1, snapshot.xpForNext ?? 1);
@@ -3204,6 +3542,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const current = Math.max(0, snapshot.experience ?? 0);
             const required = Math.max(1, snapshot.xpForNext ?? 1);
             playerHubXpLabelEl.textContent = `${current.toLocaleString()} / ${required.toLocaleString()} XP`;
+        }
+        if (playerHubModalXpLabel) {
+            const current = Math.max(0, snapshot.experience ?? 0);
+            const required = Math.max(1, snapshot.xpForNext ?? 1);
+            playerHubModalXpLabel.textContent = `${current.toLocaleString()} / ${required.toLocaleString()} XP`;
         }
         for (const statId of STAT_IDS) {
             const valueTargets = statValueElements[statId];
@@ -5001,6 +5344,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updatePlayerHubAccountDetails(profile = {}) {
+        const handle = typeof profile?.handle === 'string' ? profile.handle.trim() : '';
+        const email = typeof profile?.email === 'string' ? profile.email.trim() : '';
+        if (playerHubAccountSummaryHandle instanceof HTMLElement) {
+            playerHubAccountSummaryHandle.textContent = handle ? `Handle: ${handle}` : 'Handle: —';
+        }
+        if (playerHubModalAccountHandle instanceof HTMLElement) {
+            playerHubModalAccountHandle.textContent = handle || '—';
+        }
+        if (playerHubModalAccountEmail instanceof HTMLElement) {
+            playerHubModalAccountEmail.textContent = email || '—';
+        }
+    }
+
     function announcePlayerHubStatus(message = '', tone = 'info') {
         if (!(playerHubAuthStatus instanceof HTMLElement)) {
             return;
@@ -5009,6 +5366,15 @@ document.addEventListener('DOMContentLoaded', () => {
         playerHubAuthStatus.dataset.tone = tone;
         playerHubAuthStatus.hidden = message ? false : true;
         playerHubAuthStatus.setAttribute('aria-hidden', message ? 'false' : 'true');
+        const fallbackMessage = message || 'Link an account to sync your progress.';
+        if (playerHubAccountSummaryMessage instanceof HTMLElement) {
+            playerHubAccountSummaryMessage.textContent = fallbackMessage;
+        }
+        if (playerHubModalAccountStatus instanceof HTMLElement) {
+            playerHubModalAccountStatus.textContent = fallbackMessage;
+            playerHubModalAccountStatus.dataset.tone = tone;
+            playerHubModalAccountStatus.hidden = false;
+        }
     }
 
     function applyPlayerProfileToUi() {
@@ -5063,6 +5429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playerProfile.handle && playerNameInput instanceof HTMLInputElement && !playerNameInput.value) {
             playerNameInput.value = playerProfile.handle;
         }
+        updatePlayerHubAccountDetails(playerProfile);
         updatePlayerHubPrimaryActionText();
     }
 
@@ -5656,11 +6023,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playerHubPilotName) {
             playerHubPilotName.textContent = pilot?.name ?? 'Nova';
         }
+        if (playerHubModalPilotName) {
+            playerHubModalPilotName.textContent = pilot?.name ?? 'Nova';
+        }
         if (preflightPilotRole) {
             preflightPilotRole.textContent = pilot?.role ?? '';
         }
         if (playerHubPilotRole) {
             playerHubPilotRole.textContent = pilot?.role ?? '';
+        }
+        if (playerHubModalPilotRole) {
+            playerHubModalPilotRole.textContent = pilot?.role ?? '';
         }
         if (preflightPilotImage) {
             preflightPilotImage.src = pilot?.image ?? 'assets/player.png';
@@ -5676,6 +6049,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playerHubWeaponName) {
             playerHubWeaponName.textContent = weapon?.name ?? 'Pulse Array';
         }
+        if (playerHubModalWeaponName) {
+            playerHubModalWeaponName.textContent = weapon?.name ?? 'Pulse Array';
+        }
         if (preflightWeaponHighlight) {
             const highlight = Array.isArray(weapon?.highlights) && weapon.highlights.length
                 ? weapon.highlights[0]
@@ -5687,6 +6063,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? weapon.highlights[0]
                 : weapon?.summary ?? '';
             playerHubWeaponHighlight.textContent = highlight;
+        }
+        if (playerHubModalWeaponHighlight) {
+            const highlight = Array.isArray(weapon?.highlights) && weapon.highlights.length
+                ? weapon.highlights[0]
+                : weapon?.summary ?? '';
+            playerHubModalWeaponHighlight.textContent = highlight;
         }
         if (preflightWeaponImage) {
             preflightWeaponImage.src = weapon?.icon ?? 'assets/weapon-pulse.svg';
@@ -5965,6 +6347,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCustomLoadoutCollections() {
         renderLoadoutGrid(customLoadoutGrid, { context: 'panel' });
         renderLoadoutGrid(pilotPreviewGrid, { context: 'overlay' });
+        if (playerHubModalPresetSummary instanceof HTMLElement) {
+            const loadoutCount = Array.isArray(customLoadouts) ? customLoadouts.length : 0;
+            if (loadoutCount > 0) {
+                const label = loadoutCount === 1 ? 'preset' : 'presets';
+                playerHubModalPresetSummary.textContent = `Ready for launch with ${loadoutCount} saved ${label}. Visit the Presets tab to equip one instantly.`;
+            } else {
+                playerHubModalPresetSummary.textContent =
+                    'No custom presets saved yet. Build a favorite crew in the Presets tab to quick-launch before missions.';
+            }
+        }
     }
 
     function getAllSkinOptions() {
@@ -10112,12 +10504,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!normalizedMessage) {
             runSummaryStatusEl.textContent = '';
             runSummaryStatusEl.hidden = true;
+            if (playerHubModalRunStatus instanceof HTMLElement) {
+                playerHubModalRunStatus.textContent = '';
+                playerHubModalRunStatus.hidden = true;
+                playerHubModalRunStatus.dataset.tone = 'info';
+            }
             return runSummaryStatusState;
         }
         runSummaryStatusEl.hidden = false;
         runSummaryStatusEl.textContent = normalizedMessage;
         if (normalizedType !== 'info') {
             runSummaryStatusEl.classList.add(normalizedType);
+        }
+        if (playerHubModalRunStatus instanceof HTMLElement) {
+            playerHubModalRunStatus.hidden = false;
+            playerHubModalRunStatus.textContent = normalizedMessage;
+            playerHubModalRunStatus.dataset.tone = normalizedType;
         }
         return runSummaryStatusState;
     }
@@ -10237,22 +10639,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateRunSummaryOverview() {
-        if (!runSummaryTimeEl || !runSummaryScoreEl || !runSummaryStreakEl || !runSummaryNyanEl) {
+        if (
+            !runSummaryTimeOutputs.length ||
+            !runSummaryScoreOutputs.length ||
+            !runSummaryStreakOutputs.length ||
+            !runSummaryNyanOutputs.length
+        ) {
             return;
         }
 
         if (!lastRunSummary) {
-            runSummaryTimeEl.textContent = '—';
-            runSummaryScoreEl.textContent = '—';
-            runSummaryStreakEl.textContent = '—';
-            runSummaryNyanEl.textContent = '—';
+            for (const target of runSummaryTimeOutputs) {
+                target.textContent = '—';
+            }
+            for (const target of runSummaryScoreOutputs) {
+                target.textContent = '—';
+            }
+            for (const target of runSummaryStreakOutputs) {
+                target.textContent = '—';
+            }
+            for (const target of runSummaryNyanOutputs) {
+                target.textContent = '—';
+            }
             if (runSummaryPlacementEl) {
                 runSummaryPlacementEl.textContent = '';
                 runSummaryPlacementEl.hidden = true;
             }
+            if (playerHubModalRunPlacement instanceof HTMLElement) {
+                playerHubModalRunPlacement.textContent = '';
+            }
             if (runSummaryRunsEl) {
                 runSummaryRunsEl.textContent = '';
                 runSummaryRunsEl.hidden = true;
+            }
+            if (playerHubModalRunRuns instanceof HTMLElement) {
+                playerHubModalRunRuns.textContent = '';
             }
             if (runSummaryXpPanel) {
                 runSummaryXpPanel.hidden = true;
@@ -10271,30 +10692,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const safeScore = Math.max(0, Math.floor(Number(summary.score) || 0));
         const safeBestStreak = Math.max(0, Math.floor(Number(summary.bestStreak) || 0));
         const safeNyan = Math.max(0, Math.floor(Number(summary.nyan) || 0));
-        runSummaryTimeEl.textContent = formatTime(safeTime);
-        runSummaryScoreEl.textContent = safeScore.toLocaleString();
-        runSummaryStreakEl.textContent = `x${safeBestStreak}`;
-        runSummaryNyanEl.textContent = safeNyan.toLocaleString();
+        const formattedTime = formatTime(safeTime);
+        const formattedScore = safeScore.toLocaleString();
+        const formattedStreak = `x${safeBestStreak}`;
+        const formattedNyan = safeNyan.toLocaleString();
+        for (const target of runSummaryTimeOutputs) {
+            target.textContent = formattedTime;
+        }
+        for (const target of runSummaryScoreOutputs) {
+            target.textContent = formattedScore;
+        }
+        for (const target of runSummaryStreakOutputs) {
+            target.textContent = formattedStreak;
+        }
+        for (const target of runSummaryNyanOutputs) {
+            target.textContent = formattedNyan;
+        }
 
+        let placementMessage = '';
+        if (Number.isFinite(summary.placement) && summary.placement > 0) {
+            placementMessage = `Galaxy standings: #${summary.placement}`;
+        } else if (summary.recorded) {
+            placementMessage = 'Galaxy standings: Awaiting placement';
+        } else if (summary.reason === 'pending') {
+            placementMessage = 'Submit this run to enter the galaxy standings.';
+        } else if (summary.reason === 'limit') {
+            placementMessage = 'Galaxy standings: Daily log limit reached';
+        } else if (summary.reason === 'skipped') {
+            placementMessage = 'Galaxy standings: Submission skipped';
+        } else if (summary.reason === 'conflict') {
+            placementMessage = 'Galaxy standings: Stronger run already recorded';
+        } else if (summary.reason === 'error') {
+            placementMessage = 'Galaxy standings: Submission error';
+        }
         if (runSummaryPlacementEl) {
-            let placementMessage = '';
-            if (Number.isFinite(summary.placement) && summary.placement > 0) {
-                placementMessage = `Galaxy standings: #${summary.placement}`;
-            } else if (summary.recorded) {
-                placementMessage = 'Galaxy standings: Awaiting placement';
-            } else if (summary.reason === 'pending') {
-                placementMessage = 'Submit this run to enter the galaxy standings.';
-            } else if (summary.reason === 'limit') {
-                placementMessage = 'Galaxy standings: Daily log limit reached';
-            } else if (summary.reason === 'skipped') {
-                placementMessage = 'Galaxy standings: Submission skipped';
-            } else if (summary.reason === 'conflict') {
-                placementMessage = 'Galaxy standings: Stronger run already recorded';
-            } else if (summary.reason === 'error') {
-                placementMessage = 'Galaxy standings: Submission error';
-            }
             runSummaryPlacementEl.textContent = placementMessage;
             runSummaryPlacementEl.hidden = !placementMessage;
+        }
+        if (playerHubModalRunPlacement instanceof HTMLElement) {
+            playerHubModalRunPlacement.textContent = placementMessage;
         }
 
         if (runSummaryRunsEl) {
@@ -10305,6 +10741,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 runSummaryRunsEl.textContent = '';
                 runSummaryRunsEl.hidden = true;
+            }
+        }
+        if (playerHubModalRunRuns instanceof HTMLElement) {
+            if (typeof summary.runsToday === 'number') {
+                const runsUsed = Math.min(Math.max(summary.runsToday, 0), SUBMISSION_LIMIT);
+                playerHubModalRunRuns.textContent = `Daily logs used: ${runsUsed}/${SUBMISSION_LIMIT}`;
+            } else {
+                playerHubModalRunRuns.textContent = '';
             }
         }
 
