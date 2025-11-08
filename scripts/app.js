@@ -5225,11 +5225,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!code) {
             return '';
         }
-        if (globalThis.crypto && globalThis.crypto.subtle && typeof TextEncoder !== 'undefined') {
+        const globalScope = getGlobalScope();
+        const cryptoApi = globalScope && globalScope.crypto ? globalScope.crypto : null;
+        const subtleCrypto = cryptoApi && cryptoApi.subtle ? cryptoApi.subtle : null;
+        const TextEncoderCtor =
+            typeof TextEncoder !== 'undefined'
+                ? TextEncoder
+                : globalScope && globalScope.TextEncoder
+                  ? globalScope.TextEncoder
+                  : null;
+        if (cryptoApi && subtleCrypto && TextEncoderCtor) {
             try {
-                const encoder = new TextEncoder();
+                const encoder = new TextEncoderCtor();
                 const data = encoder.encode(code);
-                const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
+                const digest = await subtleCrypto.digest('SHA-256', data);
                 return bufferToHex(digest);
             } catch (error) {
                 // ignore hashing errors and fall through to fallback
