@@ -20,6 +20,7 @@ let preflightSwapPilotButton = null;
 let swapWeaponButton = null;
 let preflightSwapWeaponButton = null;
 let openWeaponSelectButton = null;
+let tutorialFlightActive = false;
 
 const weaponPatternStates = new Map();
 
@@ -41,6 +42,10 @@ const RUN_EXPERIENCE_KEYS = Object.freeze({
     streak: 'streak',
     powerUp: 'powerUp'
 });
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
 
 function createRunExperienceState() {
     return {
@@ -2643,6 +2648,52 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalFocusTrapHandlers = new WeakMap();
     const loadingSequenceTimers = new Set();
 
+    const STORAGE_KEYS = {
+        playerName: 'nyanEscape.playerName',
+        highScores: 'nyanEscape.highScores',
+        leaderboard: 'nyanEscape.leaderboard',
+        submissionLog: 'nyanEscape.submissionLog',
+        loreProgress: 'nyanEscape.loreProgress',
+        firstRunComplete: 'nyanEscape.firstRunComplete',
+        settings: 'nyanEscape.settings',
+        challenges: 'nyanEscape.challenges',
+        deviceId: 'nyanEscape.deviceId',
+        customLoadouts: 'nyanEscape.customLoadouts',
+        metaProgress: 'nyanEscape.metaProgress',
+        pilotProgress: 'nyanEscape.pilotProgress',
+        playerProfile: 'nyanEscape.playerProfile',
+        playerAccounts: 'nyanEscape.playerAccounts'
+    };
+
+    let storageAvailable = false;
+    try {
+        const testKey = '__nyanEscapeTest__';
+        localStorage.setItem(testKey, '1');
+        localStorage.removeItem(testKey);
+        storageAvailable = true;
+    } catch (error) {
+        storageAvailable = false;
+    }
+
+    function readStorage(key) {
+        if (!storageAvailable) return null;
+        try {
+            return localStorage.getItem(key);
+        } catch (error) {
+            storageAvailable = false;
+            return null;
+        }
+    }
+
+    function writeStorage(key, value) {
+        if (!storageAvailable) return;
+        try {
+            localStorage.setItem(key, value);
+        } catch (error) {
+            storageAvailable = false;
+        }
+    }
+
     function isModalOpen(modal) {
         return Boolean(modal && !modal.hidden && modal.getAttribute('aria-hidden') !== 'true');
     }
@@ -4641,52 +4692,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `"${customFontFamily}", ${fallbackFontStack}`
         : fallbackFontStack;
     const fontsReady = customFontFamily ? loadCustomFont(customFontFamily) : Promise.resolve();
-
-    const STORAGE_KEYS = {
-        playerName: 'nyanEscape.playerName',
-        highScores: 'nyanEscape.highScores',
-        leaderboard: 'nyanEscape.leaderboard',
-        submissionLog: 'nyanEscape.submissionLog',
-        loreProgress: 'nyanEscape.loreProgress',
-        firstRunComplete: 'nyanEscape.firstRunComplete',
-        settings: 'nyanEscape.settings',
-        challenges: 'nyanEscape.challenges',
-        deviceId: 'nyanEscape.deviceId',
-        customLoadouts: 'nyanEscape.customLoadouts',
-        metaProgress: 'nyanEscape.metaProgress',
-        pilotProgress: 'nyanEscape.pilotProgress',
-        playerProfile: 'nyanEscape.playerProfile',
-        playerAccounts: 'nyanEscape.playerAccounts'
-    };
-
-    let storageAvailable = false;
-    try {
-        const testKey = '__nyanEscapeTest__';
-        localStorage.setItem(testKey, '1');
-        localStorage.removeItem(testKey);
-        storageAvailable = true;
-    } catch (error) {
-        storageAvailable = false;
-    }
-
-    function readStorage(key) {
-        if (!storageAvailable) return null;
-        try {
-            return localStorage.getItem(key);
-        } catch (error) {
-            storageAvailable = false;
-            return null;
-        }
-    }
-
-    function writeStorage(key, value) {
-        if (!storageAvailable) return;
-        try {
-            localStorage.setItem(key, value);
-        } catch (error) {
-            storageAvailable = false;
-        }
-    }
 
     const defaultPlayerProfile = () => ({
         mode: 'signin',
@@ -9842,7 +9847,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingSubmission = null;
     let preflightOverlayDismissed = false;
     let preflightReady = false;
-    let tutorialFlightActive = false;
     let tutorialCallsign = null;
     let activeSummaryTab = summarySections.has('run') ? 'run' : summarySections.keys().next().value ?? null;
     let resumeAfterSettingsClose = false;
@@ -12564,10 +12568,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.restore();
         }
         ctx.restore();
-    }
-
-    function clamp(value, min, max) {
-        return Math.max(min, Math.min(max, value));
     }
 
     function normalizeColor(color) {
