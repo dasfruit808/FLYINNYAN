@@ -629,7 +629,7 @@ function loadCustomFont(fontFamily) {
     return loadPromise;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initializeGame() {
     const GAMEPAD_CURSOR_HALF_SIZE = 11;
     // Reset onboarding flags whenever the game reinitializes. This ensures that
     // subsequent reloads (such as during development hot-reloads) don't carry
@@ -18571,5 +18571,11 @@ document.addEventListener('DOMContentLoaded', () => {
     createInitialStars();
     scheduleNextMeteorShower();
     requestAnimationFrame(gameLoop);
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeGame, { once: true });
+} else {
+    initializeGame();
+}
 
